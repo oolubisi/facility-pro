@@ -233,18 +233,23 @@
     });
 
     function showPage(p) {
-      document.querySelectorAll('.page-view').forEach(v => v.classList.remove('active-view'));
-      const menu = document.getElementById('moreMenu');
-      if(menu) menu.classList.remove('show');
-      
-      const target = document.getElementById('view-' + p);
-      if (target) { 
-        target.classList.add('active-view'); 
-        window.scrollTo(0,0); 
-      }
-      if (p === 'dashboard') refreshDashboardStats(); 
-      else refreshData(p);
-    }
+  // Hide all views
+  document.querySelectorAll('.page-view').forEach(v => v.classList.remove('active-view'));
+  
+  // Show target view
+  const target = document.getElementById('view-' + p);
+  if (target) { 
+    target.classList.add('active-view'); 
+    window.scrollTo(0,0); 
+  }
+
+  // ONLY refresh stats if we are going back to the dashboard
+  if (p === 'dashboard') {
+    refreshDashboardStats(); 
+  } else {
+    refreshData(p);
+  }
+}
 
     async function callApi(action, data = {}) {
       try {
@@ -263,90 +268,75 @@
     }
 
     function refreshData(p) {
-      // 1. Map the page name to the actual ID in your HTML
-      const idMap = {
-        'apartments': 'apt-list',
-        'assets': 'asset-list',
-        'inventory': 'inventory-list',
-        'maintenance': 'maint-list',
-        'utilities': 'util-list'
-      };
+  // 1. THE MAP: Links the button name to the actual HTML ID
+  const idMap = {
+    'apartments': 'apt-list',
+    'assets': 'asset-list',
+    'inventory': 'inventory-list',
+    'maintenance': 'maint-list',
+    'utilities': 'util-list'
+  };
 
-      const listId = idMap[p];
-      const listEl = document.getElementById(listId);
-      
-      if (!listEl) {
-        console.error("Could not find HTML element for ID:", listId);
-        return;
-      }
-      
-      listEl.innerHTML = '<p style="padding:20px; text-align:center; color:var(--muted)">Loading...</p>';
-    
-      const actionMap = { 
-        'apartments': 'getApartments', 
-        'assets': 'getAssets',
-        'maintenance': 'getTickets',
-        'inventory': 'getInventory'
-      };
-      
-      const action = actionMap[p];
-      if (!action) return;
+  const listId = idMap[p];
+  const listEl = document.getElementById(listId);
+  
+  if (!listEl) {
+    console.error("Stopping: Could not find HTML element for ID:", listId);
+    return; // This is where your code was likely dying before
+  }
+  
+  listEl.innerHTML = '<p style="padding:20px; text-align:center; color:var(--muted)">Loading...</p>';
 
-      callApi(action).then(data => {
-        if (!data) {
-          listEl.innerHTML = '<p style="padding:20px; text-align:center; color:var(--danger)">Connection Error</p>';
-          return;
-        }
+  // 2. THE ACTIONS: Links the button name to the Google Script function
+  const actionMap = { 
+    'apartments': 'getApartments', 
+    'assets': 'getAssets',
+    'maintenance': 'getTickets',
+    'inventory': 'getInventory'
+  };
+  
+  const action = actionMap[p];
+  if (!action) return;
 
-        // --- APARTMENTS ---
-        if (p === 'apartments') {
-          cache.apts = data || [];
-          listEl.innerHTML = cache.apts.map(x => `
-            <div class="card" onclick="editApartment('${x.apt}')" style="display:flex; justify-content:space-between; align-items:center; cursor:pointer;">
-              <div><strong>${x.apt}</strong><br><small style="color:var(--muted)">${x.tenant || 'Vacant'}</small></div>
-              <i class="fas fa-chevron-right" style="opacity:0.3"></i>
-            </div>
-          `).join('');
-        } 
-        
-        // --- ASSETS ---
-        else if (p === 'assets') {
-          cache.assets = data || [];
-          listEl.innerHTML = cache.assets.map(x => `
-            <div class="card" onclick="editAsset('${x.tag}')" style="cursor:pointer;">
-              <div style="display:flex; justify-content:space-between; align-items:start;">
-                <div>
-                   <strong style="color:var(--primary)">${x.tag}</strong>
-                   <h4 style="margin:2px 0">${x.type}</h4>
-                   <small style="color:var(--muted)">${x.apt} | ${x.loc}</small>
-                </div>
-                <button style="background:none; border:none; color:var(--danger); padding:5px;" onclick="event.stopPropagation(); archiveAsset('${x.tag}')">
-                  <i class="fas fa-archive"></i>
-                </button>
-              </div>
-            </div>
-          `).join('');
-        }
-        
-        // --- INVENTORY (As requested) ---
-        else if (p === 'inventory') {
-          cache.inventory = data || [];
-          listEl.innerHTML = cache.inventory.map(x => {
-            const isLow = parseInt(x.stock) <= parseInt(x.min);
-            return `
-              <div class="card" onclick="editInventory('${x.item}')" style="cursor:pointer;">
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                  <div><strong>${x.item}</strong><br><small>${x.category}</small></div>
-                  <div style="text-align:right;">
-                    <div style="font-size:20px; font-weight:800; color:${isLow ? 'var(--danger)' : 'var(--success)'}">${x.stock}</div>
-                    <small>${x.unit}</small>
-                  </div>
-                </div>
-              </div>`;
-          }).join('');
-        }
-      });
+  // 3. THE CALL: Now we actually talk to Google
+  callApi(action).then(data => {
+    if (!data) {
+      listEl.innerHTML = '<p style="padding:20px; text-align:center; color:var(--danger)">Connection Error</p>';
+      return;
     }
+
+    // --- APARTMENTS ---
+    if (p === 'apartments') {
+      cache.apts = data || [];
+      listEl.innerHTML = cache.apts.map(x => `
+        <div class="card" onclick="editApartment('${x.apt}')" style="display:flex; justify-content:space-between; align-items:center; cursor:pointer;">
+          <div><strong>${x.apt}</strong><br><small style="color:var(--muted)">${x.tenant || 'Vacant'}</small></div>
+          <i class="fas fa-chevron-right" style="opacity:0.3"></i>
+        </div>
+      `).join('');
+    } 
+    
+    // --- ASSETS ---
+    else if (p === 'assets') {
+      cache.assets = data || [];
+      listEl.innerHTML = cache.assets.map(x => `
+        <div class="card" onclick="editAsset('${x.tag}')" style="cursor:pointer;">
+          <div style="display:flex; justify-content:space-between; align-items:start;">
+            <div>
+               <strong style="color:var(--primary)">${x.tag}</strong>
+               <h4 style="margin:2px 0">${x.type}</h4>
+               <small style="color:var(--muted)">${x.apt} | ${x.loc}</small>
+            </div>
+            <button style="background:none; border:none; color:var(--danger); padding:5px;" onclick="event.stopPropagation(); archiveAsset('${x.tag}')">
+              <i class="fas fa-archive"></i>
+            </button>
+          </div>
+        </div>
+      `).join('');
+    }
+  });
+}
+    
     function refreshDashboardStats() {
       callApi('getStats').then(d => {
         if(!d) return;
