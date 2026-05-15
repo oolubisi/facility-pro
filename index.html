@@ -320,12 +320,23 @@
 
       <div id="view-assets" class="page-view">
         <div class="page-header">
-          <div class="header-group"><button class="home-btn" onclick="showPage('dashboard')"><i class="fas fa-home"></i></button><h2>Assets</h2></div>
-          <button class="add-btn" onclick="('asset')">Add</button>
+          <div class="header-group">
+            <button class="home-btn" onclick="showPage('dashboard')"><i class="fas fa-home"></i></button>
+            <h2>Assets</h2>
+          </div>
+          <button class="add-btn" onclick="openModal('asset')">Add Asset</button>
         </div>
+      
+        <div style="margin-bottom: 20px;">
+          <label style="font-size: 14px; font-weight: 800; color: var(--text); display: block; margin-bottom: 5px;">VIEW BY UNIT:</label>
+          <select id="asset-unit-filter" onchange="refreshData('assets')" style="font-size: 18px; padding: 12px; border: 3px solid #000;">
+            <option value="ALL">-- ALL ASSETS --</option>
+            </select>
+        </div>
+      
         <div id="asset-list"></div>
       </div>
-
+      
       <div id="view-inventory" class="page-view">
         <div class="page-header">
           <div class="header-group"><button class="home-btn" onclick="showPage('dashboard')"><i class="fas fa-home"></i></button><h2>Inventory</h2></div>
@@ -498,74 +509,49 @@
     }
 
     function refreshData(p) {
-  // 1. THE MAP: Links the button name to the actual HTML ID
-  const idMap = {
-    'apartments': 'apt-list',
-    'assets': 'asset-list',
-    'inventory': 'inventory-list',
-    'maintenance': 'maint-list',
-    'utilities': 'util-list'
-  };
-
-  const listId = idMap[p];
-  const listEl = document.getElementById(listId);
-  
-  if (!listEl) {
-    console.error("Stopping: Could not find HTML element for ID:", listId);
-    return; // This is where your code was likely dying before
-  }
-  
-  listEl.innerHTML = '<p style="padding:20px; text-align:center; color:var(--muted)">Loading...</p>';
-
-  // 2. THE ACTIONS: Links the button name to the Google Script function
-  const actionMap = { 
-    'apartments': 'getApartments', 
-    'assets': 'getAssets',
-    'maintenance': 'getTickets',
-    'inventory': 'getInventory'
-  };
-  
-  const action = actionMap[p];
-  if (!action) return;
-
-  // 3. THE CALL: Now we actually talk to Google
-  callApi(action).then(data => {
-    if (!data) {
-      listEl.innerHTML = '<p style="padding:20px; text-align:center; color:var(--danger)">Connection Error</p>';
-      return;
-    }
-
-    // --- APARTMENTS ---
-    if (p === 'apartments') {
-      cache.apts = data || [];
-      listEl.innerHTML = cache.apts.map(x => `
-        <div class="card" onclick="editApartment('${x.apt}')" style="display:flex; justify-content:space-between; align-items:center; cursor:pointer;">
-          <div><strong>${x.apt}</strong><br><small style="color:var(--muted)">${x.tenant || 'Vacant'}</small></div>
-          <i class="fas fa-chevron-right" style="opacity:0.3"></i>
-        </div>
-      `).join('');
-    } 
+      const idMap = { 'apartments': 'apt-list', 'assets': 'asset-list' };
+      const listEl = document.getElementById(idMap[p]);
+      if (!listEl) return;
     
-    // --- ASSETS ---
-    else if (p === 'assets') {
-      cache.assets = data || [];
-      listEl.innerHTML = cache.assets.map(x => `
-        <div class="card" onclick="editAsset('${x.tag}')" style="cursor:pointer;">
-          <div style="display:flex; justify-content:space-between; align-items:start;">
-            <div>
-               <strong style="color:var(--primary)">${x.tag}</strong>
-               <h4 style="margin:2px 0">${x.type}</h4>
-               <small style="color:var(--muted)">${x.apt} | ${x.loc}</small>
+      callApi(p === 'apartments' ? 'getApartments' : 'getAssets', {}).then(data => {
+        let displayData = data;
+    
+        if (p === 'assets') {
+          // 1. Populate the filter dropdown if it's empty (only once)
+          const filter = document.getElementById('asset-unit-filter');
+          if (filter.options.length <= 1 && cache.apts) {
+            cache.apts.forEach(a => {
+              const opt = document.createElement('option');
+              opt.value = a.apt;
+              opt.innerText = a.apt;
+              filter.appendChild(opt);
+            });
+          }
+    
+          // 2. Filter logic
+          const selectedUnit = filter.value;
+          if (selectedUnit !== "ALL") {
+            displayData = data.filter(item => item.apt === selectedUnit);
+          }
+        }
+    
+        // 3. Draw the cards (using your high-visibility style)
+        listEl.innerHTML = displayData.map(item => `
+          <div class="card" onclick='openModal("${p === "apartments" ? "apartment" : "asset"}", ${JSON.stringify(item)})'>
+            <div style="display:flex; justify-content:space-between; align-items:start;">
+              <div>
+                <strong style="font-size:20px;">${p === 'apartments' ? item.apt : item.tag}</strong><br>
+                <span style="font-size:16px; font-weight:600;">${item.type}</span>
+              </div>
+              <span style="padding:4px 10px; border-radius:8px; font-size:12px; font-weight:900; background:var(--text); color:white;">
+                ${item.status.toUpperCase()}
+              </span>
             </div>
-            <button style="background:none; border:none; color:var(--danger); padding:5px;" onclick="event.stopPropagation(); archiveAsset('${x.tag}')">
-              <i class="fas fa-archive"></i>
-            </button>
+            ${item.loc ? `<div style="margin-top:8px; font-size:14px; color:var(--muted); font-weight:700;">Location: ${item.loc}</div>` : ''}
           </div>
-        </div>
-      `).join('');
+        `).join('');
+      });
     }
-  });
-}
     
     function refreshDashboardStats() {
       callApi('getStats').then(d => {
@@ -723,119 +709,81 @@
       }
     
       else if (type === 'asset') {
-          const isEdit = !!editData;
-          const uniqueTag = isEdit ? (editData.tag || '') : "AST-" + Math.random().toString(36).substr(2, 5).toUpperCase();
-          title.innerText = isEdit ? "Asset Profile: " + uniqueTag : "Register New Asset";
-      
-          let photoQueue = isEdit && editData.photos ? editData.photos.split(',').filter(url => url.trim() !== "") : [];
-      
-          const renderAssetPhotos = () => {
-            const container = document.getElementById('assetPhotoPreview');
-            if (!container) return;
-            container.innerHTML = photoQueue.map((url, index) => `
-              <div style="position:relative; width:100%; aspect-ratio:1/1;">
-                <img src="${getDirectImageUrl(url)}" style="width:100%; height:100%; object-fit:cover; border-radius:8px; border: 2px solid var(--text);">
-                <button onclick="window.removeAssetPhoto(${index})" style="position:absolute; top:5px; right:5px; background:rgba(220,53,69,0.9); color:white; border:none; border-radius:50%; width:28px; height:28px; cursor:pointer; display:flex; align-items:center; justify-content:center;">
-                  <i class="fas fa-times"></i>
-                </button>
-              </div>
-            `).join('');
-          };
-      
-          window.removeAssetPhoto = (index) => {
-            photoQueue.splice(index, 1);
-            renderAssetPhotos();
-          };
-      
-          const largeInput = 'style="font-size: 20px; padding: 16px; margin-bottom: 10px;"';
-          const labelStyle = 'style="font-size: 16px; color: var(--text); font-weight: 800; display: block; margin-top: 12px; margin-bottom: 4px;"';
-      
-          body.innerHTML = `
-            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:10px;">
-              <div>
-                <label ${labelStyle}>Unit</label>
-                <select id="a_apt" ${largeInput}>
-                  <option value="">-- Select --</option>
-                  ${cache.apts.map(a => `<option value="${a.apt}" ${isEdit && a.apt === editData.apt ? 'selected' : ''}>${a.apt}</option>`).join('')}
-                </select>
-              </div>
-              <div style="text-align:center;">
-                <label ${labelStyle}>Tag</label>
-                <strong style="font-size:20px; display:block; padding:12px;">${uniqueTag}</strong>
-              </div>
+        const isEdit = !!editData;
+        const uniqueTag = isEdit ? (editData.tag || '') : "AST-" + Math.random().toString(36).substr(2, 5).toUpperCase();
+        title.innerText = isEdit ? "Update Asset: " + uniqueTag : "Register Asset";
+    
+        let photoQueue = isEdit && editData.photos ? editData.photos.split(',').filter(url => url.trim() !== "") : [];
+    
+        // ... (Keep your existing renderAssetPhotos and window.removeAssetPhoto here) ...
+    
+        body.innerHTML = `
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:10px;">
+            <div>
+              <label ${labelStyle}>Unit</label>
+              <select id="a_apt" ${largeInput} ${isEdit ? 'disabled style="opacity:0.6; background:#eee;"' : ''}>
+                <option value="">-- Select --</option>
+                ${cache.apts.map(a => `<option value="${a.apt}" ${isEdit && a.apt === editData.apt ? 'selected' : ''}>${a.apt}</option>`).join('')}
+              </select>
             </div>
-      
-            <label ${labelStyle}>Category / Type</label>
-            <input id="a_type" value="${isEdit ? (editData.type || '') : ''}" placeholder="e.g. Fridge" ${largeInput}>
-            
-            <label ${labelStyle}>Status</label>
-            <select id="a_status" ${largeInput}>
-              <option value="Operational" ${isEdit && editData.status === 'Operational' ? 'selected' : ''}>Operational</option>
-              <option value="Faulty" ${isEdit && editData.status === 'Faulty' ? 'selected' : ''}>Faulty</option>
-              <option value="Under Repair" ${isEdit && editData.status === 'Under Repair' ? 'selected' : ''}>Under Repair</option>
-              <option value="Decommissioned" ${isEdit && editData.status === 'Decommissioned' ? 'selected' : ''}>Decommissioned</option>
-            </select>
-      
-            <label ${labelStyle}>Location in Unit</label>
-            <input id="a_loc" value="${isEdit ? (editData.loc || '') : ''}" placeholder="e.g. Kitchen" ${largeInput}>
-      
-            <label ${labelStyle}>Technical Specs</label>
-            <input id="a_specs" value="${isEdit ? (editData.specs || '') : ''}" placeholder="e.g. LG / 250L / Serial No." ${largeInput}>
-      
-            <label ${labelStyle}>Last Serviced</label>
-            <input id="a_serviced" type="date" value="${fromSheetDate(editData.lastServiced)}" ${largeInput}>
-      
-            <label ${labelStyle}>Last Inspected</label>
-            <input id="a_inspected" type="date" value="${fromSheetDate(editData.lastInspected)}" ${largeInput}>
-            
-            <label ${labelStyle}>Notes</label>
-            <textarea id="a_notes" rows="3" ${largeInput}>${isEdit ? (editData.notes || '') : ''}</textarea>
-      
-            <div style="margin-top:20px; border-top:3px solid var(--text); padding-top:15px;">
-              <label class="action-btn" style="background:var(--text); color:white; display:block; text-align:center; padding:18px; cursor:pointer; font-size: 18px; border-radius: 12px;">
-                <i class="fas fa-camera"></i> Capture Asset Photo
-                <input type="file" id="assetCameraInput" accept="image/*" capture="environment" style="display:none">
-              </label>
-              <div id="assetPhotoPreview" style="display:grid; grid-template-columns: repeat(3, 1fr); gap:10px; margin-top:15px;"></div>
+            <div style="text-align:center;">
+              <label ${labelStyle}>Asset Tag</label>
+              <strong style="font-size:20px; display:block; padding:12px;">${uniqueTag}</strong>
             </div>
+          </div>
+    
+          <label ${labelStyle}>Category / Type</label>
+          <input id="a_type" value="${isEdit ? (editData.type || '') : ''}" ${largeInput}>
+          
+          <label ${labelStyle}>Status</label>
+          <select id="a_status" ${largeInput}>
+            <option value="Operational" ${isEdit && editData.status === 'Operational' ? 'selected' : ''}>Operational</option>
+            <option value="Faulty" ${isEdit && editData.status === 'Faulty' ? 'selected' : ''}>Faulty</option>
+            <option value="Under Repair" ${isEdit && editData.status === 'Under Repair' ? 'selected' : ''}>Under Repair</option>
+          </select>
+    
+          <label ${labelStyle}>Location in Unit</label>
+          <input id="a_loc" value="${isEdit ? (editData.loc || '') : ''}" ${largeInput}>
+    
+          <label ${labelStyle}>Technical Specs</label>
+          <input id="a_specs" value="${isEdit ? (editData.specs || '') : ''}" ${largeInput}>
+    
+          <label ${labelStyle}>Last Serviced</label>
+          <input id="a_serviced" type="date" value="${fromSheetDate(editData.lastServiced)}" ${largeInput}>
+    
+          <label ${labelStyle}>Last Inspected</label>
+          <input id="a_inspected" type="date" value="${fromSheetDate(editData.lastInspected)}" ${largeInput}>
+          
+          <label ${labelStyle}>Notes</label>
+          <textarea id="a_notes" rows="3" ${largeInput}>${isEdit ? (editData.notes || '') : ''}</textarea>
+    
+          <div id="assetPhotoPreview" style="display:grid; grid-template-columns: repeat(3, 1fr); gap:10px; margin-top:15px;"></div>
           `;
-      
-          renderAssetPhotos();
-      
-          document.getElementById('assetCameraInput').onchange = async function(e) {
-            const file = e.target.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = async function(event) {
-              const compressedBase64 = await compressImage(event.target.result);
-              callApi('uploadImage', { base64: compressedBase64, name: "asset_" + uniqueTag + ".jpg" }).then(res => {
-                if (res && res.url) { photoQueue.push(res.url); renderAssetPhotos(); }
-              });
-            };
-            reader.readAsDataURL(file);
+    
+        renderAssetPhotos();
+    
+        submit.onclick = () => {
+          submit.disabled = true;
+          const payload = {
+            // If disabled, we use the editData.apt because .value will be empty
+            apt: isEdit ? editData.apt : document.getElementById('a_apt').value,
+            tag: uniqueTag,
+            type: document.getElementById('a_type').value,
+            status: document.getElementById('a_status').value,
+            lastServiced: toSheetDate(document.getElementById('a_serviced').value),
+            lastInspected: toSheetDate(document.getElementById('a_inspected').value),
+            loc: document.getElementById('a_loc').value,
+            specs: document.getElementById('a_specs').value,
+            photos: photoQueue.join(','),
+            notes: document.getElementById('a_notes').value
           };
-      
-          submit.onclick = () => {
-            submit.disabled = true;
-            const payload = {
-              apt: document.getElementById('a_apt').value,
-              tag: uniqueTag,
-              type: document.getElementById('a_type').value,
-              status: document.getElementById('a_status').value,
-              lastServiced: toSheetDate(document.getElementById('a_serviced').value),
-              lastInspected: toSheetDate(document.getElementById('a_inspected').value),
-              loc: document.getElementById('a_loc').value,
-              specs: document.getElementById('a_specs').value,
-              photos: photoQueue.join(','),
-              notes: document.getElementById('a_notes').value
-            };
-      
-            callApi(isEdit ? 'updateAsset' : 'saveAsset', payload).then(res => {
-              if (res && res.success) { closeModal(); refreshData('assets'); }
-              else { submit.disabled = false; alert("Error: " + res.error); }
-            });
-          };
-        }    
+    
+          callApi(isEdit ? 'updateAsset' : 'saveAsset', payload).then(res => {
+            if (res && res.success) { closeModal(); refreshData('assets'); }
+            else { submit.disabled = false; alert("Error: " + res.error); }
+          });
+        };
+      }    
     }
     
     function filterAssetsForTicket(aptNum, selectedAsset = '') {
