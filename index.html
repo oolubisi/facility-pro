@@ -517,37 +517,43 @@
         let displayData = data;
     
         if (p === 'assets') {
-          // 1. Populate the filter dropdown if it's empty (only once)
           const filter = document.getElementById('asset-unit-filter');
-          if (filter.options.length <= 1 && cache.apts) {
-            cache.apts.forEach(a => {
+          
+          // 1. Get unique units from the Asset data (Column A)
+          // We filter out empties and then get unique values
+          const uniqueUnitsFromAssets = [...new Set(data.map(item => item.apt))].filter(Boolean).sort();
+    
+          // 2. Populate the filter dropdown if it only has the "ALL" option
+          if (filter.options.length <= 1) {
+            uniqueUnitsFromAssets.forEach(unitName => {
               const opt = document.createElement('option');
-              opt.value = a.apt;
-              opt.innerText = a.apt;
+              opt.value = unitName;
+              opt.innerText = unitName;
               filter.appendChild(opt);
             });
           }
     
-          // 2. Filter logic
+          // 3. Apply the actual filtering
           const selectedUnit = filter.value;
           if (selectedUnit !== "ALL") {
             displayData = data.filter(item => item.apt === selectedUnit);
           }
         }
     
-        // 3. Draw the cards (using your high-visibility style)
+        // 4. Draw the high-visibility cards
         listEl.innerHTML = displayData.map(item => `
-          <div class="card" onclick='openModal("${p === "apartments" ? "apartment" : "asset"}", ${JSON.stringify(item)})'>
-            <div style="display:flex; justify-content:space-between; align-items:start;">
+          <div class="card" onclick='openModal("asset", ${JSON.stringify(item)})'>
+            <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:8px;">
               <div>
-                <strong style="font-size:20px;">${p === 'apartments' ? item.apt : item.tag}</strong><br>
-                <span style="font-size:16px; font-weight:600;">${item.type}</span>
+                <strong style="font-size:22px; color:#000;">${item.apt}</strong><br>
+                <span style="font-size:18px; font-weight:800; color:var(--primary);">${item.type}</span>
               </div>
-              <span style="padding:4px 10px; border-radius:8px; font-size:12px; font-weight:900; background:var(--text); color:white;">
+              <span style="padding:6px 12px; border:2px solid #000; border-radius:8px; font-size:14px; font-weight:900; background:#000; color:#fff;">
                 ${item.status.toUpperCase()}
               </span>
             </div>
-            ${item.loc ? `<div style="margin-top:8px; font-size:14px; color:var(--muted); font-weight:700;">Location: ${item.loc}</div>` : ''}
+            <div style="font-size:16px; font-weight:700; color:#000;">Tag: ${item.tag}</div>
+            <div style="font-size:14px; font-weight:600; color:var(--muted); margin-top:4px;">Loc: ${item.loc || 'N/A'}</div>
           </div>
         `).join('');
       });
@@ -777,7 +783,15 @@
             photos: photoQueue.join(','),
             notes: document.getElementById('a_notes').value
           };
-    
+          // Inside openModal -> asset -> submit.onclick
+          callApi(isEdit ? 'updateAsset' : 'saveAsset', payload).then(res => {
+            if (res && res.success) {
+              // Clear the filter dropdown so it repopulates with the new unit if necessary
+              document.getElementById('asset-unit-filter').innerHTML = '<option value="ALL">-- ALL ASSETS --</option>';
+              closeModal();
+              refreshData('assets');
+            }
+          });
           callApi(isEdit ? 'updateAsset' : 'saveAsset', payload).then(res => {
             if (res && res.success) { closeModal(); refreshData('assets'); }
             else { submit.disabled = false; alert("Error: " + res.error); }
