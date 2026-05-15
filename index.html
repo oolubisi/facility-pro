@@ -206,6 +206,17 @@
     .menu-item:last-child {
       border-bottom: none;
     }
+    /* Forces the card labels (including More..) to pure black */
+.nav-card small { 
+  color: #000000 !important; 
+  opacity: 1 !important;
+  font-weight: 900; /* Extra thick for high visibility */
+}
+
+/* Also makes the '...' icon inside the More card black if needed */
+.nav-card i.fa-ellipsis-h, .nav-card .count {
+  color: #000000 !important;
+}
   </style>
 </head>
 <body>
