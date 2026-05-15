@@ -281,15 +281,22 @@
         } 
         else if (p === 'assets') {
           cache.assets = data || [];
+          
+          if (cache.assets.length === 0) {
+            listEl.innerHTML = '<p style="padding:20px; text-align:center; color:var(--muted)">No assets found.</p>';
+            return;
+          }
+
           listEl.innerHTML = cache.assets.map(x => `
             <div class="card" onclick="editAsset('${x.tag}')" style="cursor:pointer;">
               <div style="display:flex; justify-content:space-between; align-items:start;">
                 <div>
-                   <strong style="color:var(--primary)">${x.tag}</strong>
-                   <h4 style="margin:2px 0">${x.type}</h4>
-                   <small style="color:var(--muted)">${x.apt} | ${x.loc}</small>
+                   <strong style="color:var(--primary)">${x.tag || 'NO TAG'}</strong>
+                   <h4 style="margin:2px 0">${x.type || 'Unknown Asset'}</h4>
+                   <small style="color:var(--muted)">${x.apt || 'No Unit'} | ${x.loc || 'No Loc'}</small>
                 </div>
-                <button style="background:none; border:none; color:var(--danger); padding:5px;" onclick="event.stopPropagation(); archiveAsset('${x.tag}')">
+                <button style="background:none; border:none; color:var(--danger); padding:5px;" 
+                        onclick="event.stopPropagation(); archiveAsset('${x.tag}')">
                   <i class="fas fa-archive"></i>
                 </button>
               </div>
