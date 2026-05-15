@@ -375,133 +375,163 @@
     }
 
     function openModal(type, editData = null) {
-      const body = document.getElementById('modalBody');
-      const submit = document.getElementById('modalSubmit');
-      const title = document.getElementById('modalTitle');
-      const overlay = document.getElementById('modalOverlay');
+  const body = document.getElementById('modalBody');
+  const submit = document.getElementById('modalSubmit');
+  const title = document.getElementById('modalTitle');
+  const overlay = document.getElementById('modalOverlay');
 
-      const isEdit = !!editData;
-      overlay.style.display = 'flex';
-      body.innerHTML = ''; 
-      submit.disabled = false;
-      submit.innerText = isEdit ? "Update" : "Save";
+  const isEdit = !!editData;
+  overlay.style.display = 'flex';
+  body.innerHTML = ''; 
+  submit.disabled = false;
+  submit.innerText = isEdit ? "Update" : "Save";
 
-      if (type === 'apartment') {
-        title.innerText = isEdit ? "Update Unit" : "Add New Unit";
-        
-        // Setup a temporary array for photos
-        let photoQueue = isEdit && editData.photos ? editData.photos.split(',') : [];
+  if (type === 'apartment') {
+    title.innerText = isEdit ? "Update Unit" : "Add New Unit";
+    
+    // Fallback for photos: if null/undefined, use empty string, then split
+    let photoQueue = isEdit && (editData.photos || '') ? editData.photos.split(',') : [];
 
-        body.innerHTML = `
-          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
-            <div><small style="color:var(--muted)">Unit #</small><input id="f_apt" value="${isEdit ? editData.apt : ''}"></div>
-            <div><small style="color:var(--muted)">Type</small><select id="f_type">
-              <option value="Studio" ${isEdit && editData.type === 'Studio' ? 'selected' : ''}>Studio</option>
-              <option value="1BR" ${isEdit && editData.type === '1BR' ? 'selected' : ''}>1 Bedroom</option>
-              <option value="2BR" ${isEdit && editData.type === '2BR' ? 'selected' : ''}>2 Bedroom</option>
-            </select></div>
-          </div>
+    body.innerHTML = `
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+        <div>
+          <small style="color:var(--muted)">Unit #</small>
+          <input id="f_apt" value="${isEdit ? (editData.apt || '') : ''}">
+        </div>
+        <div>
+          <small style="color:var(--muted)">Type</small>
+          <select id="f_type">
+            <option value="Studio" ${isEdit && editData.type === 'Studio' ? 'selected' : ''}>Studio</option>
+            <option value="1BR" ${isEdit && editData.type === '1BR' ? 'selected' : ''}>1 Bedroom</option>
+            <option value="2BR" ${isEdit && editData.type === '2BR' ? 'selected' : ''}>2 Bedroom</option>
+            <option value="3BR" ${isEdit && editData.type === '3BR' ? 'selected' : ''}>3 Bedroom</option>
+          </select>
+        </div>
+      </div>
 
-          <small style="color:var(--muted)">Tenant Name</small>
-          <input id="f_tenant" value="${isEdit ? editData.tenant : ''}">
+      <small style="color:var(--muted)">Tenant Name</small>
+      <input id="f_tenant" value="${isEdit ? (editData.tenant || '') : ''}">
 
-          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
-            <div><small style="color:var(--muted)">Phone 1</small><input id="f_p1" type="tel" value="${isEdit ? editData.phone1 : ''}"></div>
-            <div><small style="color:var(--muted)">Phone 2</small><input id="f_p2" type="tel" value="${isEdit ? editData.phone2 : ''}"></div>
-          </div>
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+        <div>
+          <small style="color:var(--muted)">Phone 1</small>
+          <input id="f_p1" type="tel" value="${isEdit ? (editData.phone1 || '') : ''}">
+        </div>
+        <div>
+          <small style="color:var(--muted)">Phone 2</small>
+          <input id="f_p2" type="tel" value="${isEdit ? (editData.phone2 || '') : ''}">
+        </div>
+      </div>
 
-          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
-            <div><small style="color:var(--muted)">Status</small><select id="f_status">
-              <option value="Occupied" ${isEdit && editData.status === 'Occupied' ? 'selected' : ''}>Occupied</option>
-              <option value="Vacant" ${isEdit && editData.status === 'Vacant' ? 'selected' : ''}>Vacant</option>
-              <option value="Maintenance" ${isEdit && editData.status === 'Maintenance' ? 'selected' : ''}>Maintenance</option>
-            </select></div>
-            <div><small style="color:var(--muted)">Lease End</small><input id="f_lease" type="date" value="${isEdit ? editData.leaseEnd : ''}"></div>
-          </div>
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+        <div>
+          <small style="color:var(--muted)">Status</small>
+          <select id="f_status">
+            <option value="Occupied" ${isEdit && editData.status === 'Occupied' ? 'selected' : ''}>Occupied</option>
+            <option value="Vacant" ${isEdit && editData.status === 'Vacant' ? 'selected' : ''}>Vacant</option>
+            <option value="Maintenance" ${isEdit && editData.status === 'Maintenance' ? 'selected' : ''}>Maintenance</option>
+          </select>
+        </div>
+        <div>
+          <small style="color:var(--muted)">Lease End</small>
+          <input id="f_lease" type="date" value="${isEdit ? (editData.leaseEnd || '') : ''}">
+        </div>
+      </div>
 
-          <small style="color:var(--muted)">Notes</small>
-          <textarea id="f_notes" rows="2">${isEdit ? editData.notes : ''}</textarea>
+      <small style="color:var(--muted)">Notes</small>
+      <textarea id="f_notes" rows="2">${isEdit ? (editData.notes || '') : ''}</textarea>
 
-          <div style="margin-top:15px; border-top:1px solid var(--border); padding-top:15px;">
-            <label class="action-btn" style="background:var(--card-light); display:block; text-align:center; padding:12px; cursor:pointer;">
-              <i class="fas fa-camera"></i> Take Photo
-              <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display:none">
-            </label>
-            <div id="photoPreview" style="display:grid; grid-template-columns: repeat(3, 1fr); gap:8px; margin-top:10px;">
-               ${photoQueue.map(url => `<img src="${url}" style="width:100%; aspect-ratio:1/1; object-fit:cover; border-radius:8px;">`).join('')}
-            </div>
-          </div>
-        `;
+      <div style="margin-top:15px; border-top:1px solid var(--border); padding-top:15px;">
+        <label class="action-btn" style="background:var(--card-light); display:block; text-align:center; padding:12px; cursor:pointer;">
+          <i class="fas fa-camera"></i> Take Photo
+          <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display:none">
+        </label>
+        <div id="photoPreview" style="display:grid; grid-template-columns: repeat(3, 1fr); gap:8px; margin-top:10px;">
+           ${photoQueue.map(url => `<img src="${url}" style="width:100%; aspect-ratio:1/1; object-fit:cover; border-radius:8px;">`).join('')}
+        </div>
+      </div>
+    `;
 
-        // HANDLE CAMERA PREVIEW
-        document.getElementById('cameraInput').onchange = async function(e) {
-          const file = e.target.files[0];
-          if (!file) return;
-        
-          const reader = new FileReader();
-          reader.onload = async function(event) {
-            const originalBase64 = event.target.result;
-            
-            // 1. Compress it first
-            const compressedBase64 = await compressImage(originalBase64);
-            
-            // 2. Show preview
-            const img = document.createElement('img');
-            img.src = compressedBase64;
-            img.style = "width:100%; aspect-ratio:1/1; object-fit:cover; border-radius:8px; border:2px solid var(--primary)";
-            document.getElementById('photoPreview').appendChild(img);
-            
-            // 3. Upload the smaller version
-            callApi('uploadImage', { 
-              base64: compressedBase64, 
-              name: "apt_" + Date.now() + ".jpg" 
-            }).then(res => {
-              if (res && res.url) {
-                photoQueue.push(res.url);
-                img.style.border = "none"; 
-              }
-            });
-          };
-          reader.readAsDataURL(file);
-        };
-        submit.onclick = () => {
-          submit.disabled = true;
-          const payload = {
-            apt: document.getElementById('f_apt').value,
-            tenant: document.getElementById('f_tenant').value,
-            type: document.getElementById('f_type').value,
-            phone1: document.getElementById('f_p1').value,
-            phone2: document.getElementById('f_p2').value,
-            status: document.getElementById('f_status').value,
-            leaseEnd: document.getElementById('f_lease').value,
-            notes: document.getElementById('f_notes').value,
-            photos: photoQueue.join(','),
-            oldApt: isEdit ? editData.apt : null
-          };
-          
-          callApi(isEdit ? 'updateApartment' : 'saveApartment', payload).then(() => {
-            closeModal();
-            refreshData('apartments');
-          });
-        };
-      }
-      else if (type === 'asset') {
-        title.innerText = isEdit ? "Update Asset" : "Register Asset";
-        const uniqueTag = isEdit ? editData.tag : "AST-" + Math.random().toString(36).substr(2, 5).toUpperCase();
-        body.innerHTML = `
-          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:15px;">
-            <div><small style="color:var(--muted)">Unit</small><select id="a_apt"><option value="">-- Select --</option>${cache.apts.map(a => `<option value="${a.apt}" ${isEdit && a.apt === editData.apt ? 'selected' : ''}>${a.apt}</option>`).join('')}</select></div>
-            <div style="text-align:center;"><small style="color:var(--muted)">Tag</small><br><strong>${uniqueTag}</strong></div>
-          </div>
-          <input id="a_type" placeholder="Type" value="${isEdit ? editData.type : ''}"><input id="a_loc" placeholder="Location" value="${isEdit ? editData.loc : ''}"><input id="a_status" placeholder="Status" value="${isEdit ? editData.status : 'Operational'}"><textarea id="a_notes" rows="2">${isEdit ? editData.notes : ''}</textarea>
-        `;
-        submit.onclick = () => {
-          submit.disabled = true;
-          callApi(isEdit ? 'updateAsset' : 'saveAsset', { apt: document.getElementById('a_apt').value, tag: uniqueTag, type: document.getElementById('a_type').value, loc: document.getElementById('a_loc').value, status: document.getElementById('a_status').value, notes: document.getElementById('a_notes').value }).then(() => { closeModal(); refreshData('assets'); });
-        };
-      }
-    }
+    // ... Camera logic remains the same ...
+    document.getElementById('cameraInput').onchange = async function(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = async function(event) {
+        const compressedBase64 = await compressImage(event.target.result);
+        const img = document.createElement('img');
+        img.src = compressedBase64;
+        img.style = "width:100%; aspect-ratio:1/1; object-fit:cover; border-radius:8px; border:2px solid var(--primary)";
+        document.getElementById('photoPreview').appendChild(img);
+        callApi('uploadImage', { base64: compressedBase64, name: "apt_" + Date.now() + ".jpg" }).then(res => {
+          if (res && res.url) { photoQueue.push(res.url); img.style.border = "none"; }
+        });
+      };
+      reader.readAsDataURL(file);
+    };
 
+    submit.onclick = () => {
+      submit.disabled = true;
+      const payload = {
+        apt: document.getElementById('f_apt').value,
+        tenant: document.getElementById('f_tenant').value,
+        type: document.getElementById('f_type').value,
+        phone1: document.getElementById('f_p1').value,
+        phone2: document.getElementById('f_p2').value,
+        status: document.getElementById('f_status').value,
+        leaseEnd: document.getElementById('f_lease').value,
+        notes: document.getElementById('f_notes').value,
+        photos: photoQueue.join(','),
+        oldApt: isEdit ? editData.apt : null
+      };
+      callApi(isEdit ? 'updateApartment' : 'saveApartment', payload).then(() => {
+        closeModal();
+        refreshData('apartments');
+      });
+    };
+  }
+
+  else if (type === 'asset') {
+    title.innerText = isEdit ? "Update Asset" : "Register Asset";
+    const uniqueTag = isEdit ? (editData.tag || '') : "AST-" + Math.random().toString(36).substr(2, 5).toUpperCase();
+    
+    body.innerHTML = `
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:15px;">
+        <div>
+          <small style="color:var(--muted)">Unit</small>
+          <select id="a_apt">
+            <option value="">-- Select --</option>
+            ${cache.apts.map(a => `<option value="${a.apt}" ${isEdit && a.apt === editData.apt ? 'selected' : ''}>${a.apt}</option>`).join('')}
+          </select>
+        </div>
+        <div style="text-align:center;">
+          <small style="color:var(--muted)">Tag</small><br>
+          <strong>${uniqueTag}</strong>
+        </div>
+      </div>
+      <input id="a_type" placeholder="Type" value="${isEdit ? (editData.type || '') : ''}">
+      <input id="a_loc" placeholder="Location" value="${isEdit ? (editData.loc || '') : ''}">
+      <input id="a_status" placeholder="Status" value="${isEdit ? (editData.status || '') : 'Operational'}">
+      <textarea id="a_notes" rows="2" placeholder="Notes">${isEdit ? (editData.notes || '') : ''}</textarea>
+    `;
+
+    submit.onclick = () => {
+      submit.disabled = true;
+      const payload = {
+        apt: document.getElementById('a_apt').value,
+        tag: uniqueTag,
+        type: document.getElementById('a_type').value,
+        loc: document.getElementById('a_loc').value,
+        status: document.getElementById('a_status').value,
+        notes: document.getElementById('a_notes').value
+      };
+      callApi(isEdit ? 'updateAsset' : 'saveAsset', payload).then(() => { 
+        closeModal(); 
+        refreshData('assets'); 
+      });
+    };
+  }
+}
     function filterAssetsForTicket(aptNum, selectedAsset = '') {
       const assetSelect = document.getElementById('t_asset');
       if (!assetSelect) return;
