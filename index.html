@@ -147,6 +147,65 @@
     .page-view { display: none; }
     .active-view { display: block; }
     .fa-times { font-size: 20px; }
+
+    /* 4. MORE... MENU (High-Visibility Update) */
+    .more-container { 
+      position: relative; 
+      margin-top: 10px; 
+    }
+
+    .more-menu { 
+      display: none; 
+      position: absolute; 
+      bottom: 85px; /* Adjusted for larger buttons */
+      left: 0; 
+      right: 0; 
+      background: #FFFFFF; 
+      border: 3px solid var(--text); /* Thick black border */
+      border-radius: 20px; 
+      z-index: 1000; 
+      box-shadow: 0 10px 30px rgba(0,0,0,0.3); 
+      overflow: hidden;
+    }
+
+    .more-menu.show { 
+      display: block; 
+      animation: menuPop 0.15s ease-out;
+    }
+
+    @keyframes menuPop {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .menu-item { 
+      padding: 20px; /* Larger touch target for outdoor use */
+      border-bottom: 2px solid var(--border); 
+      display: flex; 
+      align-items: center; 
+      gap: 15px; 
+      cursor: pointer; 
+      color: var(--text); 
+      font-size: 20px; /* 25% Increase */
+      font-weight: 700; 
+      background: white;
+    }
+
+    .menu-item:active {
+      background: var(--card-light);
+    }
+
+    .menu-item i { 
+      color: var(--primary); 
+      width: 24px; 
+      text-align: center; 
+      font-size: 22px;
+    }
+
+    /* Target the last item to remove the border */
+    .menu-item:last-child {
+      border-bottom: none;
+    }
   </style>
 </head>
 <body>
@@ -319,6 +378,11 @@
 
     window.onload = () => { refreshDashboardStats(); };
 
+    function toggleMore() {
+      const menu = document.querySelector('.more-menu');
+      menu.classList.toggle('show');
+    }
+    
     function toggleMoreMenu(e) { 
       e.stopPropagation(); 
       document.getElementById('moreMenu').classList.toggle('show'); 
