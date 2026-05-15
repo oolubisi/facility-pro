@@ -481,12 +481,23 @@
         status: document.getElementById('f_status').value,
         leaseEnd: document.getElementById('f_lease').value,
         notes: document.getElementById('f_notes').value,
-        photos: photoQueue.join(','),
+        photos: photoQueue.join(','), // This sends the Drive links
         oldApt: isEdit ? editData.apt : null
       };
-      callApi(isEdit ? 'updateApartment' : 'saveApartment', payload).then(() => {
-        closeModal();
-        refreshData('apartments');
+      
+      const action = isEdit ? 'updateApartment' : 'saveApartment';
+      
+      callApi(action, payload).then(res => {
+        // CRITICAL: Check if Google actually saved the data
+        if (res && res.success) {
+          alert("Unit Saved Successfully!");
+          closeModal();
+          refreshData('apartments');
+        } else {
+          submit.disabled = false;
+          alert("Error Saving: " + (res.error || "Unknown Google Error"));
+          console.error("Google Script Error:", res);
+        }
       });
     };
   }
