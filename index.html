@@ -263,13 +263,25 @@
     }
 
     function refreshData(p) {
-      const listEl = document.getElementById(p + '-list');
-      if (!listEl) return;
+      // 1. Map the page name to the actual ID in your HTML
+      const idMap = {
+        'apartments': 'apt-list',
+        'assets': 'asset-list',
+        'inventory': 'inventory-list',
+        'maintenance': 'maint-list',
+        'utilities': 'util-list'
+      };
+
+      const listId = idMap[p];
+      const listEl = document.getElementById(listId);
       
-      // Clear previous list and show loading
+      if (!listEl) {
+        console.error("Could not find HTML element for ID:", listId);
+        return;
+      }
+      
       listEl.innerHTML = '<p style="padding:20px; text-align:center; color:var(--muted)">Loading...</p>';
     
-      // This map links your button name (p) to the Google Action Name
       const actionMap = { 
         'apartments': 'getApartments', 
         'assets': 'getAssets',
@@ -280,14 +292,13 @@
       const action = actionMap[p];
       if (!action) return;
 
-      // This is the line you were looking for:
       callApi(action).then(data => {
         if (!data) {
           listEl.innerHTML = '<p style="padding:20px; text-align:center; color:var(--danger)">Connection Error</p>';
           return;
         }
 
-        // --- 1. APARTMENTS ---
+        // --- APARTMENTS ---
         if (p === 'apartments') {
           cache.apts = data || [];
           listEl.innerHTML = cache.apts.map(x => `
@@ -298,7 +309,7 @@
           `).join('');
         } 
         
-        // --- 2. ASSETS ---
+        // --- ASSETS ---
         else if (p === 'assets') {
           cache.assets = data || [];
           listEl.innerHTML = cache.assets.map(x => `
@@ -316,26 +327,26 @@
             </div>
           `).join('');
         }
-
-        // --- 3. MAINTENANCE ---
-        else if (p === 'maintenance') {
-          cache.tickets = data || [];
-          listEl.innerHTML = cache.tickets.length === 0 ? 
-            '<div class="card">No active tickets.</div>' :
-            cache.tickets.map(x => `
-              <div class="card" onclick="editTicket('${x.id}')" style="cursor:pointer; border-left: 4px solid ${x.priority === 'High' ? 'var(--danger)' : 'var(--primary)'}">
-                <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
-                  <strong style="font-size:14px; color:var(--muted)">#${x.id}</strong>
-                  <span style="font-size:10px; font-weight:800; text-transform:uppercase;">${x.status}</span>
+        
+        // --- INVENTORY (As requested) ---
+        else if (p === 'inventory') {
+          cache.inventory = data || [];
+          listEl.innerHTML = cache.inventory.map(x => {
+            const isLow = parseInt(x.stock) <= parseInt(x.min);
+            return `
+              <div class="card" onclick="editInventory('${x.item}')" style="cursor:pointer;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                  <div><strong>${x.item}</strong><br><small>${x.category}</small></div>
+                  <div style="text-align:right;">
+                    <div style="font-size:20px; font-weight:800; color:${isLow ? 'var(--danger)' : 'var(--success)'}">${x.stock}</div>
+                    <small>${x.unit}</small>
+                  </div>
                 </div>
-                <h4 style="margin-bottom:4px;">${x.issue}</h4>
-                <small style="color:var(--muted)">${x.apt} • ${x.asset || 'General'}</small>
-              </div>
-            `).join('');
+              </div>`;
+          }).join('');
         }
       });
     }
-
     function refreshDashboardStats() {
       callApi('getStats').then(d => {
         if(!d) return;
