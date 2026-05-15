@@ -157,7 +157,7 @@
     .more-menu { 
       display: none; 
       position: absolute; 
-      bottom: 85px; /* Adjusted for larger buttons */
+      bottom: 65px; /* Adjusted for larger buttons */
       left: 0; 
       right: 0; 
       background: #FFFFFF; 
@@ -220,25 +220,30 @@
 
 /* Target the wide "MORE..." bar at the bottom */
 .more-container {
-  background: var(--card) !important; /* Uses the light gray card color */
-  border: 3px solid #000000 !important; /* Thick black border */
-  border-radius: 20px;
-  padding: 15px;
+  background: var(--card) !important;
+  border: 3px solid #000000 !important;
+  border-radius: 15px; /* Slightly tighter corners for a slimmer look */
+  padding: 6px 15px !important; /* Reduced from 15px to 6px height */
   text-align: center;
   cursor: pointer;
-  margin-top: 15px;
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px; /* Ensures it stays tappable but thin */
 }
 
 /* Force the text and dots inside it to be black */
 .more-container, 
+/* Keep the text centered and bold */
 .more-container * {
-  color: #000000 !important; 
+  color: #000000 !important;
   font-weight: 900 !important;
-  font-size: 18px !important;
+  font-size: 16px !important; /* Slightly smaller to fit the slim bar */
   letter-spacing: 2px;
-  opacity: 1 !important;
+  line-height: 1;
 }
-
+    
 /* Darken the bar slightly when you press it so you know it clicked */
 .more-container:active {
   background: #DEE2E6 !important;
