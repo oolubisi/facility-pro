@@ -353,11 +353,13 @@
           notes: document.getElementById('a_notes').value
         };
 
-        const func = isEdit ? 'updateAsset' : 'saveAsset';
-        google.script.run.withSuccessHandler(() => {
+        const action = isEdit ? 'updateAsset' : 'saveAsset';
+        
+        callApi(action, payload).then(res => {
           closeModal();
-          alert("Asset Updated!");
-          refreshData('assets');
+          alert("Success!");
+          refreshData(type === 'asset' ? 'assets' : 'apartments');
+        });
         }).withFailureHandler(err => alert(err))[func](payload);
       };
     }
