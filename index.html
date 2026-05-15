@@ -367,166 +367,166 @@
     }
 
     function openModal(type, editData = null) {
-  const body = document.getElementById('modalBody');
-  const submit = document.getElementById('modalSubmit');
-  const title = document.getElementById('modalTitle');
-  const overlay = document.getElementById('modalOverlay');
-
-  const isEdit = !!editData;
-  overlay.style.display = 'flex';
-  body.innerHTML = ''; 
-  submit.disabled = false;
-  submit.innerText = isEdit ? "Update" : "Save";
-
-  if (type === 'apartment') {
-    title.innerText = "Update Unit: " + (editData.apt || '');
+      const body = document.getElementById('modalBody');
+      const submit = document.getElementById('modalSubmit');
+      const title = document.getElementById('modalTitle');
+      const overlay = document.getElementById('modalOverlay');
     
-    // 1. Load existing photos immediately
-    let photoQueue = isEdit && editData.photos ? editData.photos.split(',').filter(url => url.trim() !== "") : [];
-  
-    body.innerHTML = `
-      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
-        <div>
-          <small style="color:var(--muted)">Unit # (Read Only)</small>
-          <input id="f_apt" value="${editData.apt || ''}" disabled style="opacity:0.6">
-        </div>
-        <div>
-          <small style="color:var(--muted)">Type (Read Only)</small>
-          <input id="f_type" value="${editData.type || ''}" disabled style="opacity:0.6">
-        </div>
-      </div>
-  
-      <small style="color:var(--muted)">Tenant Name</small>
-      <input id="f_tenant" value="${editData.tenant || ''}">
-  
-      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
-        <div>
-          <small style="color:var(--muted)">Phone 1 (11 Digits)</small>
-          <input id="f_p1" type="tel" pattern="\\d{11}" maxlength="11" value="${editData.phone1 || ''}" placeholder="08012345678">
-        </div>
-        <div>
-          <small style="color:var(--muted)">Phone 2 (11 Digits)</small>
-          <input id="f_p2" type="tel" pattern="\\d{11}" maxlength="11" value="${editData.phone2 || ''}" placeholder="08112345678">
-        </div>
-      </div>
-  
-      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
-        <div>
-          <small style="color:var(--muted)">Status</small>
-          <select id="f_status">
-            <option value="Occupied" ${editData.status === 'Occupied' ? 'selected' : ''}>Occupied</option>
-            <option value="Vacant" ${editData.status === 'Vacant' ? 'selected' : ''}>Vacant</option>
-            <option value="Maintenance" ${editData.status === 'Maintenance' ? 'selected' : ''}>Maintenance</option>
-          </select>
-        </div>
-        <div>
-          <small style="color:var(--muted)">Lease End Date</small>
-          <input id="f_lease" type="date" value="${fromSheetDate(editData.leaseEnd)}">
-        </div>
-      </div>
-  
-      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
-        <div>
-          <small style="color:var(--muted)">Last Inspected</small>
-          <input value="${editData.inspected || 'Never'}" disabled style="opacity:0.6">
-        </div>
-      </div>
-  
-      <small style="color:var(--muted)">Notes</small>
-      <textarea id="f_notes" rows="2">${editData.notes || ''}</textarea>
-  
-      <div style="margin-top:15px; border-top:1px solid var(--border); padding-top:15px;">
-        <label class="action-btn" style="background:var(--card-light); display:block; text-align:center; padding:12px; cursor:pointer;">
-          <i class="fas fa-camera"></i> Add New Photo
-          <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display:none">
-        </label>
-        <div id="photoPreview" style="display:grid; grid-template-columns: repeat(3, 1fr); gap:8px; margin-top:10px;">
-           ${photoQueue.map(url => `
-              <div style="position:relative;">
-                <img src="${url}" style="width:100%; aspect-ratio:1/1; object-fit:cover; border-radius:8px;">
-              </div>
-           `).join('')}
-        </div>
-      </div>
-    `;
-  
-    // Update the Submit button logic with validation
-    submit.onclick = () => {
-      const p1 = document.getElementById('f_p1').value;
-      const p2 = document.getElementById('f_p2').value;
-  
-      // VALIDATION: Phone numbers must be 11 digits if not empty
-      if ((p1 && p1.length !== 11) || (p2 && p2.length !== 11)) {
-        alert("Phone numbers must be exactly 11 digits.");
-        return;
+      const isEdit = !!editData;
+      overlay.style.display = 'flex';
+      body.innerHTML = ''; 
+      submit.disabled = false;
+      submit.innerText = isEdit ? "Update" : "Save";
+    
+      if (type === 'apartment') {
+        title.innerText = "Update Unit: " + (editData.apt || '');
+        
+        // 1. Load existing photos immediately
+        let photoQueue = isEdit && editData.photos ? editData.photos.split(',').filter(url => url.trim() !== "") : [];
+      
+        body.innerHTML = `
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+            <div>
+              <small style="color:var(--muted)">Unit # (Read Only)</small>
+              <input id="f_apt" value="${editData.apt || ''}" disabled style="opacity:0.6">
+            </div>
+            <div>
+              <small style="color:var(--muted)">Type (Read Only)</small>
+              <input id="f_type" value="${editData.type || ''}" disabled style="opacity:0.6">
+            </div>
+          </div>
+      
+          <small style="color:var(--muted)">Tenant Name</small>
+          <input id="f_tenant" value="${editData.tenant || ''}">
+      
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+            <div>
+              <small style="color:var(--muted)">Phone 1 (11 Digits)</small>
+              <input id="f_p1" type="tel" pattern="\\d{11}" maxlength="11" value="${editData.phone1 || ''}" placeholder="08012345678">
+            </div>
+            <div>
+              <small style="color:var(--muted)">Phone 2 (11 Digits)</small>
+              <input id="f_p2" type="tel" pattern="\\d{11}" maxlength="11" value="${editData.phone2 || ''}" placeholder="08112345678">
+            </div>
+          </div>
+      
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+            <div>
+              <small style="color:var(--muted)">Status</small>
+              <select id="f_status">
+                <option value="Occupied" ${editData.status === 'Occupied' ? 'selected' : ''}>Occupied</option>
+                <option value="Vacant" ${editData.status === 'Vacant' ? 'selected' : ''}>Vacant</option>
+                <option value="Maintenance" ${editData.status === 'Maintenance' ? 'selected' : ''}>Maintenance</option>
+              </select>
+            </div>
+            <div>
+              <small style="color:var(--muted)">Lease End Date</small>
+              <input id="f_lease" type="date" value="${fromSheetDate(editData.leaseEnd)}">
+            </div>
+          </div>
+      
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+            <div>
+              <small style="color:var(--muted)">Last Inspected</small>
+              <input value="${editData.inspected || 'Never'}" disabled style="opacity:0.6">
+            </div>
+          </div>
+      
+          <small style="color:var(--muted)">Notes</small>
+          <textarea id="f_notes" rows="2">${editData.notes || ''}</textarea>
+      
+          <div style="margin-top:15px; border-top:1px solid var(--border); padding-top:15px;">
+            <label class="action-btn" style="background:var(--card-light); display:block; text-align:center; padding:12px; cursor:pointer;">
+              <i class="fas fa-camera"></i> Add New Photo
+              <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display:none">
+            </label>
+            <div id="photoPreview" style="display:grid; grid-template-columns: repeat(3, 1fr); gap:8px; margin-top:10px;">
+               ${photoQueue.map(url => `
+                  <div style="position:relative;">
+                    <img src="${url}" style="width:100%; aspect-ratio:1/1; object-fit:cover; border-radius:8px;">
+                  </div>
+               `).join('')}
+            </div>
+          </div>
+        `;
+      
+        // Update the Submit button logic with validation
+        submit.onclick = () => {
+          const p1 = document.getElementById('f_p1').value;
+          const p2 = document.getElementById('f_p2').value;
+      
+          // VALIDATION: Phone numbers must be 11 digits if not empty
+          if ((p1 && p1.length !== 11) || (p2 && p2.length !== 11)) {
+            alert("Phone numbers must be exactly 11 digits.");
+            return;
+          }
+      
+          submit.disabled = true;
+          const payload = {
+            apt: editData.apt,
+            tenant: document.getElementById('f_tenant').value,
+            type: editData.type,
+            phone1: p1,
+            phone2: p2,
+            status: document.getElementById('f_status').value,
+            leaseEnd: toSheetDate(document.getElementById('f_lease').value),
+            notes: document.getElementById('f_notes').value,
+            photos: photoQueue.join(','),
+            oldApt: editData.apt
+          };
+      
+          callApi('updateApartment', payload).then(res => {
+            if (res && res.success) {
+              closeModal();
+              refreshData('apartments');
+            } else {
+              submit.disabled = false;
+              alert("Error: " + res.error);
+            }
+          });
+        };
       }
-  
-      submit.disabled = true;
-      const payload = {
-        apt: editData.apt,
-        tenant: document.getElementById('f_tenant').value,
-        type: editData.type,
-        phone1: p1,
-        phone2: p2,
-        status: document.getElementById('f_status').value,
-        leaseEnd: toSheetDate(document.getElementById('f_lease').value),
-        notes: document.getElementById('f_notes').value,
-        photos: photoQueue.join(','),
-        oldApt: editData.apt
-      };
-  
-      callApi('updateApartment', payload).then(res => {
-        if (res && res.success) {
-          closeModal();
-          refreshData('apartments');
-        } else {
-          submit.disabled = false;
-          alert("Error: " + res.error);
-        }
-      });
-    };
-  }
-  else if (type === 'asset') {
-    title.innerText = isEdit ? "Update Asset" : "Register Asset";
-    const uniqueTag = isEdit ? (editData.tag || '') : "AST-" + Math.random().toString(36).substr(2, 5).toUpperCase();
+      else if (type === 'asset') {
+        title.innerText = isEdit ? "Update Asset" : "Register Asset";
+        const uniqueTag = isEdit ? (editData.tag || '') : "AST-" + Math.random().toString(36).substr(2, 5).toUpperCase();
+        
+        body.innerHTML = `
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:15px;">
+            <div>
+              <small style="color:var(--muted)">Unit</small>
+              <select id="a_apt">
+                <option value="">-- Select --</option>
+                ${cache.apts.map(a => `<option value="${a.apt}" ${isEdit && a.apt === editData.apt ? 'selected' : ''}>${a.apt}</option>`).join('')}
+              </select>
+            </div>
+            <div style="text-align:center;">
+              <small style="color:var(--muted)">Tag</small><br>
+              <strong>${uniqueTag}</strong>
+            </div>
+          </div>
+          <input id="a_type" placeholder="Type" value="${isEdit ? (editData.type || '') : ''}">
+          <input id="a_loc" placeholder="Location" value="${isEdit ? (editData.loc || '') : ''}">
+          <input id="a_status" placeholder="Status" value="${isEdit ? (editData.status || '') : 'Operational'}">
+          <textarea id="a_notes" rows="2" placeholder="Notes">${isEdit ? (editData.notes || '') : ''}</textarea>
+        `;
     
-    body.innerHTML = `
-      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:15px;">
-        <div>
-          <small style="color:var(--muted)">Unit</small>
-          <select id="a_apt">
-            <option value="">-- Select --</option>
-            ${cache.apts.map(a => `<option value="${a.apt}" ${isEdit && a.apt === editData.apt ? 'selected' : ''}>${a.apt}</option>`).join('')}
-          </select>
-        </div>
-        <div style="text-align:center;">
-          <small style="color:var(--muted)">Tag</small><br>
-          <strong>${uniqueTag}</strong>
-        </div>
-      </div>
-      <input id="a_type" placeholder="Type" value="${isEdit ? (editData.type || '') : ''}">
-      <input id="a_loc" placeholder="Location" value="${isEdit ? (editData.loc || '') : ''}">
-      <input id="a_status" placeholder="Status" value="${isEdit ? (editData.status || '') : 'Operational'}">
-      <textarea id="a_notes" rows="2" placeholder="Notes">${isEdit ? (editData.notes || '') : ''}</textarea>
-    `;
-
-    submit.onclick = () => {
-      submit.disabled = true;
-      const payload = {
-        apt: document.getElementById('a_apt').value,
-        tag: uniqueTag,
-        type: document.getElementById('a_type').value,
-        loc: document.getElementById('a_loc').value,
-        status: document.getElementById('a_status').value,
-        notes: document.getElementById('a_notes').value
-      };
-      callApi(isEdit ? 'updateAsset' : 'saveAsset', payload).then(() => { 
-        closeModal(); 
-        refreshData('assets'); 
-      });
-    };
-  }
-}
+        submit.onclick = () => {
+          submit.disabled = true;
+          const payload = {
+            apt: document.getElementById('a_apt').value,
+            tag: uniqueTag,
+            type: document.getElementById('a_type').value,
+            loc: document.getElementById('a_loc').value,
+            status: document.getElementById('a_status').value,
+            notes: document.getElementById('a_notes').value
+          };
+          callApi(isEdit ? 'updateAsset' : 'saveAsset', payload).then(() => { 
+            closeModal(); 
+            refreshData('assets'); 
+          });
+        };
+      }
+    }
     function filterAssetsForTicket(aptNum, selectedAsset = '') {
       const assetSelect = document.getElementById('t_asset');
       if (!assetSelect) return;
