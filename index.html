@@ -413,7 +413,7 @@
             </div>
           </div>
     
-          <small style="color:var(--muted)">Tenant Name</small>
+          <small style="color:var(--muted)">Tenant</small>
           <input id="f_tenant" value="${editData.tenant || ''}">
     
           <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
@@ -429,11 +429,11 @@
     
           <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
             <div>
-              <small style="color:var(--muted)">Lease End Date</small>
+              <small style="color:var(--muted)">Lease End</small>
               <input id="f_lease" type="date" value="${fromSheetDate(editData.leaseEnd)}">
             </div>
             <div>
-              <small style="color:var(--muted)">Last Inspected</small>
+              <small style="color:var(--muted)">Inspected</small>
               <input value="${editData.inspected || 'Never'}" disabled style="opacity:0.7; background:rgba(255,255,255,0.05)">
             </div>
           </div>
