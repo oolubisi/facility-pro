@@ -383,33 +383,33 @@
         
         // 1. Load existing photos immediately
         let photoQueue = isEdit && editData.photos ? editData.photos.split(',').filter(url => url.trim() !== "") : [];
-      
+    
         body.innerHTML = `
           <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
             <div>
               <small style="color:var(--muted)">Unit # (Read Only)</small>
-              <input id="f_apt" value="${editData.apt || ''}" disabled style="opacity:0.6">
+              <input id="f_apt" value="${editData.apt || ''}" disabled style="opacity:0.6; background:rgba(255,255,255,0.05)">
             </div>
             <div>
               <small style="color:var(--muted)">Type (Read Only)</small>
-              <input id="f_type" value="${editData.type || ''}" disabled style="opacity:0.6">
+              <input id="f_type" value="${editData.type || ''}" disabled style="opacity:0.6; background:rgba(255,255,255,0.05)">
             </div>
           </div>
-      
+    
           <small style="color:var(--muted)">Tenant Name</small>
           <input id="f_tenant" value="${editData.tenant || ''}">
-      
+    
           <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
             <div>
               <small style="color:var(--muted)">Phone 1 (11 Digits)</small>
-              <input id="f_p1" type="tel" pattern="\\d{11}" maxlength="11" value="${editData.phone1 || ''}" placeholder="08012345678">
+              <input id="f_p1" type="tel" maxlength="11" value="${editData.phone1 || ''}" placeholder="08012345678">
             </div>
             <div>
               <small style="color:var(--muted)">Phone 2 (11 Digits)</small>
-              <input id="f_p2" type="tel" pattern="\\d{11}" maxlength="11" value="${editData.phone2 || ''}" placeholder="08112345678">
+              <input id="f_p2" type="tel" maxlength="11" value="${editData.phone2 || ''}" placeholder="08112345678">
             </div>
           </div>
-      
+    
           <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
             <div>
               <small style="color:var(--muted)">Status</small>
@@ -424,17 +424,17 @@
               <input id="f_lease" type="date" value="${fromSheetDate(editData.leaseEnd)}">
             </div>
           </div>
-      
+    
           <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
             <div>
               <small style="color:var(--muted)">Last Inspected</small>
-              <input value="${editData.inspected || 'Never'}" disabled style="opacity:0.6">
+              <input value="${editData.inspected || 'Never'}" disabled style="opacity:0.6; background:rgba(255,255,255,0.05)">
             </div>
           </div>
-      
+    
           <small style="color:var(--muted)">Notes</small>
           <textarea id="f_notes" rows="2">${editData.notes || ''}</textarea>
-      
+    
           <div style="margin-top:15px; border-top:1px solid var(--border); padding-top:15px;">
             <label class="action-btn" style="background:var(--card-light); display:block; text-align:center; padding:12px; cursor:pointer;">
               <i class="fas fa-camera"></i> Add New Photo
@@ -449,18 +449,40 @@
             </div>
           </div>
         `;
-      
-        // Update the Submit button logic with validation
+    
+        // --- CAMERA & COMPRESSION LOGIC ---
+        document.getElementById('cameraInput').onchange = async function(e) {
+          const file = e.target.files[0];
+          if (!file) return;
+          
+          const reader = new FileReader();
+          reader.onload = async function(event) {
+            const compressedBase64 = await compressImage(event.target.result);
+            const img = document.createElement('img');
+            img.src = compressedBase64;
+            img.style = "width:100%; aspect-ratio:1/1; object-fit:cover; border-radius:8px; border:2px solid var(--primary)";
+            document.getElementById('photoPreview').appendChild(img);
+            
+            callApi('uploadImage', { base64: compressedBase64, name: "apt_" + Date.now() + ".jpg" }).then(res => {
+              if (res && res.url) { 
+                photoQueue.push(res.url); 
+                img.style.border = "none"; 
+              }
+            });
+          };
+          reader.readAsDataURL(file);
+        };
+    
+        // --- SUBMIT LOGIC ---
         submit.onclick = () => {
           const p1 = document.getElementById('f_p1').value;
           const p2 = document.getElementById('f_p2').value;
-      
-          // VALIDATION: Phone numbers must be 11 digits if not empty
+    
           if ((p1 && p1.length !== 11) || (p2 && p2.length !== 11)) {
             alert("Phone numbers must be exactly 11 digits.");
             return;
           }
-      
+    
           submit.disabled = true;
           const payload = {
             apt: editData.apt,
@@ -474,59 +496,24 @@
             photos: photoQueue.join(','),
             oldApt: editData.apt
           };
-      
+    
           callApi('updateApartment', payload).then(res => {
             if (res && res.success) {
               closeModal();
               refreshData('apartments');
             } else {
               submit.disabled = false;
-              alert("Error: " + res.error);
+              alert("Error: " + (res.error || "Unknown error"));
             }
           });
         };
       }
+      // --- ASSET MODAL ---
       else if (type === 'asset') {
-        title.innerText = isEdit ? "Update Asset" : "Register Asset";
-        const uniqueTag = isEdit ? (editData.tag || '') : "AST-" + Math.random().toString(36).substr(2, 5).toUpperCase();
-        
-        body.innerHTML = `
-          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:15px;">
-            <div>
-              <small style="color:var(--muted)">Unit</small>
-              <select id="a_apt">
-                <option value="">-- Select --</option>
-                ${cache.apts.map(a => `<option value="${a.apt}" ${isEdit && a.apt === editData.apt ? 'selected' : ''}>${a.apt}</option>`).join('')}
-              </select>
-            </div>
-            <div style="text-align:center;">
-              <small style="color:var(--muted)">Tag</small><br>
-              <strong>${uniqueTag}</strong>
-            </div>
-          </div>
-          <input id="a_type" placeholder="Type" value="${isEdit ? (editData.type || '') : ''}">
-          <input id="a_loc" placeholder="Location" value="${isEdit ? (editData.loc || '') : ''}">
-          <input id="a_status" placeholder="Status" value="${isEdit ? (editData.status || '') : 'Operational'}">
-          <textarea id="a_notes" rows="2" placeholder="Notes">${isEdit ? (editData.notes || '') : ''}</textarea>
-        `;
-    
-        submit.onclick = () => {
-          submit.disabled = true;
-          const payload = {
-            apt: document.getElementById('a_apt').value,
-            tag: uniqueTag,
-            type: document.getElementById('a_type').value,
-            loc: document.getElementById('a_loc').value,
-            status: document.getElementById('a_status').value,
-            notes: document.getElementById('a_notes').value
-          };
-          callApi(isEdit ? 'updateAsset' : 'saveAsset', payload).then(() => { 
-            closeModal(); 
-            refreshData('assets'); 
-          });
-        };
+        // ... (Keep your Asset logic as is)
       }
     }
+    
     function filterAssetsForTicket(aptNum, selectedAsset = '') {
       const assetSelect = document.getElementById('t_asset');
       if (!assetSelect) return;
@@ -539,12 +526,14 @@
       if (item) openModal('inventory', item);
     }
 
+    // CONVERT DATE FOR SHEET (dd/mm/yyyy)
     function toSheetDate(dateStr) {
       if (!dateStr) return "";
       const [y, m, d] = dateStr.split('-');
       return `${d}/${m}/${y}`;
     }
     
+    // CONVERT DATE FOR UI (yyyy-mm-dd)
     function fromSheetDate(dateStr) {
       if (!dateStr || !dateStr.includes('/')) return "";
       const [d, m, y] = dateStr.split('/');
