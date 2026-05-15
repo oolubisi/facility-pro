@@ -249,9 +249,11 @@
     function refreshData(p) {
       const listEl = document.getElementById(p + '-list');
       if (!listEl) return;
+      
+      // Clear previous list and show loading
       listEl.innerHTML = '<p style="padding:20px; text-align:center; color:var(--muted)">Loading...</p>';
     
-      // 1. Map the Page ID to the Google Action Name
+      // This map links your button name (p) to the Google Action Name
       const actionMap = { 
         'apartments': 'getApartments', 
         'assets': 'getAssets',
@@ -262,14 +264,14 @@
       const action = actionMap[p];
       if (!action) return;
 
-      // 2. Call the API
+      // This is the line you were looking for:
       callApi(action).then(data => {
-        // If data is null, the API failed (likely a CORS or URL error)
         if (!data) {
-          listEl.innerHTML = '<p style="padding:20px; color:var(--danger)">Connection Error</p>';
+          listEl.innerHTML = '<p style="padding:20px; text-align:center; color:var(--danger)">Connection Error</p>';
           return;
         }
 
+        // --- 1. APARTMENTS ---
         if (p === 'apartments') {
           cache.apts = data || [];
           listEl.innerHTML = cache.apts.map(x => `
@@ -279,35 +281,41 @@
             </div>
           `).join('');
         } 
+        
+        // --- 2. ASSETS ---
         else if (p === 'assets') {
           cache.assets = data || [];
-          
-          if (cache.assets.length === 0) {
-            listEl.innerHTML = '<p style="padding:20px; text-align:center; color:var(--muted)">No assets found.</p>';
-            return;
-          }
-
           listEl.innerHTML = cache.assets.map(x => `
             <div class="card" onclick="editAsset('${x.tag}')" style="cursor:pointer;">
               <div style="display:flex; justify-content:space-between; align-items:start;">
                 <div>
-                   <strong style="color:var(--primary)">${x.tag || 'NO TAG'}</strong>
-                   <h4 style="margin:2px 0">${x.type || 'Unknown Asset'}</h4>
-                   <small style="color:var(--muted)">${x.apt || 'No Unit'} | ${x.loc || 'No Loc'}</small>
+                   <strong style="color:var(--primary)">${x.tag}</strong>
+                   <h4 style="margin:2px 0">${x.type}</h4>
+                   <small style="color:var(--muted)">${x.apt} | ${x.loc}</small>
                 </div>
-                <button style="background:none; border:none; color:var(--danger); padding:5px;" 
-                        onclick="event.stopPropagation(); archiveAsset('${x.tag}')">
+                <button style="background:none; border:none; color:var(--danger); padding:5px;" onclick="event.stopPropagation(); archiveAsset('${x.tag}')">
                   <i class="fas fa-archive"></i>
                 </button>
               </div>
             </div>
           `).join('');
         }
+
+        // --- 3. MAINTENANCE ---
         else if (p === 'maintenance') {
-          // ... maintenance logic here ...
-        }
-        else if (p === 'inventory') {
-          // ... inventory logic here ...
+          cache.tickets = data || [];
+          listEl.innerHTML = cache.tickets.length === 0 ? 
+            '<div class="card">No active tickets.</div>' :
+            cache.tickets.map(x => `
+              <div class="card" onclick="editTicket('${x.id}')" style="cursor:pointer; border-left: 4px solid ${x.priority === 'High' ? 'var(--danger)' : 'var(--primary)'}">
+                <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+                  <strong style="font-size:14px; color:var(--muted)">#${x.id}</strong>
+                  <span style="font-size:10px; font-weight:800; text-transform:uppercase;">${x.status}</span>
+                </div>
+                <h4 style="margin-bottom:4px;">${x.issue}</h4>
+                <small style="color:var(--muted)">${x.apt} • ${x.asset || 'General'}</small>
+              </div>
+            `).join('');
         }
       });
     }
