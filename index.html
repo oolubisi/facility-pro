@@ -223,15 +223,28 @@
 
     window.onload = () => { refreshDashboardStats(); };
 
-    function toggleMoreMenu(e) { e.stopPropagation(); document.getElementById('moreMenu').classList.toggle('show'); }
-    document.addEventListener('click', () => { document.getElementById('moreMenu')?.classList.remove('show'); });
+    function toggleMoreMenu(e) { 
+      e.stopPropagation(); 
+      document.getElementById('moreMenu').classList.toggle('show'); 
+    }
+
+    document.addEventListener('click', () => { 
+      const menu = document.getElementById('moreMenu');
+      if(menu) menu.classList.remove('show'); 
+    });
 
     function showPage(p) {
       document.querySelectorAll('.page-view').forEach(v => v.classList.remove('active-view'));
-      document.getElementById('moreMenu').classList.remove('show');
+      const menu = document.getElementById('moreMenu');
+      if(menu) menu.classList.remove('show');
+      
       const target = document.getElementById('view-' + p);
-      if (target) { target.classList.add('active-view'); window.scrollTo(0,0); }
-      if (p === 'dashboard') refreshDashboardStats(); else refreshData(p);
+      if (target) { 
+        target.classList.add('active-view'); 
+        window.scrollTo(0,0); 
+      }
+      if (p === 'dashboard') refreshDashboardStats(); 
+      else refreshData(p);
     }
 
     function refreshData(p) {
@@ -246,22 +259,31 @@
           cache.apts = data || [];
           listEl.innerHTML = cache.apts.map(x => `
             <div class="card" onclick="editApartment('${x.apt}')" style="display:flex; justify-content:space-between; align-items:center; cursor:pointer;">
-              <div><strong>${x.apt}</strong><br><small>${x.tenant || 'Vacant'}</small></div>
+              <div><strong>${x.apt}</strong><br><small style="color:var(--muted)">${x.tenant || 'Vacant'}</small></div>
               <i class="fas fa-chevron-right" style="opacity:0.3"></i>
             </div>
           `).join('');
         } else if (p === 'assets') {
           cache.assets = data || [];
           listEl.innerHTML = cache.assets.map(x => `
-            <div class="card" onclick="editAsset('${x.tag}')">
-              <strong>${x.tag}</strong> - ${x.type}<br><small>${x.apt} | ${x.loc}</small>
+            <div class="card" onclick="editAsset('${x.tag}')" style="cursor:pointer;">
+              <div style="display:flex; justify-content:space-between; align-items:start;">
+                <div>
+                   <strong style="color:var(--primary)">${x.tag}</strong>
+                   <h4 style="margin:2px 0">${x.type}</h4>
+                   <small style="color:var(--muted)">${x.apt} | ${x.loc}</small>
+                </div>
+                <button style="background:none; border:none; color:var(--danger); padding:5px;" onclick="event.stopPropagation(); archiveAsset('${x.tag}')">
+                  <i class="fas fa-archive"></i>
+                </button>
+              </div>
             </div>
           `).join('');
         }
       });
     }
+
     function refreshDashboardStats() {
-      // We use our new 'callApi' instead of google.script.run
       callApi('getStats').then(d => {
         if(!d) return;
         const ids = {'s-tenancy':d.tenancy, 's-asset':d.asset, 's-inv':d.inventory, 's-maint':d.maint, 's-util':d.utilities};
@@ -273,110 +295,103 @@
     }
 
     function openModal(type, editData = null) {
-    const body = document.getElementById('modalBody');
-    const submit = document.getElementById('modalSubmit');
-    const title = document.getElementById('modalTitle');
-    const overlay = document.getElementById('modalOverlay');
+      const body = document.getElementById('modalBody');
+      const submit = document.getElementById('modalSubmit');
+      const title = document.getElementById('modalTitle');
+      const overlay = document.getElementById('modalOverlay');
 
-    const isEdit = !!editData; // true if data was passed in
+      const isEdit = !!editData;
+      overlay.style.display = 'flex';
+      body.innerHTML = ''; 
+      submit.disabled = false;
+      submit.innerText = isEdit ? "Update" : "Save";
 
-    overlay.style.display = 'flex';
-    body.innerHTML = ''; 
-    submit.disabled = false;
-    submit.innerText = isEdit ? "Update" : "Save";
+      if (type === 'apartment') {
+        title.innerText = isEdit ? "Update Unit" : "Add New Unit";
+        body.innerHTML = `
+          <small style="color:var(--muted)">Unit Number / Name</small>
+          <input id="apt_num" placeholder="e.g. A-101" value="${isEdit ? editData.apt : ''}">
+          <small style="color:var(--muted)">Tenant Name</small>
+          <input id="apt_tenant" placeholder="Full Name" value="${isEdit ? editData.tenant : ''}">
+        `;
 
-    // --- APARTMENT FORM ---
-    if (type === 'apartment') {
-      title.innerText = isEdit ? "Update Unit" : "Add New Unit";
-      body.innerHTML = `
-        <small style="color:var(--muted)">Unit Number / Name</small>
-        <input id="apt_num" placeholder="e.g. A-101" value="${isEdit ? editData.apt : ''}">
-        
-        <small style="color:var(--muted)">Tenant Name</small>
-        <input id="apt_tenant" placeholder="Full Name" value="${isEdit ? editData.tenant : ''}">
-      `;
-
-      submit.onclick = () => {
-        submit.disabled = true;
-        const payload = {
-          apt: document.getElementById('apt_num').value,
-          tenant: document.getElementById('apt_tenant').value,
-          oldApt: isEdit ? editData.apt : null // We need this to find the row in the sheet
+        submit.onclick = () => {
+          submit.disabled = true;
+          const payload = {
+            apt: document.getElementById('apt_num').value,
+            tenant: document.getElementById('apt_tenant').value,
+            oldApt: isEdit ? editData.apt : null
+          };
+          const action = isEdit ? 'updateApartment' : 'saveApartment';
+          callApi(action, payload).then(() => {
+            closeModal();
+            refreshData('apartments');
+          });
         };
+      }
 
-        const func = isEdit ? 'updateApartment' : 'saveApartment';
-        google.script.run.withSuccessHandler(() => {
-          closeModal();
-          alert("Success!");
-          refreshData('apartments');
-        }).withFailureHandler(err => alert(err))[func](payload);
-      };
-    }
+      else if (type === 'asset') {
+        title.innerText = isEdit ? "Update Asset" : "Register Asset";
+        const uniqueTag = isEdit ? editData.tag : "AST-" + Math.random().toString(36).substr(2, 5).toUpperCase();
 
-    // --- ASSET FORM ---
-    else if (type === 'asset') {
-      title.innerText = isEdit ? "Update Asset" : "Register Asset";
-      
-      // Use existing tag if editing, otherwise generate a new one
-      const uniqueTag = isEdit ? editData.tag : "AST-" + Math.random().toString(36).substr(2, 5).toUpperCase();
-
-      body.innerHTML = `
-        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:15px;">
-          <div>
-            <small style="color:var(--muted)">Apartment</small>
-            <select id="a_apt" style="height:48px;">
-              <option value="">-- Select --</option>
-              ${cache.apts.map(a => `<option value="${a.apt}" ${isEdit && a.apt === editData.apt ? 'selected' : ''}>${a.apt}</option>`).join('')}
-            </select>
-          </div>
-          <div>
-            <small style="color:var(--muted)">Asset Tag</small>
-            <div style="background:rgba(59,130,246,0.1); padding:12px; border-radius:12px; border:1px dashed var(--primary); height:48px; display:flex; align-items:center; justify-content:center;">
-              <strong>${uniqueTag}</strong>
+        body.innerHTML = `
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:15px;">
+            <div>
+              <small style="color:var(--muted)">Apartment</small>
+              <select id="a_apt" style="height:48px;">
+                <option value="">-- Select --</option>
+                ${cache.apts.map(a => `<option value="${a.apt}" ${isEdit && a.apt === editData.apt ? 'selected' : ''}>${a.apt}</option>`).join('')}
+              </select>
+            </div>
+            <div>
+              <small style="color:var(--muted)">Asset Tag</small>
+              <div style="background:rgba(59,130,246,0.1); padding:12px; border-radius:12px; border:1px dashed var(--primary); height:48px; display:flex; align-items:center; justify-content:center;">
+                <strong>${uniqueTag}</strong>
+              </div>
             </div>
           </div>
-        </div>
-        <input id="a_type" placeholder="Type (e.g. AC Unit)" value="${isEdit ? editData.type : ''}">
-        <input id="a_loc" placeholder="Location (e.g. Bedroom)" value="${isEdit ? editData.loc : ''}">
-        <input id="a_status" placeholder="Status" value="${isEdit ? editData.status : 'Operational'}">
-        <textarea id="a_notes" placeholder="Notes" rows="2">${isEdit ? editData.notes : ''}</textarea>
-      `;
+          <input id="a_type" placeholder="Type (e.g. AC Unit)" value="${isEdit ? editData.type : ''}">
+          <input id="a_loc" placeholder="Location (e.g. Bedroom)" value="${isEdit ? editData.loc : ''}">
+          <input id="a_status" placeholder="Status" value="${isEdit ? editData.status : 'Operational'}">
+          <textarea id="a_notes" placeholder="Notes" rows="2">${isEdit ? editData.notes : ''}</textarea>
+        `;
 
-      submit.onclick = () => {
-        submit.disabled = true;
-        const payload = {
-          apt: document.getElementById('a_apt').value,
-          tag: uniqueTag,
-          type: document.getElementById('a_type').value,
-          loc: document.getElementById('a_loc').value,
-          status: document.getElementById('a_status').value,
-          notes: document.getElementById('a_notes').value
+        submit.onclick = () => {
+          submit.disabled = true;
+          const payload = {
+            apt: document.getElementById('a_apt').value,
+            tag: uniqueTag,
+            type: document.getElementById('a_type').value,
+            loc: document.getElementById('a_loc').value,
+            status: document.getElementById('a_status').value,
+            notes: document.getElementById('a_notes').value
+          };
+          const action = isEdit ? 'updateAsset' : 'saveAsset';
+          callApi(action, payload).then(() => {
+            closeModal();
+            refreshData('assets');
+          });
         };
-
-        const action = isEdit ? 'updateAsset' : 'saveAsset';
-        
-        callApi(action, payload).then(res => {
-          closeModal();
-          alert("Success!");
-          refreshData(type === 'asset' ? 'assets' : 'apartments');
-        });
-        }).withFailureHandler(err => alert(err))[func](payload);
-      };
+      }
     }
-  }
-    
 
-    function closeModal() { document.getElementById('modalOverlay').style.display = 'none'; }
-    // Helper to open Apartment edit form
+    function closeModal() { 
+      document.getElementById('modalOverlay').style.display = 'none'; 
+    }
+
     function editApartment(aptNum) {
       const apt = cache.apts.find(a => a.apt === aptNum);
       if (apt) openModal('apartment', apt);
     }
 
-    // Helper to open Asset edit form
     function editAsset(tag) {
       const asset = cache.assets.find(a => a.tag === tag);
       if (asset) openModal('asset', asset);
+    }
+
+    function archiveAsset(tag) {
+      if(!confirm("Archive this asset?")) return;
+      callApi('archiveAsset', {tag: tag}).then(() => refreshData('assets'));
     }
   </script>
 </body>
