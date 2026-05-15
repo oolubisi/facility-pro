@@ -203,6 +203,22 @@
   </div>
 
   <script>
+    // THE BRIDGE: This talks to your Google Sheet from GitHub
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbz2g_nLQcSxgzj05dTAEvqxp-p_D6EVUWjwfNUGAps_W7Kobv1JB02ObLjte9AXpGxL/exec"; 
+    
+    async function callApi(action, data = {}) {
+      try {
+        const response = await fetch(GAS_URL, {
+          method: "POST",
+          body: JSON.stringify({ action: action, data: data }),
+        });
+        return await response.json();
+      } catch (err) {
+        console.error("API Error:", err);
+        return null;
+      }
+    }
+    
     let cache = { apts: [], assets: [] };
 
     window.onload = () => { refreshDashboardStats(); };
@@ -219,64 +235,41 @@
     }
 
     function refreshData(p) {
-    console.log("Loading data for:", p);
+      const listEl = document.getElementById(p + '-list');
+      if (!listEl) return;
+      listEl.innerHTML = '<p style="padding:20px; text-align:center; color:var(--muted)">Loading...</p>';
     
-    // --- APARTMENTS ---
-    if (p === 'apartments') {
-      const listEl = document.getElementById('apt-list');
-      listEl.innerHTML = '<p style="padding:20px; text-align:center; color:var(--muted)">Loading...</p>';
+      const actionMap = { 'apartments': 'getApartments', 'assets': 'getAssets' };
       
-      google.script.run.withSuccessHandler(data => {
-        cache.apts = data || [];
-        listEl.innerHTML = cache.apts.map(x => `
-          <div class="card" onclick="editApartment('${x.apt}')" style="display:flex; justify-content:space-between; align-items:center; cursor:pointer;">
-            <div>
-              <strong style="font-size:18px;">${x.apt}</strong>
-              <br><small style="color:var(--muted)">Tenant: ${x.tenant || 'Vacant'}</small>
+      callApi(actionMap[p]).then(data => {
+        if (p === 'apartments') {
+          cache.apts = data || [];
+          listEl.innerHTML = cache.apts.map(x => `
+            <div class="card" onclick="editApartment('${x.apt}')" style="display:flex; justify-content:space-between; align-items:center; cursor:pointer;">
+              <div><strong>${x.apt}</strong><br><small>${x.tenant || 'Vacant'}</small></div>
+              <i class="fas fa-chevron-right" style="opacity:0.3"></i>
             </div>
-            <i class="fas fa-chevron-right" style="color:var(--muted); opacity:0.3"></i>
-          </div>
-        `).join('');
-      }).getApartmentData();
-
-    // --- ASSETS ---
-    } else if (p === 'assets') {
-      const listEl = document.getElementById('asset-list');
-      listEl.innerHTML = '<p style="padding:20px; text-align:center; color:var(--muted)">Loading...</p>';
-      
-      google.script.run.withSuccessHandler(data => {
-        cache.assets = data || [];
-        listEl.innerHTML = cache.assets.map(x => `
-          <div class="card" onclick="editAsset('${x.tag}')" style="cursor:pointer; position:relative;">
-            <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:10px;">
-              <div>
-                <strong style="color:var(--primary); font-size:14px;">${x.tag}</strong>
-                <h4 style="margin-top:2px;">${x.type}</h4>
-                <small style="color:var(--muted)">${x.apt} • ${x.loc}</small>
-              </div>
-              <span style="font-size:10px; padding:4px 8px; border-radius:6px; background:rgba(255,255,255,0.05); border:1px solid var(--border)">
-                ${x.status}
-              </span>
+          `).join('');
+        } else if (p === 'assets') {
+          cache.assets = data || [];
+          listEl.innerHTML = cache.assets.map(x => `
+            <div class="card" onclick="editAsset('${x.tag}')">
+              <strong>${x.tag}</strong> - ${x.type}<br><small>${x.apt} | ${x.loc}</small>
             </div>
-            
-            <div style="display:flex; justify-content:flex-end; border-top:1px solid var(--border); padding-top:10px; margin-top:5px;">
-              <button style="background:none; border:none; color:var(--danger); font-weight:600; font-size:13px; cursor:pointer;" 
-                      onclick="event.stopPropagation(); archiveAsset('${x.tag}')">
-                <i class="fas fa-archive"></i> Archive
-              </button>
-            </div>
-          </div>
-        `).join('');
-      }).getAssetData();
+          `).join('');
+        }
+      });
     }
-  }
-
     function refreshDashboardStats() {
-      google.script.run.withSuccessHandler(d => {
+      // We use our new 'callApi' instead of google.script.run
+      callApi('getStats').then(d => {
         if(!d) return;
         const ids = {'s-tenancy':d.tenancy, 's-asset':d.asset, 's-inv':d.inventory, 's-maint':d.maint, 's-util':d.utilities};
-        for(let id in ids) { if(document.getElementById(id)) document.getElementById(id).innerText = ids[id] || 0; }
-      }).getDashboardStats();
+        for(let id in ids) { 
+          const el = document.getElementById(id);
+          if(el) el.innerText = ids[id] || 0; 
+        }
+      });
     }
 
     function openModal(type, editData = null) {
