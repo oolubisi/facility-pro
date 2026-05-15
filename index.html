@@ -392,20 +392,24 @@
       submit.innerText = isEdit ? "Update" : "Save";
     
       if (type === 'apartment') {
-        title.innerText = "Update Unit: " + (editData.apt || '');
+        // Title now carries the Unit Number weight
+        title.innerText = "Unit Profile: " + (editData.apt || '');
         
-        // 1. Load existing photos immediately
         let photoQueue = isEdit && editData.photos ? editData.photos.split(',').filter(url => url.trim() !== "") : [];
     
         body.innerHTML = `
           <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
-            <div>
-              <small style="color:var(--muted)">Unit # (Read Only)</small>
-              <input id="f_apt" value="${editData.apt || ''}" disabled style="opacity:0.6; background:rgba(255,255,255,0.05)">
+            <div style="grid-column: span 1;">
+              <small style="color:var(--muted)">Type</small>
+              <input id="f_type" value="${editData.type || ''}" disabled style="opacity:0.7; background:rgba(255,255,255,0.05)">
             </div>
-            <div>
-              <small style="color:var(--muted)">Type (Read Only)</small>
-              <input id="f_type" value="${editData.type || ''}" disabled style="opacity:0.6; background:rgba(255,255,255,0.05)">
+            <div style="grid-column: span 1;">
+              <small style="color:var(--muted)">Status</small>
+              <select id="f_status">
+                <option value="Occupied" ${editData.status === 'Occupied' ? 'selected' : ''}>Occupied</option>
+                <option value="Vacant" ${editData.status === 'Vacant' ? 'selected' : ''}>Vacant</option>
+                <option value="Maintenance" ${editData.status === 'Maintenance' ? 'selected' : ''}>Maintenance</option>
+              </select>
             </div>
           </div>
     
@@ -425,23 +429,12 @@
     
           <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
             <div>
-              <small style="color:var(--muted)">Status</small>
-              <select id="f_status">
-                <option value="Occupied" ${editData.status === 'Occupied' ? 'selected' : ''}>Occupied</option>
-                <option value="Vacant" ${editData.status === 'Vacant' ? 'selected' : ''}>Vacant</option>
-                <option value="Maintenance" ${editData.status === 'Maintenance' ? 'selected' : ''}>Maintenance</option>
-              </select>
-            </div>
-            <div>
               <small style="color:var(--muted)">Lease End Date</small>
               <input id="f_lease" type="date" value="${fromSheetDate(editData.leaseEnd)}">
             </div>
-          </div>
-    
-          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
             <div>
               <small style="color:var(--muted)">Last Inspected</small>
-              <input value="${editData.inspected || 'Never'}" disabled style="opacity:0.6; background:rgba(255,255,255,0.05)">
+              <input value="${editData.inspected || 'Never'}" disabled style="opacity:0.7; background:rgba(255,255,255,0.05)">
             </div>
           </div>
     
@@ -463,11 +456,10 @@
           </div>
         `;
     
-        // --- CAMERA & COMPRESSION LOGIC ---
+        // Handle Camera Logic
         document.getElementById('cameraInput').onchange = async function(e) {
           const file = e.target.files[0];
           if (!file) return;
-          
           const reader = new FileReader();
           reader.onload = async function(event) {
             const compressedBase64 = await compressImage(event.target.result);
@@ -475,27 +467,21 @@
             img.src = compressedBase64;
             img.style = "width:100%; aspect-ratio:1/1; object-fit:cover; border-radius:8px; border:2px solid var(--primary)";
             document.getElementById('photoPreview').appendChild(img);
-            
             callApi('uploadImage', { base64: compressedBase64, name: "apt_" + Date.now() + ".jpg" }).then(res => {
-              if (res && res.url) { 
-                photoQueue.push(res.url); 
-                img.style.border = "none"; 
-              }
+              if (res && res.url) { photoQueue.push(res.url); img.style.border = "none"; }
             });
           };
           reader.readAsDataURL(file);
         };
     
-        // --- SUBMIT LOGIC ---
+        // Submit Logic
         submit.onclick = () => {
           const p1 = document.getElementById('f_p1').value;
           const p2 = document.getElementById('f_p2').value;
-    
           if ((p1 && p1.length !== 11) || (p2 && p2.length !== 11)) {
             alert("Phone numbers must be exactly 11 digits.");
             return;
           }
-    
           submit.disabled = true;
           const payload = {
             apt: editData.apt,
@@ -509,21 +495,11 @@
             photos: photoQueue.join(','),
             oldApt: editData.apt
           };
-    
           callApi('updateApartment', payload).then(res => {
-            if (res && res.success) {
-              closeModal();
-              refreshData('apartments');
-            } else {
-              submit.disabled = false;
-              alert("Error: " + (res.error || "Unknown error"));
-            }
+            if (res && res.success) { closeModal(); refreshData('apartments'); }
+            else { submit.disabled = false; alert("Error: " + res.error); }
           });
         };
-      }
-      // --- ASSET MODAL ---
-      else if (type === 'asset') {
-        // ... (Keep your Asset logic as is)
       }
     }
     
