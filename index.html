@@ -8,53 +8,145 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    :root {
-      --bg: #0f172a; --card: #1e293b; --card-light: #334155;
-      --primary: #3b82f6; --text: #f8fafc; --muted: #94a3b8;
-      --danger: #ef4444; --success: #22c55e; --border: rgba(255, 255, 255, 0.08);
-    }
-    body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); width: 100%; overflow-x: hidden; }
     
-    /* 1. AUTOFIT LAYOUT */
-    .sidebar { display: none !important; }
-    .main { width: 100%; max-width: 500px; margin: 0 auto; padding: 20px 16px 100px 16px; min-height: 100vh; }
+    :root {
+      /* HIGH-VISIBILITY OUTDOOR PALETTE */
+      --bg: #FFFFFF;           /* Pure white to fight glare */
+      --card: #F1F3F5;        /* Light gray for card depth */
+      --card-light: #E9ECEF;
+      --primary: #0056b3;     /* Deeper blue for text-on-white contrast */
+      --text: #000000;        /* Pure black for maximum legibility */
+      --muted: #495057;       /* Darker muted text */
+      --danger: #C00000;      /* High-saturation red */
+      --success: #157347;     /* High-saturation green */
+      --border: #ADB5BD;      /* Defined borders for outdoor visibility */
+    }
 
-    /* 2. DASHBOARD 6-BUTTON GRID */
+    body { 
+      font-family: 'Inter', sans-serif; 
+      background: var(--bg); 
+      color: var(--text); 
+      width: 100%; 
+      overflow-x: hidden; 
+      line-height: 1.5;
+    }
+    
+    /* 1. LAYOUT & SPACING */
+    .sidebar { display: none !important; }
+    .main { 
+      width: 100%; 
+      max-width: 500px; 
+      margin: 0 auto; 
+      padding: 20px 16px 100px 16px; 
+      min-height: 100vh; 
+    }
+
+    /* 2. DASHBOARD GRID */
     .nav-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
     .nav-card {
-      background: var(--card); border: 1px solid var(--border); border-radius: 24px; padding: 15px;
-      text-align: center; aspect-ratio: 1 / 1; display: flex; flex-direction: column;
-      justify-content: center; align-items: center; cursor: pointer; transition: transform 0.1s;
+      background: var(--card); 
+      border: 2px solid var(--border); /* Thicker borders for visibility */
+      border-radius: 24px; 
+      padding: 15px;
+      text-align: center; 
+      aspect-ratio: 1 / 1; 
+      display: flex; 
+      flex-direction: column;
+      justify-content: center; 
+      align-items: center; 
+      cursor: pointer; 
+      box-shadow: 0 4px 6px rgba(0,0,0,0.05);
     }
-    .nav-card:active { transform: scale(0.96); background: var(--card-light); }
-    .nav-card i { font-size: 24px; color: var(--primary); margin-bottom: 8px; }
-    .nav-card .count { font-size: 28px; font-weight: 800; line-height: 1; margin-bottom: 4px; }
-    .nav-card small { font-size: 10px; text-transform: uppercase; color: var(--muted); font-weight: 700; letter-spacing: 0.5px; }
+    .nav-card:active { background: var(--card-light); transform: scale(0.98); }
+    .nav-card i { font-size: 28px; color: var(--primary); margin-bottom: 8px; }
+    .nav-card .count { font-size: 32px; font-weight: 900; color: var(--text); }
+    .nav-card small { font-size: 12px; text-transform: uppercase; color: var(--text); font-weight: 800; }
 
-    /* 3. SUB-PAGE HEADERS */
-    .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 25px; padding-bottom: 15px; border-bottom: 1px solid var(--border); }
+    /* 3. HEADERS */
+    .page-header { 
+      display: flex; 
+      align-items: center; 
+      justify-content: space-between; 
+      margin-bottom: 25px; 
+      padding-bottom: 15px; 
+      border-bottom: 3px solid var(--text); /* Heavy line for structure */
+    }
     .header-group { display: flex; align-items: center; gap: 12px; }
-    .home-btn { background: var(--card-light); border: none; color: white; width: 42px; height: 42px; border-radius: 12px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
-    .add-btn { background: var(--primary); color: white; border: none; padding: 10px 16px; border-radius: 12px; font-weight: 700; font-size: 14px; cursor: pointer; }
+    .home-btn { background: var(--text); border: none; color: white; width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; }
+    h2 { font-size: 24px; font-weight: 800; color: var(--text); }
 
-    /* 4. MORE... MENU */
-    .more-container { position: relative; margin-top: 10px; }
-    .more-menu { display: none; position: absolute; bottom: 75px; left: 0; right: 0; background: var(--card-light); border: 1px solid var(--primary); border-radius: 20px; z-index: 1000; box-shadow: 0 10px 30px rgba(0,0,0,0.5); overflow: hidden;}
-    .more-menu.show { display: block; }
-    .menu-item { padding: 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 12px; cursor: pointer; color: var(--text); font-size: 14px; font-weight: 500; }
-    .menu-item i { color: var(--primary); width: 20px; text-align: center; }
-
-    /* 5. GENERAL COMPONENTS */
-    .card { background: var(--card); border-radius: 20px; padding: 20px; border: 1px solid var(--border); margin-bottom: 15px; }
-    .action-btn { background: var(--primary); color: white; border: none; padding: 16px; border-radius: 15px; font-weight: 700; cursor: pointer; width: 100%; font-size: 16px; }
-    input, select, textarea { width: 100%; padding: 14px; margin-bottom: 12px; border-radius: 12px; border: 1px solid var(--border); background: var(--bg); color: white; font-size: 16px !important; }
+    /* 4. FORM COMPONENTS (Increased by ~25%) */
+    .card { 
+      background: var(--bg); 
+      border-radius: 20px; 
+      padding: 20px; 
+      border: 2px solid var(--border); 
+      margin-bottom: 15px; 
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
     
+    label { 
+      display: block; 
+      font-weight: 800; 
+      font-size: 16px; 
+      color: var(--text); 
+      margin-bottom: 6px; 
+      margin-top: 12px; 
+    }
+
+    input, select, textarea { 
+      width: 100%; 
+      padding: 16px; 
+      margin-bottom: 10px; 
+      border-radius: 12px; 
+      border: 2px solid var(--text); /* Solid black borders */
+      background: white; 
+      color: black; 
+      font-size: 20px !important; /* ~25% Increase from 16px */
+      font-weight: 500;
+    }
+    
+    input:disabled { background: #e9ecef; border-color: #adb5bd; color: #495057; opacity: 1; }
+
+    .action-btn { 
+      background: var(--text); 
+      color: white; 
+      border: none; 
+      padding: 20px; 
+      border-radius: 15px; 
+      font-weight: 900; 
+      width: 100%; 
+      font-size: 20px; 
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    /* 5. MODAL */
+    .modal-overlay { 
+      position: fixed; 
+      inset: 0; 
+      background: rgba(255,255,255,0.95); /* Light overlay for outdoor use */
+      display: none; 
+      justify-content: center; 
+      align-items: center; 
+      z-index: 5000; 
+      padding: 15px; 
+    }
+    .modal { 
+      background: var(--bg); 
+      width: 100%; 
+      max-width: 480px; 
+      padding: 25px; 
+      border-radius: 24px; 
+      border: 3px solid var(--text); 
+      max-height: 92vh; 
+      overflow-y: auto; 
+    }
+
+    /* 6. UTILS */
     .page-view { display: none; }
-    .active-view { display: block; animation: fadeIn 0.2s ease-out; }
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
-    
-    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); display: none; justify-content: center; align-items: center; z-index: 5000; padding: 15px; }
-    .modal { background: var(--card); width: 100%; max-width: 450px; padding: 25px; border-radius: 24px; max-height: 90vh; overflow-y: auto; }
+    .active-view { display: block; }
+    .fa-times { font-size: 20px; }
   </style>
 </head>
 <body>
