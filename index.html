@@ -267,6 +267,32 @@
       }
     }
 
+    async function compressImage(base64Str, maxWidth = 800, quality = 0.7) {
+      return new Promise((resolve) => {
+        const img = new Image();
+        img.src = base64Str;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+    
+          // Maintain aspect ratio
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          }
+    
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+          
+          // 0.7 quality usually hits that <200KB sweet spot for mobile photos
+          resolve(canvas.toDataURL('image/jpeg', quality));
+        };
+      });
+    }
+
     function refreshData(p) {
   // 1. THE MAP: Links the button name to the actual HTML ID
   const idMap = {
@@ -408,27 +434,36 @@
         `;
 
         // HANDLE CAMERA PREVIEW
-        document.getElementById('cameraInput').onchange = function(e) {
+        document.getElementById('cameraInput').onchange = async function(e) {
           const file = e.target.files[0];
           if (!file) return;
+        
           const reader = new FileReader();
-          reader.onload = function(event) {
-            const base64 = event.target.result;
-            // Show preview immediately
+          reader.onload = async function(event) {
+            const originalBase64 = event.target.result;
+            
+            // 1. Compress it first
+            const compressedBase64 = await compressImage(originalBase64);
+            
+            // 2. Show preview
             const img = document.createElement('img');
-            img.src = base64;
+            img.src = compressedBase64;
             img.style = "width:100%; aspect-ratio:1/1; object-fit:cover; border-radius:8px; border:2px solid var(--primary)";
             document.getElementById('photoPreview').appendChild(img);
             
-            // Upload to Google Drive immediately
-            callApi('uploadImage', { base64: base64, name: "apt_" + Date.now() + ".jpg" }).then(res => {
-              if (res.url) photoQueue.push(res.url);
-              img.style.border = "none"; // Success indicator
+            // 3. Upload the smaller version
+            callApi('uploadImage', { 
+              base64: compressedBase64, 
+              name: "apt_" + Date.now() + ".jpg" 
+            }).then(res => {
+              if (res && res.url) {
+                photoQueue.push(res.url);
+                img.style.border = "none"; 
+              }
             });
           };
           reader.readAsDataURL(file);
         };
-
         submit.onclick = () => {
           submit.disabled = true;
           const payload = {
