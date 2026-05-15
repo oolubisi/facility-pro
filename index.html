@@ -714,65 +714,116 @@
         };
       }
     
-      else if (type === 'asset') {
+          else if (type === 'asset') {
         const isEdit = !!editData;
         const uniqueTag = isEdit ? (editData.tag || '') : "AST-" + Math.random().toString(36).substr(2, 5).toUpperCase();
         title.innerText = isEdit ? "Update Asset: " + uniqueTag : "Register Asset";
     
+        // 1. Safe Photo Queue initialization
         let photoQueue = isEdit && editData.photos ? editData.photos.split(',').filter(url => url.trim() !== "") : [];
     
-        // ... (Keep your existing renderAssetPhotos and window.removeAssetPhoto here) ...
+        const renderAssetPhotos = () => {
+          const container = document.getElementById('assetPhotoPreview');
+          if (!container) return;
+          container.innerHTML = photoQueue.map((url, index) => `
+            <div style="position:relative; width:100%; aspect-ratio:1/1;">
+              <img src="${getDirectImageUrl(url)}" style="width:100%; height:100%; object-fit:cover; border-radius:8px; border: 2px solid var(--text);">
+              <button onclick="window.removeAssetPhoto(${index})" style="position:absolute; top:5px; right:5px; background:rgba(220,53,69,0.9); color:white; border:none; border-radius:50%; width:28px; height:28px; cursor:pointer; display:flex; align-items:center; justify-content:center;">
+                <i class="fas fa-times"></i>
+              </button>
+            </div>
+          `).join('');
+        };
     
+        window.removeAssetPhoto = (index) => {
+          photoQueue.splice(index, 1);
+          renderAssetPhotos();
+        };
+    
+        const largeInput = 'style="font-size: 20px; padding: 16px; margin-bottom: 10px;"';
+        const labelStyle = 'style="font-size: 16px; color: var(--text); font-weight: 800; display: block; margin-top: 12px; margin-bottom: 4px;"';
+    
+        // 2. Crash-Proof HTML Generation (Checking isEdit for every single field)
         body.innerHTML = `
           <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:10px;">
             <div>
               <label ${labelStyle}>Unit</label>
-              <select id="a_apt" ${largeInput} ${isEdit ? 'disabled style="opacity:0.6; background:#eee;"' : ''}>
+              <select id="a_apt" ${largeInput} ${isEdit ? 'disabled style="opacity:0.6; background:#e9ecef; border-color:#adb5bd; color:#495057;"' : ''}>
                 <option value="">-- Select --</option>
-                ${cache.apts.map(a => `<option value="${a.apt}" ${isEdit && a.apt === editData.apt ? 'selected' : ''}>${a.apt}</option>`).join('')}
+                ${cache.apts ? cache.apts.map(a => `<option value="${a.apt}" ${isEdit && a.apt === editData.apt ? 'selected' : ''}>${a.apt}</option>`).join('') : ''}
               </select>
             </div>
             <div style="text-align:center;">
               <label ${labelStyle}>Asset Tag</label>
-              <strong style="font-size:20px; display:block; padding:12px;">${uniqueTag}</strong>
+              <strong style="font-size:20px; display:block; padding:12px; color:#000;">${uniqueTag}</strong>
             </div>
           </div>
     
           <label ${labelStyle}>Category / Type</label>
-          <input id="a_type" value="${isEdit ? (editData.type || '') : ''}" ${largeInput}>
+          <input id="a_type" value="${isEdit ? (editData.type || '') : ''}" placeholder="e.g. Air Conditioner" ${largeInput}>
           
           <label ${labelStyle}>Status</label>
           <select id="a_status" ${largeInput}>
             <option value="Operational" ${isEdit && editData.status === 'Operational' ? 'selected' : ''}>Operational</option>
             <option value="Faulty" ${isEdit && editData.status === 'Faulty' ? 'selected' : ''}>Faulty</option>
             <option value="Under Repair" ${isEdit && editData.status === 'Under Repair' ? 'selected' : ''}>Under Repair</option>
+            <option value="Decommissioned" ${isEdit && editData.status === 'Decommissioned' ? 'selected' : ''}>Decommissioned</option>
           </select>
     
           <label ${labelStyle}>Location in Unit</label>
-          <input id="a_loc" value="${isEdit ? (editData.loc || '') : ''}" ${largeInput}>
+          <input id="a_loc" value="${isEdit ? (editData.loc || '') : ''}" placeholder="e.g. Living Room" ${largeInput}>
     
           <label ${labelStyle}>Technical Specs</label>
-          <input id="a_specs" value="${isEdit ? (editData.specs || '') : ''}" ${largeInput}>
+          <input id="a_specs" value="${isEdit ? (editData.specs || '') : ''}" placeholder="e.g. Panasonic / 1.5HP" ${largeInput}>
     
           <label ${labelStyle}>Last Serviced</label>
-          <input id="a_serviced" type="date" value="${fromSheetDate(editData.lastServiced)}" ${largeInput}>
+          <input id="a_serviced" type="date" value="${isEdit ? fromSheetDate(editData.lastServiced) : ''}" ${largeInput}>
     
           <label ${labelStyle}>Last Inspected</label>
-          <input id="a_inspected" type="date" value="${fromSheetDate(editData.lastInspected)}" ${largeInput}>
+          <input id="a_inspected" type="date" value="${isEdit ? fromSheetDate(editData.lastInspected) : ''}" ${largeInput}>
           
           <label ${labelStyle}>Notes</label>
           <textarea id="a_notes" rows="3" ${largeInput}>${isEdit ? (editData.notes || '') : ''}</textarea>
     
-          <div id="assetPhotoPreview" style="display:grid; grid-template-columns: repeat(3, 1fr); gap:10px; margin-top:15px;"></div>
-          `;
+          <div style="margin-top:20px; border-top:3px solid var(--text); padding-top:15px;">
+            <label class="action-btn" style="background:var(--text); color:white; display:block; text-align:center; padding:18px; cursor:pointer; font-size: 18px; border-radius: 12px;">
+              <i class="fas fa-camera"></i> Capture Asset Photo
+              <input type="file" id="assetCameraInput" accept="image/*" capture="environment" style="display:none">
+            </label>
+            <div id="assetPhotoPreview" style="display:grid; grid-template-columns: repeat(3, 1fr); gap:10px; margin-top:15px;"></div>
+          </div>
+        `;
     
         renderAssetPhotos();
     
+        // 3. Camera Input wiring
+        document.getElementById('assetCameraInput').onchange = async function(e) {
+          const file = e.target.files[0];
+          if (!file) return;
+          const reader = new FileReader();
+          reader.onload = async function(event) {
+            const compressedBase64 = await compressImage(event.target.result);
+            callApi('uploadImage', { base64: compressedBase64, name: "asset_" + uniqueTag + ".jpg" }).then(res => {
+              if (res && res.url) { 
+                photoQueue.push(res.url); 
+                renderAssetPhotos(); 
+              }
+            });
+          };
+          reader.readAsDataURL(file);
+        };
+    
+        // 4. Submit Payload Builder
         submit.onclick = () => {
+          const selectedApt = isEdit ? editData.apt : document.getElementById('a_apt').value;
+          if (!selectedApt) {
+            alert("Please select a Unit connection.");
+            return;
+          }
+    
           submit.disabled = true;
           const payload = {
-            // If disabled, we use the editData.apt because .value will be empty
-            apt: isEdit ? editData.apt : document.getElementById('a_apt').value,
+            apt: selectedApt,
             tag: uniqueTag,
             type: document.getElementById('a_type').value,
             status: document.getElementById('a_status').value,
@@ -783,18 +834,17 @@
             photos: photoQueue.join(','),
             notes: document.getElementById('a_notes').value
           };
-          // Inside openModal -> asset -> submit.onclick
-          callApi(isEdit ? 'updateAsset' : 'saveAsset', payload).then(res => {
+    
+          const action = isEdit ? 'updateAsset' : 'saveAsset';
+          callApi(action, payload).then(res => {
             if (res && res.success) {
-              // Clear the filter dropdown so it repopulates with the new unit if necessary
               document.getElementById('asset-unit-filter').innerHTML = '<option value="ALL">-- ALL ASSETS --</option>';
               closeModal();
               refreshData('assets');
+            } else {
+              submit.disabled = false;
+              alert("Error: " + (res ? res.error : "Unknown connection error"));
             }
-          });
-          callApi(isEdit ? 'updateAsset' : 'saveAsset', payload).then(res => {
-            if (res && res.success) { closeModal(); refreshData('assets'); }
-            else { submit.disabled = false; alert("Error: " + res.error); }
           });
         };
       }    
