@@ -114,7 +114,7 @@
       <div id="view-apartments" class="page-view">
         <div class="page-header">
           <div class="header-group"><button class="home-btn" onclick="showPage('dashboard')"><i class="fas fa-home"></i></button><h2>Units</h2></div>
-          <button class="add-btn" onclick="openModal('apartment')">Add</button>
+          <button class="add-btn" onclick="('apartment')">Add</button>
         </div>
         <div id="apt-list"></div>
       </div>
@@ -122,7 +122,7 @@
       <div id="view-assets" class="page-view">
         <div class="page-header">
           <div class="header-group"><button class="home-btn" onclick="showPage('dashboard')"><i class="fas fa-home"></i></button><h2>Assets</h2></div>
-          <button class="add-btn" onclick="openModal('asset')">Add</button>
+          <button class="add-btn" onclick="('asset')">Add</button>
         </div>
         <div id="asset-list"></div>
       </div>
@@ -130,7 +130,7 @@
       <div id="view-inventory" class="page-view">
         <div class="page-header">
           <div class="header-group"><button class="home-btn" onclick="showPage('dashboard')"><i class="fas fa-home"></i></button><h2>Inventory</h2></div>
-          <button class="add-btn" onclick="openModal('inventory')">Restock</button>
+          <button class="add-btn" onclick="('inventory')">Restock</button>
         </div>
         <div id="inventory-list"></div>
       </div>
@@ -138,7 +138,7 @@
       <div id="view-maintenance" class="page-view">
         <div class="page-header">
           <div class="header-group"><button class="home-btn" onclick="showPage('dashboard')"><i class="fas fa-home"></i></button><h2>Maint.</h2></div>
-          <button class="add-btn" onclick="openModal('ticket')">Log</button>
+          <button class="add-btn" onclick="('ticket')">Log</button>
         </div>
         <div id="maint-list"></div>
       </div>
@@ -146,7 +146,7 @@
       <div id="view-utilities" class="page-view">
         <div class="page-header">
           <div class="header-group"><button class="home-btn" onclick="showPage('dashboard')"><i class="fas fa-home"></i></button><h2>Utilities</h2></div>
-          <button class="add-btn" onclick="openModal('utility')">Record</button>
+          <button class="add-btn" onclick="('utility')">Record</button>
         </div>
         <div id="util-list"></div>
       </div>
@@ -161,7 +161,7 @@
       <div id="view-staff" class="page-view">
         <div class="page-header">
           <div class="header-group"><button class="home-btn" onclick="showPage('dashboard')"><i class="fas fa-home"></i></button><h2>Staff</h2></div>
-          <button class="add-btn" onclick="openModal('staff')">Add</button>
+          <button class="add-btn" onclick="('staff')">Add</button>
         </div>
         <div id="staff-list"></div>
       </div>
@@ -169,7 +169,7 @@
       <div id="view-vendors" class="page-view">
         <div class="page-header">
           <div class="header-group"><button class="home-btn" onclick="showPage('dashboard')"><i class="fas fa-home"></i></button><h2>Vendors</h2></div>
-          <button class="add-btn" onclick="openModal('vendor')">Add</button>
+          <button class="add-btn" onclick="('vendor')">Add</button>
         </div>
         <div id="vendor-list"></div>
       </div>
@@ -362,77 +362,91 @@
 
       if (type === 'apartment') {
         title.innerText = isEdit ? "Update Unit" : "Add New Unit";
-        body.innerHTML = `<small style="color:var(--muted)">Unit #</small><input id="apt_num" value="${isEdit ? editData.apt : ''}"><small style="color:var(--muted)">Tenant</small><input id="apt_tenant" value="${isEdit ? editData.tenant : ''}">`;
-        submit.onclick = () => {
-          submit.disabled = true;
-          callApi(isEdit ? 'updateApartment' : 'saveApartment', { apt: document.getElementById('apt_num').value, tenant: document.getElementById('apt_tenant').value, oldApt: isEdit ? editData.apt : null }).then(() => { closeModal(); refreshData('apartments'); });
-        };
-      }
-      else if (type === 'ticket') {
-        title.innerText = isEdit ? "Update Ticket" : "Log Maintenance";
-        const ticketId = isEdit ? editData.id : "TKT-" + Date.now().toString().slice(-6);
+        
+        // Setup a temporary array for photos
+        let photoQueue = isEdit && editData.photos ? editData.photos.split(',') : [];
+
         body.innerHTML = `
-          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:15px;">
-            <div><small style="color:var(--muted)">Unit</small><select id="t_apt" onchange="filterAssetsForTicket(this.value)"><option value="">-- Select --</option>${cache.apts.map(a => `<option value="${a.apt}" ${isEdit && a.apt === editData.apt ? 'selected' : ''}>${a.apt}</option>`).join('')}</select></div>
-            <div><small style="color:var(--muted)">Asset</small><select id="t_asset"><option value="">General Area</option></select></div>
-          </div>
-          <input id="t_issue" placeholder="Problem?" value="${isEdit ? editData.issue : ''}">
-          <select id="t_priority"><option value="Low" ${isEdit && editData.priority === 'Low' ? 'selected' : ''}>Low</option><option value="Medium" ${isEdit && editData.priority === 'Medium' ? 'selected' : ''}>Medium</option><option value="High" ${isEdit && editData.priority === 'High' ? 'selected' : ''}>High (Urgent)</option></select>
-          <textarea id="t_notes" placeholder="Notes" rows="3">${isEdit ? editData.notes : ''}</textarea>
-        `;
-        if (isEdit || document.getElementById('t_apt').value) filterAssetsForTicket(isEdit ? editData.apt : '', isEdit ? editData.asset : '');
-        submit.onclick = () => {
-          submit.disabled = true;
-          callApi(isEdit ? 'updateTicket' : 'saveTicket', { id: ticketId, apt: document.getElementById('t_apt').value, asset: document.getElementById('t_asset').value, issue: document.getElementById('t_issue').value, priority: document.getElementById('t_priority').value, notes: document.getElementById('t_notes').value, status: isEdit ? editData.status : 'Open' }).then(() => { closeModal(); refreshData('maintenance'); });
-        };
-      }
-        else if (type === 'inventory') {
-        title.innerText = isEdit ? "Update Stock" : "New Inventory Item";
-        body.innerHTML = `
-          <small style="color:var(--muted)">Item Name</small>
-          <input id="inv_item" placeholder="e.g. LED Bulb 10W" value="${isEdit ? editData.item : ''}" ${isEdit ? 'disabled' : ''}>
-          
-          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:15px;">
-            <div>
-              <small style="color:var(--muted)">Category</small>
-              <select id="inv_cat">
-                <option value="Electrical" ${isEdit && editData.category === 'Electrical' ? 'selected' : ''}>Electrical</option>
-                <option value="Plumbing" ${isEdit && editData.category === 'Plumbing' ? 'selected' : ''}>Plumbing</option>
-                <option value="Cleaning" ${isEdit && editData.category === 'Cleaning' ? 'selected' : ''}>Cleaning</option>
-                <option value="HVAC" ${isEdit && editData.category === 'HVAC' ? 'selected' : ''}>HVAC</option>
-              </select>
-            </div>
-            <div>
-              <small style="color:var(--muted)">Unit</small>
-              <input id="inv_unit" placeholder="pcs, boxes, etc." value="${isEdit ? editData.unit : 'pcs'}">
-            </div>
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+            <div><small style="color:var(--muted)">Unit #</small><input id="f_apt" value="${isEdit ? editData.apt : ''}"></div>
+            <div><small style="color:var(--muted)">Type</small><select id="f_type">
+              <option value="Studio" ${isEdit && editData.type === 'Studio' ? 'selected' : ''}>Studio</option>
+              <option value="1BR" ${isEdit && editData.type === '1BR' ? 'selected' : ''}>1 Bedroom</option>
+              <option value="2BR" ${isEdit && editData.type === '2BR' ? 'selected' : ''}>2 Bedroom</option>
+            </select></div>
           </div>
 
-          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:15px;">
-            <div>
-              <small style="color:var(--muted)">Current Stock</small>
-              <input type="number" id="inv_stock" value="${isEdit ? editData.stock : '0'}">
-            </div>
-            <div>
-              <small style="color:var(--muted)">Min. Threshold</small>
-              <input type="number" id="inv_min" value="${isEdit ? editData.min : '5'}">
+          <small style="color:var(--muted)">Tenant Name</small>
+          <input id="f_tenant" value="${isEdit ? editData.tenant : ''}">
+
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+            <div><small style="color:var(--muted)">Phone 1</small><input id="f_p1" type="tel" value="${isEdit ? editData.phone1 : ''}"></div>
+            <div><small style="color:var(--muted)">Phone 2</small><input id="f_p2" type="tel" value="${isEdit ? editData.phone2 : ''}"></div>
+          </div>
+
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+            <div><small style="color:var(--muted)">Status</small><select id="f_status">
+              <option value="Occupied" ${isEdit && editData.status === 'Occupied' ? 'selected' : ''}>Occupied</option>
+              <option value="Vacant" ${isEdit && editData.status === 'Vacant' ? 'selected' : ''}>Vacant</option>
+              <option value="Maintenance" ${isEdit && editData.status === 'Maintenance' ? 'selected' : ''}>Maintenance</option>
+            </select></div>
+            <div><small style="color:var(--muted)">Lease End</small><input id="f_lease" type="date" value="${isEdit ? editData.leaseEnd : ''}"></div>
+          </div>
+
+          <small style="color:var(--muted)">Notes</small>
+          <textarea id="f_notes" rows="2">${isEdit ? editData.notes : ''}</textarea>
+
+          <div style="margin-top:15px; border-top:1px solid var(--border); padding-top:15px;">
+            <label class="action-btn" style="background:var(--card-light); display:block; text-align:center; padding:12px; cursor:pointer;">
+              <i class="fas fa-camera"></i> Take Photo
+              <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display:none">
+            </label>
+            <div id="photoPreview" style="display:grid; grid-template-columns: repeat(3, 1fr); gap:8px; margin-top:10px;">
+               ${photoQueue.map(url => `<img src="${url}" style="width:100%; aspect-ratio:1/1; object-fit:cover; border-radius:8px;">`).join('')}
             </div>
           </div>
         `;
+
+        // HANDLE CAMERA PREVIEW
+        document.getElementById('cameraInput').onchange = function(e) {
+          const file = e.target.files[0];
+          if (!file) return;
+          const reader = new FileReader();
+          reader.onload = function(event) {
+            const base64 = event.target.result;
+            // Show preview immediately
+            const img = document.createElement('img');
+            img.src = base64;
+            img.style = "width:100%; aspect-ratio:1/1; object-fit:cover; border-radius:8px; border:2px solid var(--primary)";
+            document.getElementById('photoPreview').appendChild(img);
+            
+            // Upload to Google Drive immediately
+            callApi('uploadImage', { base64: base64, name: "apt_" + Date.now() + ".jpg" }).then(res => {
+              if (res.url) photoQueue.push(res.url);
+              img.style.border = "none"; // Success indicator
+            });
+          };
+          reader.readAsDataURL(file);
+        };
 
         submit.onclick = () => {
           submit.disabled = true;
           const payload = {
-            item: document.getElementById('inv_item').value,
-            category: document.getElementById('inv_cat').value,
-            unit: document.getElementById('inv_unit').value,
-            stock: document.getElementById('inv_stock').value,
-            min: document.getElementById('inv_min').value
+            apt: document.getElementById('f_apt').value,
+            tenant: document.getElementById('f_tenant').value,
+            type: document.getElementById('f_type').value,
+            phone1: document.getElementById('f_p1').value,
+            phone2: document.getElementById('f_p2').value,
+            status: document.getElementById('f_status').value,
+            leaseEnd: document.getElementById('f_lease').value,
+            notes: document.getElementById('f_notes').value,
+            photos: photoQueue.join(','),
+            oldApt: isEdit ? editData.apt : null
           };
           
-          callApi(isEdit ? 'updateInventory' : 'saveInventory', payload).then(() => {
+          callApi(isEdit ? 'updateApartment' : 'saveApartment', payload).then(() => {
             closeModal();
-            refreshData('inventory');
+            refreshData('apartments');
           });
         };
       }
