@@ -281,6 +281,29 @@
           `).join('');
         }
       });
+      // --- MAINTENANCE ---
+    } else if (p === 'maintenance') {
+      const listEl = document.getElementById('maint-list');
+      listEl.innerHTML = '<p style="padding:20px; text-align:center; color:var(--muted)">Checking tickets...</p>';
+      
+      callApi('getTickets').then(data => {
+        cache.tickets = data || [];
+        if (cache.tickets.length === 0) {
+          listEl.innerHTML = '<div class="card" style="text-align:center; color:var(--muted)">No active tickets.</div>';
+          return;
+        }
+        
+        listEl.innerHTML = cache.tickets.map(x => `
+          <div class="card" onclick="editTicket('${x.id}')" style="cursor:pointer; border-left: 4px solid ${x.priority === 'High' ? 'var(--danger)' : 'var(--primary)'}">
+            <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+              <strong style="font-size:14px; color:var(--muted)">#${x.id}</strong>
+              <span style="font-size:10px; font-weight:800; text-transform:uppercase; color:${x.status === 'Open' ? 'var(--success)' : 'var(--muted)'}">${x.status}</span>
+            </div>
+            <h4 style="margin-bottom:4px;">${x.issue}</h4>
+            <small style="color:var(--muted)">${x.apt} • ${x.asset || 'General Area'}</small>
+          </div>
+        `).join('');
+      });
     }
 
     function refreshDashboardStats() {
@@ -330,6 +353,55 @@
         };
       }
 
+      else if (type === 'ticket') {
+        title.innerText = isEdit ? "Update Ticket" : "Log Maintenance";
+        const ticketId = isEdit ? editData.id : "TKT-" + Date.now().toString().slice(-6);
+
+        body.innerHTML = `
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:15px;">
+            <div>
+              <small style="color:var(--muted)">Unit</small>
+              <select id="t_apt" onchange="filterAssetsForTicket(this.value)">
+                <option value="">-- Select --</option>
+                ${cache.apts.map(a => `<option value="${a.apt}" ${isEdit && a.apt === editData.apt ? 'selected' : ''}>${a.apt}</option>`).join('')}
+              </select>
+            </div>
+            <div>
+              <small style="color:var(--muted)">Asset (Optional)</small>
+              <select id="t_asset">
+                <option value="">General</option>
+                ${cache.assets.map(as => `<option value="${as.tag}" ${isEdit && as.tag === editData.asset ? 'selected' : ''}>${as.type} (${as.tag})</option>`).join('')}
+              </select>
+            </div>
+          </div>
+          <input id="t_issue" placeholder="What is the problem?" value="${isEdit ? editData.issue : ''}">
+          <select id="t_priority">
+            <option value="Low" ${isEdit && editData.priority === 'Low' ? 'selected' : ''}>Low Priority</option>
+            <option value="Medium" ${isEdit && editData.priority === 'Medium' ? 'selected' : ''}>Medium Priority</option>
+            <option value="High" ${isEdit && editData.priority === 'High' ? 'selected' : ''}>High Priority (Urgent)</option>
+          </select>
+          <textarea id="t_notes" placeholder="Additional details..." rows="3">${isEdit ? editData.notes : ''}</textarea>
+        `;
+
+        submit.onclick = () => {
+          submit.disabled = true;
+          const payload = {
+            id: ticketId,
+            apt: document.getElementById('t_apt').value,
+            asset: document.getElementById('t_asset').value,
+            issue: document.getElementById('t_issue').value,
+            priority: document.getElementById('t_priority').value,
+            notes: document.getElementById('t_notes').value,
+            status: isEdit ? editData.status : 'Open'
+          };
+          
+          callApi(isEdit ? 'updateTicket' : 'saveTicket', payload).then(() => {
+            closeModal();
+            refreshData('maintenance');
+          });
+        };
+      }
+      
       else if (type === 'asset') {
         title.innerText = isEdit ? "Update Asset" : "Register Asset";
         const uniqueTag = isEdit ? editData.tag : "AST-" + Math.random().toString(36).substr(2, 5).toUpperCase();
