@@ -275,9 +275,9 @@
             <div id="s-inv" class="count">--</div>
             <small>Inventory</small>
           </div>
-          <div class="nav-card" onclick="showPage('maintenance')">
-            <i class="fas fa-clipboard-list"></i>
-            <div id="s-maint" class="count">--</div>
+          <div class="nav-card" onclick="showPage('maint'); refreshData('maintenance');">
+            <i class="fas fa-tools"></i>
+            <div class="count" id="count-maint">0</div>
             <small>Maintenance</small>
           </div>
           <div class="nav-card" onclick="showPage('utilities')">
@@ -336,6 +336,28 @@
       
         <div id="asset-list"></div>
       </div>
+
+      <div id="view-maint" class="page-view">
+  <div class="page-header">
+    <div class="header-group">
+      <button class="home-btn" onclick="showPage('dashboard')"><i class="fas fa-home"></i></button>
+      <h2>Maintenance</h2>
+    </div>
+    <button class="add-btn" onclick="openModal('maintenance')">Log Ticket</button>
+  </div>
+
+  <div style="margin-bottom: 20px;">
+    <label style="font-size: 14px; font-weight: 800; color: var(--text); display: block; margin-bottom: 5px;">FILTER BY STATUS:</label>
+    <select id="maint-status-filter" onchange="refreshData('maintenance')" style="font-size: 18px; padding: 12px; border: 3px solid #000; background: #fff; color: #000; font-weight: 700;">
+      <option value="ALL">-- ALL TICKETS --</option>
+      <option value="Open">Open</option>
+      <option value="In Progress">In Progress</option>
+      <option value="Resolved">Resolved</option>
+    </select>
+  </div>
+
+  <div id="maint-list"></div>
+</div>
       
       <div id="view-inventory" class="page-view">
         <div class="page-header">
@@ -509,53 +531,118 @@
     }
 
     function refreshData(p) {
-      const idMap = { 'apartments': 'apt-list', 'assets': 'asset-list' };
+      // 1. Maps the page parameter to the correct screen list container
+      const idMap = { 
+        'apartments': 'apt-list', 
+        'assets': 'asset-list',
+        'maintenance': 'maint-list' 
+      };
       const listEl = document.getElementById(idMap[p]);
       if (!listEl) return;
     
-      callApi(p === 'apartments' ? 'getApartments' : 'getAssets', {}).then(data => {
-        let displayData = data;
+      // 2. Directs the app to the correct Google Apps Script backend function
+      let apiCmd = 'getApartments';
+      if (p === 'assets') apiCmd = 'getAssetData';
+      if (p === 'maintenance') apiCmd = 'getMaintenanceData';
     
+      callApi(apiCmd, {}).then(data => {
+        let displayData = data || [];
+    
+        // --- MODULE A: ASSET FILTERING LOGIC ---
         if (p === 'assets') {
           const filter = document.getElementById('asset-unit-filter');
-          
-          // 1. Get unique units from the Asset data (Column A)
-          // We filter out empties and then get unique values
-          const uniqueUnitsFromAssets = [...new Set(data.map(item => item.apt))].filter(Boolean).sort();
-    
-          // 2. Populate the filter dropdown if it only has the "ALL" option
-          if (filter.options.length <= 1) {
-            uniqueUnitsFromAssets.forEach(unitName => {
-              const opt = document.createElement('option');
-              opt.value = unitName;
-              opt.innerText = unitName;
-              filter.appendChild(opt);
-            });
-          }
-    
-          // 3. Apply the actual filtering
-          const selectedUnit = filter.value;
-          if (selectedUnit !== "ALL") {
-            displayData = data.filter(item => item.apt === selectedUnit);
+          if (filter) {
+            // Extract a unique list of units found on your actual Assets sheet
+            const uniqueUnitsFromAssets = [...new Set(data.map(item => item.apt))].filter(Boolean).sort();
+            
+            // Dynamically build the select menu options if they haven't been loaded yet
+            if (filter.options.length <= 1) {
+              uniqueUnitsFromAssets.forEach(unitName => {
+                const opt = document.createElement('option');
+                opt.value = unitName;
+                opt.innerText = unitName;
+                filter.appendChild(opt);
+              });
+            }
+            
+            // Apply view filtering constraints if an item is selected
+            if (filter.value !== "ALL") {
+              displayData = data.filter(item => item.apt === filter.value);
+            }
           }
         }
     
-        // 4. Draw the high-visibility cards
-        listEl.innerHTML = displayData.map(item => `
-          <div class="card" onclick='openModal("asset", ${JSON.stringify(item)})'>
-            <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:8px;">
-              <div>
-                <strong style="font-size:22px; color:#000;">${item.apt}</strong><br>
-                <span style="font-size:18px; font-weight:800; color:var(--primary);">${item.type}</span>
+        // --- MODULE B: MAINTENANCE FILTERING LOGIC ---
+        if (p === 'maintenance') {
+          const filter = document.getElementById('maint-status-filter');
+          if (filter && filter.value !== "ALL") {
+            displayData = data.filter(item => item.status === filter.value);
+          }
+        }
+    
+        // --- 3. HIGH-VISIBILITY LAYOUT CARD RENDERING RENDERING ---
+        listEl.innerHTML = displayData.map(item => {
+          
+          // CASE 1: Maintenance Layout
+          if (p === 'maintenance') {
+            return `
+              <div class="card" onclick='openModal("maintenance", ${JSON.stringify(item)})'>
+                <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:8px;">
+                  <div>
+                    <strong style="font-size:22px; color:#000;">Unit ${item.apt}</strong><br>
+                    <span style="font-size:14px; font-weight:700; color:var(--muted);">${item.ticketId}</span>
+                  </div>
+                  <span style="padding:6px 12px; border:2px solid #000; border-radius:8px; font-size:14px; font-weight:900; background:${item.status === 'Resolved' ? 'var(--success)' : 'var(--danger)'}; color:#fff;">
+                    ${item.status.toUpperCase()}
+                  </span>
+                </div>
+                <div style="font-size:18px; font-weight:800; color:var(--primary); margin-bottom:4px;">${item.category}</div>
+                <div style="font-size:16px; color:#000; font-weight:600; margin-bottom:8px;">${item.description || 'No notes added.'}</div>
+                <div style="display:flex; justify-content:space-between; font-size:12px; font-weight:800; color:var(--muted); border-top:1px dashed #ccc; padding-top:6px;">
+                  <span>Opened: ${item.dateOpened}</span>
+                  ${item.dateClosed ? `<span>Closed: ${item.dateClosed}</span>` : '<span>Active</span>'}
+                </div>
               </div>
-              <span style="padding:6px 12px; border:2px solid #000; border-radius:8px; font-size:14px; font-weight:900; background:#000; color:#fff;">
-                ${item.status.toUpperCase()}
-              </span>
-            </div>
-            <div style="font-size:16px; font-weight:700; color:#000;">Tag: ${item.tag}</div>
-            <div style="font-size:14px; font-weight:600; color:var(--muted); margin-top:4px;">Loc: ${item.loc || 'N/A'}</div>
-          </div>
-        `).join('');
+            `;
+          } 
+          
+          // CASE 2: Assets Layout
+          else if (p === 'assets') {
+            return `
+              <div class="card" onclick='openModal("asset", ${JSON.stringify(item)})'>
+                <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:8px;">
+                  <div>
+                    <strong style="font-size:22px; color:#000;">Unit ${item.apt}</strong><br>
+                    <span style="font-size:18px; font-weight:800; color:var(--primary);">${item.type}</span>
+                  </div>
+                  <span style="padding:6px 12px; border:2px solid #000; border-radius:8px; font-size:14px; font-weight:900; background:#000; color:#fff;">
+                    ${item.status.toUpperCase()}
+                  </span>
+                </div>
+                <div style="font-size:16px; font-weight:700; color:#000;">Tag: ${item.tag}</div>
+                <div style="font-size:14px; font-weight:600; color:var(--muted); margin-top:4px;">Loc: ${item.loc || 'N/A'}</div>
+              </div>
+            `;
+          } 
+          
+          // CASE 3: Apartments Layout (Default fallback)
+          else {
+            return `
+              <div class="card" onclick='openModal("apartment", ${JSON.stringify(item)})'>
+                <div style="display:flex; justify-content:space-between; align-items:start;">
+                  <div>
+                    <strong style="font-size:24px; color:#000;">Unit ${item.apt}</strong><br>
+                    <span style="font-size:16px; font-weight:700; color:var(--muted);">${item.tenant || 'Vacant'}</span>
+                  </div>
+                  <span style="padding:6px 12px; border:2px solid #000; border-radius:8px; font-size:14px; font-weight:900; background:${item.status === 'Occupied' ? 'var(--success)' : 'var(--danger)'}; color:#fff;">
+                    ${item.status.toUpperCase()}
+                  </span>
+                </div>
+                ${item.type ? `<div style="margin-top:6px; font-size:14px; font-weight:600; color:var(--primary);">${item.type}</div>` : ''}
+              </div>
+            `;
+          }
+        }).join('');
       });
     }
     
