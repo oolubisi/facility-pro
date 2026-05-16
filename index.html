@@ -456,37 +456,35 @@
 
     function updateDashboardCounters() {
   callApi('getStats', {}).then(stats => {
-    if (!stats) return;
-    
-    // 1. Standard updates with safety guards
-    const aptBadge = document.getElementById('count-apts') || document.getElementById('count-apartments');
-    if (aptBadge) aptBadge.innerText = stats.tenancy || 0;
-    
-    const assetBadge = document.getElementById('count-assets');
-    if (assetBadge) assetBadge.innerText = stats.asset || 0;
-    
-    const invBadge = document.getElementById('count-inventory') || document.getElementById('count-inv');
-    if (invBadge) invBadge.innerText = stats.inventory || 0;
-
-    // 2. THE WIDE-NET FIX: Scan for all common facility ticketing terms
-    try {
-      const allCards = document.querySelectorAll('.nav-card, div[class*="card"]');
-      allCards.forEach(card => {
-        const txt = card.innerText.toLowerCase();
-        
-        // Checks if the card is your ticket tracker under any common name
-        if (txt.includes('maintenance') || txt.includes('tickets') || txt.includes('jobs')) {
-          const countEl = card.querySelector('.count') || card.querySelector('div') || card.querySelector('span');
-          if (countEl) {
-            countEl.innerText = stats.maint || 0;
-          }
-        }
-      });
-    } catch (domErr) {
-      console.error("Error during comprehensive layout text scan:", domErr);
+    if (!stats) {
+      console.error("❌ Error: No data returned from getStats");
+      return;
     }
+    
+    console.log("📊 CURRENT LIVE METRICS:", JSON.stringify(stats));
+    
+    // 1. Update Apartments
+    const aptBadge = document.getElementById('count-apts') || document.getElementById('count-apartments');
+    if (aptBadge) aptBadge.innerText = stats.tenancy !== undefined ? stats.tenancy : 0;
+    
+    // 2. Update Assets
+    const assetBadge = document.getElementById('count-assets');
+    if (assetBadge) assetBadge.innerText = stats.asset !== undefined ? stats.asset : 0;
+    
+    // 3. Update Inventory
+    const invBadge = document.getElementById('count-inventory') || document.getElementById('count-inv');
+    if (invBadge) invBadge.innerText = stats.inventory !== undefined ? stats.inventory : 0;
 
-  }).catch(err => console.error("Error refreshing dashboard badges:", err));
+    // 4. Update Tickets (Direct ID Target)
+    const maintBadge = document.getElementById('count-maint');
+    if (maintBadge) {
+      maintBadge.innerText = stats.maint !== undefined ? stats.maint : 0;
+      console.log("🎯 SUCCESS: Updated #count-maint element to:", stats.maint);
+    } else {
+      console.error("❌ CRITICAL: The browser cannot find any HTML element with id='count-maint'!");
+    }
+    
+  }).catch(err => console.error("❌ Network error updating badges:", err));
 }
     
     function compressImage(base64Str) {
