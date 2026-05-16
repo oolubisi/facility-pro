@@ -409,7 +409,6 @@
   <script>
     const GAS_URL = "https://script.google.com/macros/s/AKfycbz2Mgm-8O5yMivikqt1WwXf6msezVQcUNFMOoRjHpI4nDNHEevrucIfpNiKShcRG7_-/exec"; 
                      
-    // 1. DEDICATED NETWORK ROUTER WITH LOG STREAMING
     async function callApi(action, data = {}) {
       try {
         console.log("SENDING TO GOOGLE:", action, data);
@@ -430,7 +429,6 @@
 
     window.onload = () => { updateDashboardCounters(); };
 
-    // 2. COUNTER BADGE INJECTOR ENGINE
     function updateDashboardCounters() {
       callApi('getStats', {}).then(stats => {
         if (!stats) {
@@ -455,7 +453,6 @@
       }).catch(err => console.error("❌ Network error updating badges:", err));
     }
     
-    // 3. 200kB PROGRESSIVE RECURSIVE PHOTO COMPRESSOR
     function compressImage(base64Str) {
       return new Promise((resolve) => {
         const img = new Image();
@@ -518,7 +515,6 @@
       }
     }
 
-    // 4. FRONTEND LAYOUT CARD RENDER ENGINE
     function refreshData(p) {
       const idMap = { 
         'apartments': 'apt-list', 
@@ -665,9 +661,9 @@
                 <div style="display:flex; gap:16px; align-items:center;">
                   <img src="${getDirectImageUrl(item.passport) || 'https://via.placeholder.com/150'}" style="width:75px; height:75px; object-fit:cover; border-radius:50%; border:3px solid #000; background:#fff;">
                   <div style="flex:1;">
-                    <strong style="font-size:22px; color:#000;">${item.name}</strong><br>
+                    <strong style="font-size:22px; color:#000;">${item.name}</strong> <small style="background:#000; color:#fff; padding:2px 6px; border-radius:4px; font-size:11px;">${item.rowId || ''}</small><br>
                     <span style="font-size:16px; font-weight:800; color:var(--primary);">${item.role}</span><br>
-                    <span style="font-size:14px; font-weight:700; color:var(--muted);"><i class="fas fa-phone"></i> ${item.phone || 'No phone'}</span>
+                    <span style="font-size:13px; font-weight:700; color:var(--muted);"><i class="fas fa-phone"></i> P1: ${item.phone1 || 'N/A'} | P2: ${item.phone2 || 'N/A'}</span>
                   </div>
                   <button onclick="event.stopPropagation(); archiveRecord('staff', '${item.rowId}')" style="background:none; border:none; color:var(--danger); font-size:22px; padding:8px;"><i class="fas fa-archive"></i></button>
                 </div>
@@ -680,9 +676,9 @@
                 <div style="display:flex; gap:16px; align-items:center;">
                   <img src="${getDirectImageUrl(item.passport) || 'https://via.placeholder.com/150'}" style="width:75px; height:75px; object-fit:cover; border-radius:12px; border:3px solid #000; background:#fff;">
                   <div style="flex:1;">
-                    <strong style="font-size:22px; color:#000;">${item.company}</strong><br>
+                    <strong style="font-size:22px; color:#000;">${item.company}</strong> <small style="background:#000; color:#fff; padding:2px 6px; border-radius:4px; font-size:11px;">${item.rowId || ''}</small><br>
                     <span style="font-size:16px; font-weight:800; color:var(--success);">${item.trade.toUpperCase()}</span><br>
-                    <span style="font-size:14px; font-weight:700; color:var(--muted);"><i class="fas fa-user"></i> ${item.contactName || 'N/A'} (${item.phone})</span>
+                    <span style="font-size:13px; font-weight:700; color:var(--muted);"><i class="fas fa-user"></i> ${item.contactName || 'N/A'}<br>P1: ${item.phone1 || 'N/A'} | P2: ${item.phone2 || 'N/A'}</span>
                   </div>
                   <button onclick="event.stopPropagation(); archiveRecord('vendor', '${item.rowId}')" style="background:none; border:none; color:var(--danger); font-size:22px; padding:8px;"><i class="fas fa-archive"></i></button>
                 </div>
@@ -709,7 +705,6 @@
       });
     }
 
-    // 5. INPUT FORM SHEET BUILDER ENGINE
     function openModal(type, editData = null) {
       const body = document.getElementById('modalBody');
       const submit = document.getElementById('modalSubmit');
@@ -872,18 +867,22 @@
         const labelStyle = 'style="font-size: 16px; color: var(--text); font-weight: 800; display: block; margin-top: 12px; margin-bottom: 4px;"';
 
         body.innerHTML = `
-          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:10px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; background:var(--card); padding:14px; border-radius:15px; border:2px solid #000; margin-bottom:12px;">
             <div>
-              <label ${labelStyle}>Unit</label>
-              <select id="a_apt" ${largeInput} ${isEdit ? 'disabled style="opacity:0.6; background:#e9ecef; border-color:#adb5bd; color:#495057;"' : ''}>
-                <option value="">-- Select Unit --</option>
-              </select>
+              <span style="font-size:12px; font-weight:800; color:var(--muted); display:block;">ASSET TAG NUMBER</span>
+              <strong style="font-size:24px; color:#000;">${uniqueTag}</strong>
             </div>
-            <div style="text-align:center;">
-              <label ${labelStyle}>Asset Tag</label>
-              <strong style="font-size:20px; display:block; padding:12px; color:#000;">${uniqueTag}</strong>
-            </div>
+            ${isEdit ? `
+              <label style="display:flex; align-items:center; gap:8px; background:#fff; padding:8px 12px; border:2px solid var(--danger); border-radius:8px; font-size:14px; font-weight:800; color:var(--danger); cursor:pointer;">
+                <input type="checkbox" id="a_archive" style="width:20px; height:20px; margin:0;" ${editData.archived === 'Yes' ? 'checked' : ''}> ARCHIVE
+              </label>
+            ` : ''}
           </div>
+
+          <label ${labelStyle}>Unit Connection</label>
+          <select id="a_apt" ${largeInput} ${isEdit ? 'disabled style="opacity:0.6; background:#e9ecef; border-color:#adb5bd; color:#495057;"' : ''}>
+            <option value="">-- Select Unit --</option>
+          </select>
 
           <label ${labelStyle}>Category / Type</label>
           <input id="a_type" value="${isEdit ? (editData.type || '') : ''}" placeholder="e.g. Air Conditioner" ${largeInput}>
@@ -980,7 +979,8 @@
             loc: document.getElementById('a_loc').value,
             specs: document.getElementById('a_specs').value,
             photos: photoQueue.join(','),
-            notes: document.getElementById('a_notes').value
+            notes: document.getElementById('a_notes').value,
+            archived: (isEdit && document.getElementById('a_archive').checked) ? "Yes" : "No"
           };
 
           const action = isEdit ? 'updateAsset' : 'saveAsset';
@@ -1386,6 +1386,7 @@
         };
       }
       else if (type === 'staff') {
+        const uniqueId = isEdit ? editData.rowId : "STF-" + Math.random().toString(36).substr(2, 5).toUpperCase();
         title.innerText = isEdit ? "Update Staff Profile" : "Register Facility Staff";
         let passportUrl = isEdit ? (editData.passport || '') : '';
         let attachmentsQueue = isEdit && editData.attachments ? editData.attachments.split(',').filter(Boolean) : [];
@@ -1393,7 +1394,7 @@
         const renderStaffFiles = () => {
           const passEl = document.getElementById('staffPassportPreview');
           if (passEl) {
-            passEl.innerHTML = passportUrl ? `<img src="${getDirectImageUrl(passportUrl)}" style="width:110px; height:110px; object-fit:cover; border-radius:50%; border:3px solid #000;">` : `<div style="width:110px; height:110px; border-radius:50%; border:3px dashed var(--border); display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:800; color:var(--muted); background:#F1F3F5;">NO PHOTO</div>`;
+            passEl.innerHTML = passportUrl ? `<img src="${getDirectImageUrl(passportUrl)}" style="width:110px; height:110px; object-fit:cover; border-radius:50%; border:3px solid #000;">` : `<div style="width:110px; height:110px; border-radius:50%; border:3px dashed var(--border); display:flex; flex-direction:column; align-items:center; justify-content:center; font-size:12px; font-weight:900; color:var(--muted); background:#F1F3F5; line-height:1.2;"><i class="fas fa-camera" style="font-size:20px; margin-bottom:4px; color:#000;"></i>SNAP PHOTO</div>`;
           }
           const docsEl = document.getElementById('staffDocsPreview');
           if (docsEl) {
@@ -1409,12 +1410,18 @@
         window.removeStaffDoc = (idx) => { attachmentsQueue.splice(idx, 1); renderStaffFiles(); };
 
         body.innerHTML = `
-          <div style="display:flex; gap:16px; align-items:center; margin-bottom:15px; background:var(--card); padding:12px; border-radius:16px; border:2px solid var(--border);">
-            <div id="staffPassportPreview"></div>
-            <label class="action-btn" style="background:#000; color:#fff; padding:12px 16px; font-size:14px; cursor:pointer; width:auto; border-radius:8px; margin:0;">
-              <i class="fas fa-camera"></i> Passport Photo
-              <input type="file" id="staffPassportInput" accept="image/*" capture="user" style="display:none">
-            </label>
+          <div style="display:flex; gap:20px; align-items:center; margin-bottom:15px; background:var(--card); padding:16px; border-radius:16px; border:2px solid var(--border);">
+            <div id="staffPassportPreview" style="cursor:pointer;" onclick="document.getElementById('staffPassportInput').click()"></div>
+            <input type="file" id="staffPassportInput" accept="image/*" capture="user" style="display:none">
+            <div style="flex:1;">
+              <span style="font-size:12px; font-weight:800; color:var(--muted); display:block;">STAFF PORTFOLIO NO</span>
+              <strong style="font-size:24px; color:#000; display:block; margin-bottom:4px;">${uniqueId}</strong>
+              ${isEdit ? `
+                <label style="display:inline-flex; align-items:center; gap:8px; color:var(--danger); font-weight:800; font-size:15px; cursor:pointer; margin-top:2px;">
+                  <input type="checkbox" id="st_archive" style="width:20px; height:20px; margin:0;" ${editData.archived === 'Yes' ? 'checked' : ''}> Archive Record
+                </label>
+              ` : ''}
+            </div>
           </div>
 
           <label ${labelStyle}>Staff Member Name</label>
@@ -1423,8 +1430,11 @@
           <label ${labelStyle}>Role / Designation</label>
           <input id="st_role" value="${isEdit ? editData.role : ''}" placeholder="e.g. Facility Electrician" ${largeInput}>
 
-          <label ${labelStyle}>Phone Number (11 Digits)</label>
-          <input id="st_phone" type="tel" maxlength="11" value="${isEdit ? editData.phone : ''}" placeholder="e.g. 08034567890" ${largeInput}>
+          <label ${labelStyle}>Primary Contact (Phone 1)</label>
+          <input id="st_phone1" type="tel" maxlength="11" value="${isEdit ? (editData.phone1 || '') : ''}" placeholder="e.g. 080..." ${largeInput}>
+
+          <label ${labelStyle}>Backup Contact (Phone 2)</label>
+          <input id="st_phone2" type="tel" maxlength="11" value="${isEdit ? (editData.phone2 || '') : ''}" placeholder="e.g. 081..." ${largeInput}>
 
           <label ${labelStyle}>Credentials & Documentation (JPEG or PDF Max 500KB)</label>
           <label class="action-btn" style="background:var(--primary); color:white; display:block; text-align:center; padding:14px; cursor:pointer; font-size:16px; border-radius:10px; margin-bottom:10px;">
@@ -1473,12 +1483,14 @@
 
           submit.disabled = true;
           const payload = {
-            rowId: isEdit ? editData.rowId : "STF-" + Math.random().toString(36).substr(2, 5).toUpperCase(),
+            rowId: uniqueId,
             name: staffName,
             role: document.getElementById('st_role').value,
-            phone: document.getElementById('st_phone').value,
+            phone1: document.getElementById('st_phone1').value,
+            phone2: document.getElementById('st_phone2').value,
             passport: passportUrl,
-            attachments: attachmentsQueue.join(',')
+            attachments: attachmentsQueue.join(','),
+            archived: (isEdit && document.getElementById('st_archive').checked) ? "Yes" : "No"
           };
 
           const action = isEdit ? 'updateStaff' : 'saveStaff';
@@ -1489,6 +1501,7 @@
         };
       }
       else if (type === 'vendor') {
+        const uniqueId = isEdit ? editData.rowId : "VND-" + Math.random().toString(36).substr(2, 5).toUpperCase();
         title.innerText = isEdit ? "Update Vendor Profile" : "Register Business Vendor";
         let logoUrl = isEdit ? (editData.passport || '') : '';
         let attachmentsQueue = isEdit && editData.attachments ? editData.attachments.split(',').filter(Boolean) : [];
@@ -1496,14 +1509,14 @@
         const renderVendorFiles = () => {
           const logoEl = document.getElementById('vendorLogoPreview');
           if (logoEl) {
-            logoEl.innerHTML = logoUrl ? `<img src="${getDirectImageUrl(logoUrl)}" style="width:110px; height:110px; object-fit:cover; border-radius:12px; border:3px solid #000;">` : `<div style="width:110px; height:110px; border-radius:12px; border:3px dashed var(--border); display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:800; color:var(--muted); background:#F1F3F5;">NO LOGO</div>`;
+            logoEl.innerHTML = logoUrl ? `<img src="${getDirectImageUrl(logoUrl)}" style="width:110px; height:110px; object-fit:cover; border-radius:12px; border:3px solid #000;">` : `<div style="width:110px; height:110px; border-radius:12px; border:3px dashed var(--border); display:flex; flex-direction:column; align-items:center; justify-content:center; font-size:12px; font-weight:900; color:var(--muted); background:#F1F3F5; text-align:center; padding:4px; line-height:1.2;"><i class="fas fa-store" style="font-size:20px; margin-bottom:4px; color:#000;"></i>SNAP LOGO</div>`;
           }
           const docsEl = document.getElementById('vendorDocsPreview');
           if (docsEl) {
             docsEl.innerHTML = attachmentsQueue.map((url, i) => `
               <div style="background:var(--card); border:2px solid #000; padding:10px 14px; border-radius:10px; display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; font-weight:700;">
                 <a href="${url}" target="_blank" style="color:var(--primary); text-decoration:none; font-size:16px;"><i class="fas fa-file-contract"></i> Agreement Doc ${i+1}</a>
-                <button onclick="window.removeVendorDoc(${i})" style="background:none; border:none; color:var(--danger); font-size:18px; cursor:pointer;"><i class="fas fa-times"></i></button>
+                <button onclick="window.removeVendorDoc(${idx})" style="background:none; border:none; color:var(--danger); font-size:18px; cursor:pointer;"><i class="fas fa-times"></i></button>
               </div>
             `).join('');
           }
@@ -1512,12 +1525,18 @@
         window.removeVendorDoc = (idx) => { attachmentsQueue.splice(idx, 1); renderVendorFiles(); };
 
         body.innerHTML = `
-          <div style="display:flex; gap:16px; align-items:center; margin-bottom:15px; background:var(--card); padding:12px; border-radius:16px; border:2px solid var(--border);">
-            <div id="vendorLogoPreview"></div>
-            <label class="action-btn" style="background:#000; color:#fff; padding:12px 16px; font-size:14px; cursor:pointer; width:auto; border-radius:8px; margin:0;">
-              <i class="fas fa-store"></i> Upload Logo / Photo
-              <input type="file" id="vendorLogoInput" accept="image/*" style="display:none">
-            </label>
+          <div style="display:flex; gap:20px; align-items:center; margin-bottom:15px; background:var(--card); padding:12px; border-radius:16px; border:2px solid var(--border);">
+            <div id="vendorLogoPreview" style="cursor:pointer;" onclick="document.getElementById('vendorLogoInput').click()"></div>
+            <input type="file" id="vendorLogoInput" accept="image/*" style="display:none">
+            <div style="flex:1;">
+              <span style="font-size:12px; font-weight:800; color:var(--muted); display:block;">VENDOR INDEX CODE</span>
+              <strong style="font-size:24px; color:#000; display:block; margin-bottom:4px;">${uniqueId}</strong>
+              ${isEdit ? `
+                <label style="display:inline-flex; align-items:center; gap:8px; color:var(--danger); font-weight:800; font-size:15px; cursor:pointer; margin-top:2px;">
+                  <input type="checkbox" id="v_archive" style="width:20px; height:20px; margin:0;" ${editData.archived === 'Yes' ? 'checked' : ''}> Archive Corporate Row
+                </label>
+              ` : ''}
+            </div>
           </div>
 
           <label ${labelStyle}>Company Name</label>
@@ -1529,8 +1548,11 @@
           <label ${labelStyle}>Contact Person Name</label>
           <input id="v_contact" value="${isEdit ? editData.contactName : ''}" placeholder="e.g. Engr. Kunle" ${largeInput}>
 
-          <label ${labelStyle}>Office Phone Number</label>
-          <input id="v_phone" type="tel" value="${isEdit ? editData.phone : ''}" placeholder="e.g. 08123456789" ${largeInput}>
+          <label ${labelStyle}>Primary Phone (Line 1)</label>
+          <input id="v_phone1" type="tel" value="${isEdit ? (editData.phone1 || '') : ''}" placeholder="e.g. 081..." ${largeInput}>
+
+          <label ${labelStyle}>Backup Phone (Line 2)</label>
+          <input id="v_phone2" type="tel" value="${isEdit ? (editData.phone2 || '') : ''}" placeholder="e.g. 080..." ${largeInput}>
 
           <label ${labelStyle}>Service Contracts & SLA Documents (JPEG or PDF Max 500KB)</label>
           <label class="action-btn" style="background:var(--success); color:white; display:block; text-align:center; padding:14px; cursor:pointer; font-size:16px; border-radius:10px; margin-bottom:10px;">
@@ -1579,13 +1601,15 @@
 
           submit.disabled = true;
           const payload = {
-            rowId: isEdit ? editData.rowId : "VND-" + Math.random().toString(36).substr(2, 5).toUpperCase(),
+            rowId: uniqueId,
             company: companyName,
             trade: document.getElementById('v_trade').value,
             contactName: document.getElementById('v_contact').value,
-            phone: document.getElementById('v_phone').value,
+            phone1: document.getElementById('v_phone1').value,
+            phone2: document.getElementById('v_phone2').value,
             passport: logoUrl,
-            attachments: attachmentsQueue.join(',')
+            attachments: attachmentsQueue.join(','),
+            archived: (isEdit && document.getElementById('v_archive').checked) ? "Yes" : "No"
           };
 
           const action = isEdit ? 'updateVendor' : 'saveVendor';
@@ -1597,7 +1621,6 @@
       }
     }
     
-    // 6. RECORD ARCHIVE PIPELINE
     function archiveRecord(type, id) {
       if (!confirm("Are you sure you want to transfer this record profile to the archive bin?")) return;
       const apiCmd = type === 'staff' ? 'archiveStaff' : 'archiveVendor';
