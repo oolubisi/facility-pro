@@ -454,6 +454,44 @@
 
     window.onload = () => { refreshDashboardStats(); };
 
+    function compressImage(base64Str) {
+      return new Promise((resolve) => {
+        const img = new Image();
+        img.src = base64Str;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+    
+          // 1. Downscale dimensions first if the image is massive
+          const MAX_WIDTH = 1000;
+          const MAX_HEIGHT = 1000;
+          if (width > height) {
+            if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; }
+          } else {
+            if (height > MAX_HEIGHT) { width *= MAX_HEIGHT / height; height = MAX_HEIGHT; }
+          }
+    
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+    
+          // 2. Loop down quality until the base64 length is strictly under ~266,000 chars (200kB)
+          let quality = 0.8;
+          let resultBase64 = canvas.toDataURL('image/jpeg', quality);
+          
+          while (resultBase64.length > 266000 && quality > 0.15) {
+            quality -= 0.1;
+            resultBase64 = canvas.toDataURL('image/jpeg', quality);
+          }
+          
+          console.log("Compressed Photo Size:", Math.round(resultBase64.length * 0.75 / 1024), "kB");
+          resolve(resultBase64);
+        };
+      });
+    }
+    
     function toggleMore() {
       const menu = document.querySelector('.more-menu');
       menu.classList.toggle('show');
@@ -1125,20 +1163,48 @@
       });
     }
 
-    // Camera Upload
+// Camera Upload with Error Notifications
     document.getElementById('maintCameraInput').onchange = async function(e) {
       const file = e.target.files[0];
       if (!file) return;
+      
+      // Show loading card instantly
+      const container = document.getElementById('maintPhotoPreview');
+      const loader = document.createElement('div');
+      loader.id = "maint-upload-loading-spn";
+      loader.innerHTML = `
+        <div style="width:100%; aspect-ratio:1/1; background:#F1F3F5; border:3px dashed #000; border-radius:8px; display:flex; flex-direction:column; align-items:center; justify-content:center; font-weight:800; color:#000;">
+          <i class="fas fa-spinner fa-spin" style="font-size:24px; margin-bottom:4px;"></i>
+          <span style="font-size:11px;">UPLOADING...</span>
+        </div>
+      `;
+      container.appendChild(loader);
+
       const reader = new FileReader();
       reader.onload = async function(event) {
+        // Run the 200kB loop compressor
         const compressedBase64 = await compressImage(event.target.result);
-        callApi('uploadImage', { base64: compressedBase64, name: "maint_" + uniqueTicket + ".jpg" }).then(res => {
-          if (res && res.url) { photoQueue.push(res.url); renderMaintPhotos(); }
-        });
+        
+        callApi('uploadImage', { base64: compressedBase64, name: "maint_" + uniqueTicket + "_" + Date.now() + ".jpg" })
+          .then(res => {
+            const activeLoader = document.getElementById('maint-upload-loading-spn');
+            if (activeLoader) activeLoader.remove();
+            
+            if (res && res.url) { 
+              photoQueue.push(res.url); 
+              renderMaintPhotos(); // Displays preview thumbnail immediately
+            } else {
+              alert("Upload Failed: " + (res.error || "Check backend script deployment."));
+            }
+          })
+          .catch(err => {
+            const activeLoader = document.getElementById('maint-upload-loading-spn');
+            if (activeLoader) activeLoader.remove();
+            alert("Network error processing upload file.");
+          });
       };
       reader.readAsDataURL(file);
     };
-
     // Save/Update Execution
     submit.onclick = () => {
       const selectedApt = isEdit ? editData.apt : document.getElementById('m_apt').value;
