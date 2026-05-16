@@ -468,21 +468,22 @@
     const invBadge = document.getElementById('count-inventory') || document.getElementById('count-inv');
     if (invBadge) invBadge.innerText = stats.inventory || 0;
 
-    // 2. THE BULLETPROOF FIX: Find the card by text, ignore the ID entirely
+    // 2. THE WIDE-NET FIX: Scan for all common facility ticketing terms
     try {
-      const allCards = document.querySelectorAll('.nav-card');
+      const allCards = document.querySelectorAll('.nav-card, div[class*="card"]');
       allCards.forEach(card => {
-        // If this dashboard card mentions "maintenance", hunt down its counter
-        if (card.innerText.toLowerCase().includes('maintenance')) {
-          const countEl = card.querySelector('.count') || card.querySelector('div');
+        const txt = card.innerText.toLowerCase();
+        
+        // Checks if the card is your ticket tracker under any common name
+        if (txt.includes('maintenance') || txt.includes('tickets') || txt.includes('jobs')) {
+          const countEl = card.querySelector('.count') || card.querySelector('div') || card.querySelector('span');
           if (countEl) {
             countEl.innerText = stats.maint || 0;
-            console.log("🎯 Match found! Fixed badge. Its real HTML ID was:", countEl.id);
           }
         }
       });
     } catch (domErr) {
-      console.error("Error during text-search layout update:", domErr);
+      console.error("Error during comprehensive layout text scan:", domErr);
     }
 
   }).catch(err => console.error("Error refreshing dashboard badges:", err));
