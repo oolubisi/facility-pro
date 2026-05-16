@@ -31,7 +31,7 @@
       line-height: 1.5;
     }
     
-    /* 1. LAYOUT & SPACING */
+    /* LAYOUT & SPACING */
     .sidebar { display: none !important; }
     .main { 
       width: 100%; 
@@ -41,7 +41,7 @@
       min-height: 100vh; 
     }
 
-    /* 2. DASHBOARD GRID */
+    /* DASHBOARD GRID */
     .nav-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
     .nav-card {
       background: var(--card); 
@@ -62,7 +62,7 @@
     .nav-card .count { font-size: 32px; font-weight: 900; color: var(--text); }
     .nav-card small { font-size: 12px; text-transform: uppercase; color: var(--text); font-weight: 800; }
 
-    /* 3. HEADERS */
+    /* HEADERS */
     .page-header { 
       display: flex; 
       align-items: center; 
@@ -75,7 +75,7 @@
     .home-btn { background: var(--text); border: none; color: white; width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; }
     h2 { font-size: 24px; font-weight: 800; color: var(--text); }
 
-    /* 4. FORM COMPONENTS */
+    /* FORM COMPONENTS */
     .card { 
       background: var(--bg); 
       border-radius: 20px; 
@@ -121,7 +121,7 @@
       letter-spacing: 1px;
     }
 
-    /* 5. MODAL */
+    /* MODAL */
     .modal-overlay { 
       position: fixed; 
       inset: 0; 
@@ -143,7 +143,7 @@
       overflow-y: auto; 
     }
 
-    /* 6. UTILS */
+    /* UTILS */
     .page-view { display: none; }
     .active-view { display: block; }
     .fa-times { font-size: 20px; }
@@ -343,7 +343,7 @@
           </div>
           <div style="display:flex; gap:6px;">
             <button class="action-btn" style="width:auto; padding:10px 14px; font-size:14px;" onclick="openModal('utility')">Meter</button>
-            <button class="action-btn" style="width:auto; padding:10px 14px; font-size:14px; background:var(--primary);" onclick="openModal('generator')">Gen Log</button>
+            <button class="action-btn" style="width:auto; padding:10px 14px; font-size:14px; background:var(--primary);" onclick="openModal('generator')">Plant Log</button>
           </div>
         </div>
         <div id="util-list"></div>
@@ -401,6 +401,7 @@
   <script>
     const GAS_URL = "https://script.google.com/macros/s/AKfycbz2Mgm-8O5yMivikqt1WwXf6msezVQcUNFMOoRjHpI4nDNHEevrucIfpNiKShcRG7_-/exec"; 
                      
+    // 1. DEDICATED NETWORK ROUTER WITH LOG STREAMING
     async function callApi(action, data = {}) {
       try {
         console.log("SENDING TO GOOGLE:", action, data);
@@ -421,6 +422,7 @@
 
     window.onload = () => { updateDashboardCounters(); };
 
+    // 2. COUNTER BADGE INJECTOR ENGINE
     function updateDashboardCounters() {
       callApi('getStats', {}).then(stats => {
         if (!stats) {
@@ -445,6 +447,7 @@
       }).catch(err => console.error("❌ Network error updating badges:", err));
     }
     
+    // 3. 200kB PROGRESSIVE RECURSIVE PHOTO COMPRESSOR
     function compressImage(base64Str) {
       return new Promise((resolve) => {
         const img = new Image();
@@ -507,6 +510,7 @@
       }
     }
 
+    // 4. FRONTEND LAYOUT CARD RENDER ENGINE
     function refreshData(p) {
       const idMap = { 
         'apartments': 'apt-list', 
@@ -590,29 +594,40 @@
             `;
           } 
           else if (p === 'utilities') {
-            if (item.apt === 'GENERATOR') {
+            const isPlant = item.type === 'Plant Check' || item.apt.includes('GENERATOR') || item.apt === 'DIESEL-TANK';
+            
+            if (isPlant) {
+              // DUAL INTERCEPT ENGINE FOR CENTRAL MECHANICAL PLANT RECORDS
+              let displayName = "Central Diesel Tank";
+              let cardColor = "#20c997"; 
+              let metricDisplay = item.meterNo; 
+              
+              if (item.apt === 'GENERATOR-1') { displayName = "Generator 1 (Main)"; cardColor = "#FFC107"; metricDisplay = item.reading + ' HRS'; }
+              if (item.apt === 'GENERATOR-2') { displayName = "Generator 2 (Backup)"; cardColor = "#fd7e14"; metricDisplay = item.reading + ' HRS'; }
+
               return `
-                <div class="card" style="border-left: 6px solid #FFC107;">
+                <div class="card" style="border-left: 6px solid ${cardColor};">
                   <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:8px;">
                     <div>
-                      <strong style="font-size:22px; color:#000;"><i class="fas fa-charging-station"></i> Main Plant</strong><br>
-                      <span style="font-size:14px; font-weight:700; color:var(--primary);"><i class="fas fa-industry"></i> GENERATOR OPERATION</span>
+                      <strong style="font-size:22px; color:#000;"><i class="fas fa-charging-station"></i> ${displayName}</strong><br>
+                      <span style="font-size:14px; font-weight:700; color:var(--primary);"><i class="fas fa-industry"></i> PLANT OPERATIONS</span>
                     </div>
-                    <span style="padding:6px 12px; border:2px solid #000; border-radius:8px; font-size:16px; font-weight:900; background:#FFC107; color:#000;">
-                      ${item.reading} HRS
+                    <span style="padding:6px 12px; border:2px solid #000; border-radius:8px; font-size:16px; font-weight:900; background:${cardColor}; color:#000;">
+                      ${metricDisplay}
                     </span>
                   </div>
-                  <div style="font-size:18px; font-weight:800; color:#000; margin-bottom:6px;">
-                    <i class="fas fa-gas-pump"></i> ${item.meterNo || 'Tank Level Unknown'}
+                  <div style="font-size:16px; font-weight:700; color:#000; margin-bottom:6px;">
+                    <i class="fas fa-gas-pump"></i> Tank Status: ${item.meterNo}
                   </div>
                   <div style="display:grid; grid-template-columns: 1fr 1fr; gap:5px; font-size:15px; font-weight:600; margin-bottom:8px; background:var(--card-light); padding:8px; border-radius:8px;">
-                    <div>Diesel Input: <strong>${item.amount ? item.amount + ' L' : 'None'}</strong></div>
-                    <div style="text-align:right;">Date: <strong>${item.dateRecorded}</strong></div>
+                    <div>Fuel Topped: <strong>${item.amount > 0 ? item.amount + ' L' : '0 L'}</strong></div>
+                    <div style="text-align:right;">Logged: <strong>${item.dateRecorded}</strong></div>
                   </div>
-                  ${item.notes ? `<div style="font-size:14px; color:var(--muted); font-style:italic; border-top:1px dashed #ccc; padding-top:4px;">${item.notes}</div>` : ''}
+                  ${item.notes ? `<div style="font-size:14px; color:var(--muted); font-style:italic; border-top:1px dashed #ccc; padding-top:4px;">Log: ${item.notes}</div>` : ''}
                 </div>
               `;
             } else {
+              // RESIDENTIAL TENANT ACCOUNT SUB-RENDERER
               return `
                 <div class="card">
                   <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:8px;">
@@ -654,6 +669,7 @@
       });
     }
 
+    // 5. INPUT FORM SHEET BUILDER ENGINE
     function openModal(type, editData = null) {
       const body = document.getElementById('modalBody');
       const submit = document.getElementById('modalSubmit');
@@ -751,8 +767,8 @@
             });
           };
           reader.readAsDataURL(file);
-        };
-    
+        };Prefix Header Loop Engine
+
         submit.onclick = () => {
           const p1 = document.getElementById('f_p1').value;
           const p2 = document.getElementById('f_p2').value;
@@ -1172,12 +1188,28 @@
           </div>
         `;
 
+        // FALLBACK DROPDOWN POPULATOR FOR UNITS
         const unitSelect = document.getElementById('u_apt');
-        if (window.cache && window.cache.apts && window.cache.apts.length > 0) {
-          window.cache.apts.forEach(u => {
+        const populateUtilUnits = (listOfUnits) => {
+          unitSelect.innerHTML = '<option value="">-- Select Unit --</option>';
+          listOfUnits.forEach(u => {
             if (!u.apt) return;
-            const opt = document.createElement('option'); opt.value = u.apt; opt.innerText = u.apt;
+            const opt = document.createElement('option'); 
+            opt.value = u.apt; 
+            opt.innerText = "Unit " + u.apt;
             unitSelect.appendChild(opt);
+          });
+        };
+
+        if (window.cache && window.cache.apts && window.cache.apts.length > 0) {
+          populateUtilUnits(window.cache.apts);
+        } else {
+          callApi('getApartments', {}).then(units => {
+            if (units && units.length > 0) {
+              if (!window.cache) window.cache = {};
+              window.cache.apts = units;
+              populateUtilUnits(units);
+            }
           });
         }
 
@@ -1237,11 +1269,21 @@
           `).join('');
         };
 
+        const largeInput = 'style="font-size: 20px; padding: 16px; margin-bottom: 10px;"';
+        const labelStyle = 'style="font-size: 16px; color: var(--text); font-weight: 800; display: block; margin-top: 12px; margin-bottom: 4px;"';
+
         body.innerHTML = `
-          <label ${labelStyle}>Current Run Hours (Engine Meter Reading)</label>
+          <label ${labelStyle}>Select Plant Equipment</label>
+          <select id="g_equipment" ${largeInput}>
+            <option value="GENERATOR-1">Generator 1 (Main)</option>
+            <option value="GENERATOR-2">Generator 2 (Backup)</option>
+            <option value="DIESEL-TANK">Central Bulk Diesel Tank</option>
+          </select>
+
+          <label ${labelStyle}>Current Run Hours (Engine Meter - Ignore for Tank)</label>
           <input id="g_reading" type="number" step="0.1" placeholder="e.g. 1450.5" ${largeInput}>
 
-          <label ${labelStyle}>External Diesel Tank Level</label>
+          <label ${labelStyle}>Bulk Diesel Tank Level (Current Gauge)</label>
           <select id="g_tank" ${largeInput}>
             <option value="Tank Level: Empty (0%)">Empty (0%)</option>
             <option value="Tank Level: Quarter (25%)">Quarter (25%)</option>
@@ -1250,15 +1292,15 @@
             <option value="Tank Level: Full (100%)">Full (100%)</option>
           </select>
 
-          <label ${labelStyle}>Diesel Added / Topped Up (Liters - Optional)</label>
-          <input id="g_added" type="number" placeholder="Leave blank if none delivered" ${largeInput}>
+          <label ${labelStyle}>Diesel Delivered / Topped Up (Liters - Optional)</label>
+          <input id="g_added" type="number" placeholder="Liters added if refueled" ${largeInput}>
 
           <label ${labelStyle}>Operational Notes</label>
-          <textarea id="g_notes" rows="2" placeholder="e.g. Sounds normal, checked oil levels..." ${largeInput}></textarea>
+          <textarea id="g_notes" rows="2" placeholder="e.g. Cleaned filters, normal pressure..." ${largeInput}></textarea>
 
           <div style="margin-top:20px; border-top:3px solid var(--text); padding-top:15px;">
             <label class="action-btn" style="background:var(--text); color:white; display:block; text-align:center; padding:18px; cursor:pointer; font-size: 18px; border-radius: 12px;">
-              <i class="fas fa-camera"></i> Capture Hour Meter / Gauge
+              <i class="fas fa-camera"></i> Capture Gauge / Hour Meter
               <input type="file" id="genCameraInput" accept="image/*" capture="environment" style="display:none">
             </label>
             <div id="genPhotoPreview" style="display:grid; grid-template-columns: repeat(3, 1fr); gap:10px; margin-top:15px;"></div>
@@ -1282,12 +1324,12 @@
         };
 
         submit.onclick = () => {
-          const runHours = document.getElementById('g_reading').value;
-          if (!runHours) { alert("Please input current engine hours."); return; }
+          const equipment = document.getElementById('g_equipment').value;
+          const runHours = document.getElementById('g_reading').value || 0;
 
           submit.disabled = true;
           const payload = {
-            apt: "GENERATOR",                  
+            apt: equipment,                         
             type: "Plant Check",
             meterNo: document.getElementById('g_tank').value,  
             reading: runHours,
@@ -1321,7 +1363,6 @@
       return `${y}-${m}-${d}`;
     }
 
-    // Convert Drive attachment paths on the fly to safe mobile previews
     function getDirectImageUrl(url) {
       if (!url) return "";
       if (url.includes('drive.google.com')) {
