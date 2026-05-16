@@ -614,7 +614,7 @@
       // 2. Directs the app to the correct Google Apps Script backend function
       let apiCmd = 'getApartments';
       if (p === 'assets') apiCmd = 'getAssetData';
-      if (p === 'maintenance') apiCmd = 'getMaintenanceData';
+      if (p === 'maintenance') apiCmd = 'getMaintenance';
     
       callApi(apiCmd, {}).then(data => {
         let displayData = data || [];
