@@ -337,7 +337,14 @@
 
       <div id="view-utilities" class="page-view">
         <div class="page-header">
-          <div class="header-group"><button class="home-btn" onclick="showPage('dashboard')"><i class="fas fa-home"></i></button><h2>Utilities</h2></div>
+          <div class="header-group">
+            <button class="home-btn" onclick="showPage('dashboard')"><i class="fas fa-home"></i></button>
+            <h2>Utilities & Plant</h2>
+          </div>
+          <div style="display:flex; gap:6px;">
+            <button class="action-btn" style="width:auto; padding:10px 14px; font-size:14px;" onclick="openModal('utility')">Meter</button>
+            <button class="action-btn" style="width:auto; padding:10px 14px; font-size:14px; background:var(--primary);" onclick="openModal('generator')">Gen Log</button>
+          </div>
         </div>
         <div id="util-list"></div>
       </div>
@@ -504,7 +511,8 @@
       const idMap = { 
         'apartments': 'apt-list', 
         'assets': 'asset-list',
-        'maintenance': 'maint-list' 
+        'maintenance': 'maint-list',
+        'utilities': 'util-list'
       };
       const listEl = document.getElementById(idMap[p]);
       if (!listEl) return;
@@ -512,6 +520,7 @@
       let apiCmd = 'getApartments';
       if (p === 'assets') apiCmd = 'getAssets';
       if (p === 'maintenance') apiCmd = 'getMaintenance';
+      if (p === 'utilities') apiCmd = 'getUtilities';
     
       callApi(apiCmd, {}).then(data => {
         let displayData = data || [];
@@ -580,6 +589,51 @@
               </div>
             `;
           } 
+          else if (p === 'utilities') {
+            if (item.apt === 'GENERATOR') {
+              return `
+                <div class="card" style="border-left: 6px solid #FFC107;">
+                  <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:8px;">
+                    <div>
+                      <strong style="font-size:22px; color:#000;"><i class="fas fa-charging-station"></i> Main Plant</strong><br>
+                      <span style="font-size:14px; font-weight:700; color:var(--primary);"><i class="fas fa-industry"></i> GENERATOR OPERATION</span>
+                    </div>
+                    <span style="padding:6px 12px; border:2px solid #000; border-radius:8px; font-size:16px; font-weight:900; background:#FFC107; color:#000;">
+                      ${item.reading} HRS
+                    </span>
+                  </div>
+                  <div style="font-size:18px; font-weight:800; color:#000; margin-bottom:6px;">
+                    <i class="fas fa-gas-pump"></i> ${item.meterNo || 'Tank Level Unknown'}
+                  </div>
+                  <div style="display:grid; grid-template-columns: 1fr 1fr; gap:5px; font-size:15px; font-weight:600; margin-bottom:8px; background:var(--card-light); padding:8px; border-radius:8px;">
+                    <div>Diesel Input: <strong>${item.amount ? item.amount + ' L' : 'None'}</strong></div>
+                    <div style="text-align:right;">Date: <strong>${item.dateRecorded}</strong></div>
+                  </div>
+                  ${item.notes ? `<div style="font-size:14px; color:var(--muted); font-style:italic; border-top:1px dashed #ccc; padding-top:4px;">${item.notes}</div>` : ''}
+                </div>
+              `;
+            } else {
+              return `
+                <div class="card">
+                  <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:8px;">
+                    <div>
+                      <strong style="font-size:22px; color:#000;">Unit ${item.apt}</strong><br>
+                      <span style="font-size:14px; font-weight:700; color:var(--primary);"><i class="fas fa-bolt"></i> ${item.type.toUpperCase()}</span>
+                    </div>
+                    <span style="padding:6px 12px; border:2px solid #000; border-radius:8px; font-size:16px; font-weight:900; background:#000; color:#fff;">
+                      ${item.amount ? '₦' + Number(item.amount).toLocaleString() : 'READING ONLY'}
+                    </span>
+                  </div>
+                  <div style="font-size:16px; font-weight:700; color:#000; margin-bottom:4px;">Meter: ${item.meterNo || 'N/A'}</div>
+                  <div style="display:grid; grid-template-columns: 1fr 1fr; gap:5px; font-size:15px; font-weight:600; margin-bottom:8px; background:var(--card-light); padding:8px; border-radius:8px;">
+                    <div>Reading: <strong>${item.reading || '0'} kWh</strong></div>
+                    <div style="text-align:right;">Date: <strong>${item.dateRecorded}</strong></div>
+                  </div>
+                  ${item.notes ? `<div style="font-size:14px; color:var(--muted); font-style:italic;">Note: ${item.notes}</div>` : ''}
+                </div>
+              `;
+            }
+          }
           else {
             return `
               <div class="card" onclick='openModal("apartment", ${JSON.stringify(item)})'>
@@ -1065,6 +1119,194 @@
           });
         };
       }
+      else if (type === 'utility') {
+        title.innerText = "Record Utility Data";
+        let photoQueue = [];
+
+        const renderUtilPhotos = () => {
+          const container = document.getElementById('utilPhotoPreview');
+          if (!container) return;
+          container.innerHTML = photoQueue.map((url, index) => `
+            <div style="position:relative; width:100%; aspect-ratio:1/1;">
+              <img src="${getDirectImageUrl(url)}" style="width:100%; height:100%; object-fit:cover; border-radius:8px; border: 2px solid var(--text);">
+            </div>
+          `).join('');
+        };
+
+        body.innerHTML = `
+          <label ${labelStyle}>Select Unit</label>
+          <select id="u_apt" ${largeInput}>
+            <option value="">-- Select Unit --</option>
+          </select>
+
+          <label ${labelStyle}>Utility Type</label>
+          <select id="u_type" ${largeInput}>
+            <option value="Electricity">Electricity (Meter/Token)</option>
+            <option value="Water">Water Supply</option>
+            <option value="Gas">Gas Supply</option>
+          </select>
+
+          <label ${labelStyle}>Meter Number / ID</label>
+          <input id="u_meter" placeholder="Enter meter serial number" ${largeInput}>
+
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+            <div>
+              <label ${labelStyle}>Current Reading (kWh)</label>
+              <input id="u_reading" type="number" placeholder="0.00" ${largeInput}>
+            </div>
+            <div>
+              <label ${labelStyle}>Amount Paid (Optional)</label>
+              <input id="u_amount" type="number" placeholder="₦ Amount" ${largeInput}>
+            </div>
+          </div>
+
+          <label ${labelStyle}>Notes / Observations</label>
+          <textarea id="u_notes" rows="2" placeholder="e.g. Purchased 50 units token..." ${largeInput}></textarea>
+
+          <div style="margin-top:20px; border-top:3px solid var(--text); padding-top:15px;">
+            <label class="action-btn" style="background:var(--text); color:white; display:block; text-align:center; padding:18px; cursor:pointer; font-size: 18px; border-radius: 12px;">
+              <i class="fas fa-camera"></i> Snap Meter / Receipt
+              <input type="file" id="utilCameraInput" accept="image/*" capture="environment" style="display:none">
+            </label>
+            <div id="utilPhotoPreview" style="display:grid; grid-template-columns: repeat(3, 1fr); gap:10px; margin-top:15px;"></div>
+          </div>
+        `;
+
+        const unitSelect = document.getElementById('u_apt');
+        if (window.cache && window.cache.apts && window.cache.apts.length > 0) {
+          window.cache.apts.forEach(u => {
+            if (!u.apt) return;
+            const opt = document.createElement('option'); opt.value = u.apt; opt.innerText = u.apt;
+            unitSelect.appendChild(opt);
+          });
+        }
+
+        document.getElementById('utilCameraInput').onchange = async function(e) {
+          const file = e.target.files[0];
+          if (!file) return;
+          const reader = new FileReader();
+          reader.onload = async function(event) {
+            const compressedBase64 = await compressImage(event.target.result);
+            callApi('uploadImage', { base64: compressedBase64, name: "util_" + Date.now() + ".jpg" }).then(res => {
+              if (res && res.url) { 
+                photoQueue.push(res.url); 
+                renderUtilPhotos(); 
+              }
+            });
+          };
+          reader.readAsDataURL(file);
+        };
+
+        submit.onclick = () => {
+          const selectedApt = unitSelect.value;
+          if (!selectedApt) { alert("Please select a Unit connection."); return; }
+
+          submit.disabled = true;
+          const payload = {
+            apt: selectedApt,
+            type: document.getElementById('u_type').value,
+            meterNo: document.getElementById('u_meter').value,
+            reading: document.getElementById('u_reading').value,
+            amount: document.getElementById('u_amount').value,
+            notes: document.getElementById('u_notes').value,
+            photos: photoQueue.join(',')
+          };
+
+          callApi('saveUtility', payload).then(res => {
+            if (res && res.success) {
+              closeModal();
+              refreshData('utilities');
+            } else {
+              submit.disabled = false;
+              alert("Error saving record: " + (res ? res.error : "Network disconnect"));
+            }
+          });
+        };
+      }
+      else if (type === 'generator') {
+        title.innerText = "Log Plant Status";
+        let photoQueue = [];
+
+        const renderGenPhotos = () => {
+          const container = document.getElementById('genPhotoPreview');
+          if (!container) return;
+          container.innerHTML = photoQueue.map((url, index) => `
+            <div style="position:relative; width:100%; aspect-ratio:1/1;">
+              <img src="${getDirectImageUrl(url)}" style="width:100%; height:100%; object-fit:cover; border-radius:8px; border: 2px solid var(--text);">
+            </div>
+          `).join('');
+        };
+
+        body.innerHTML = `
+          <label ${labelStyle}>Current Run Hours (Engine Meter Reading)</label>
+          <input id="g_reading" type="number" step="0.1" placeholder="e.g. 1450.5" ${largeInput}>
+
+          <label ${labelStyle}>External Diesel Tank Level</label>
+          <select id="g_tank" ${largeInput}>
+            <option value="Tank Level: Empty (0%)">Empty (0%)</option>
+            <option value="Tank Level: Quarter (25%)">Quarter (25%)</option>
+            <option value="Tank Level: Half Full (50%)">Half Full (50%)</option>
+            <option value="Tank Level: Three-Quarters (75%)">Three-Quarters (75%)</option>
+            <option value="Tank Level: Full (100%)">Full (100%)</option>
+          </select>
+
+          <label ${labelStyle}>Diesel Added / Topped Up (Liters - Optional)</label>
+          <input id="g_added" type="number" placeholder="Leave blank if none delivered" ${largeInput}>
+
+          <label ${labelStyle}>Operational Notes</label>
+          <textarea id="g_notes" rows="2" placeholder="e.g. Sounds normal, checked oil levels..." ${largeInput}></textarea>
+
+          <div style="margin-top:20px; border-top:3px solid var(--text); padding-top:15px;">
+            <label class="action-btn" style="background:var(--text); color:white; display:block; text-align:center; padding:18px; cursor:pointer; font-size: 18px; border-radius: 12px;">
+              <i class="fas fa-camera"></i> Capture Hour Meter / Gauge
+              <input type="file" id="genCameraInput" accept="image/*" capture="environment" style="display:none">
+            </label>
+            <div id="genPhotoPreview" style="display:grid; grid-template-columns: repeat(3, 1fr); gap:10px; margin-top:15px;"></div>
+          </div>
+        `;
+
+        document.getElementById('genCameraInput').onchange = async function(e) {
+          const file = e.target.files[0];
+          if (!file) return;
+          const reader = new FileReader();
+          reader.onload = async function(event) {
+            const compressedBase64 = await compressImage(event.target.result);
+            callApi('uploadImage', { base64: compressedBase64, name: "gen_" + Date.now() + ".jpg" }).then(res => {
+              if (res && res.url) { 
+                photoQueue.push(res.url); 
+                renderGenPhotos(); 
+              }
+            });
+          };
+          reader.readAsDataURL(file);
+        };
+
+        submit.onclick = () => {
+          const runHours = document.getElementById('g_reading').value;
+          if (!runHours) { alert("Please input current engine hours."); return; }
+
+          submit.disabled = true;
+          const payload = {
+            apt: "GENERATOR",                  
+            type: "Plant Check",
+            meterNo: document.getElementById('g_tank').value,  
+            reading: runHours,
+            amount: document.getElementById('g_added').value || 0,
+            notes: document.getElementById('g_notes').value,
+            photos: photoQueue.join(',')
+          };
+
+          callApi('saveUtility', payload).then(res => {
+            if (res && res.success) {
+              closeModal();
+              refreshData('utilities');
+            } else {
+              submit.disabled = false;
+              alert("Error saving record.");
+            }
+          });
+        };
+      }
     }
     
     function toSheetDate(dateStr) {
@@ -1079,6 +1321,7 @@
       return `${y}-${m}-${d}`;
     }
 
+    // Convert Drive attachment paths on the fly to safe mobile previews
     function getDirectImageUrl(url) {
       if (!url) return "";
       if (url.includes('drive.google.com')) {
