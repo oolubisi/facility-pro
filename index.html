@@ -466,7 +466,6 @@
       }
     }
     
-    // Extends structural caching tracking variables safely 
     let cache = { apts: [], assets: [], tickets: [], staff: [], vendors: [], utilities: [] };
 
     window.onload = () => { updateDashboardCounters(); };
@@ -581,7 +580,6 @@
       callApi(apiCmd, {}).then(data => {
         let displayData = data || [];
         
-        // Maps incoming API structures into multi-channel storage cache targets
         if (p === 'apartments') cache.apts = displayData;
         if (p === 'assets') cache.assets = displayData;
         if (p === 'maintenance') cache.tickets = displayData;
@@ -1078,6 +1076,7 @@
         const largeInput = 'style="font-size: 20px; padding: 16px; margin-bottom: 10px;"';
         const labelStyle = 'style="font-size: 16px; color: var(--text); font-weight: 800; display: block; margin-top: 12px; margin-bottom: 4px;"';
 
+        // MODIFIED: Changed "Assigned Technician" from text <input> to structured <select> drop framework
         body.innerHTML = `
           <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:10px;">
             <div>
@@ -1115,8 +1114,10 @@
             </div>
           </div>
 
-          <label ${labelStyle}>Assigned Technician</label>
-          <input id="m_tech" value="${isEdit ? (editData.tech || '') : ''}" placeholder="e.g. Electrician, Internal Team" ${largeInput}>
+          <label ${labelStyle}>Assigned Technician / Vendor</label>
+          <select id="m_tech" ${largeInput}>
+            <option value="">-- Loading Directory... --</option>
+          </select>
 
           <label ${labelStyle}>Problem Description</label>
           <textarea id="m_desc" rows="3" placeholder="Describe the issue here..." ${largeInput}>${isEdit ? (editData.description || '') : ''}</textarea>
@@ -1131,104 +1132,7 @@
         `;
 
         renderMaintPhotos();
-
-        const unitSelect = document.getElementById('m_apt');
-        const fillDropdown = (listOfUnits) => {
-          listOfUnits.forEach(u => {
-            if (!u.apt) return;
-            const opt = document.createElement('option');
-            opt.value = u.apt;
-            opt.innerText = u.apt;
-            if (isEdit && String(u.apt) === String(editData.apt)) opt.selected = true;
-            unitSelect.appendChild(opt);
-          });
-        };
-
-        if (window.cache && window.cache.apts && window.cache.apts.length > 0) {
-          fillDropdown(window.cache.apts);
-        } else {
-          callApi('getApartments', {}).then(units => {
-            if (units && units.length > 0) {
-              if (!window.cache) window.cache = {};
-              window.cache.apts = units;
-              fillDropdown(units);
-            }
-          });
-        }
-
-        document.getElementById('maintCameraInput').onchange = async function(e) {
-          const file = e.target.files[0];
-          if (!file) return;
-          
-          const container = document.getElementById('maintPhotoPreview');
-          const loader = document.createElement('div');
-          loader.id = "maint-upload-loading-spn";
-          loader.innerHTML = `
-            <div style="width:100%; aspect-ratio:1/1; background:#F1F3F5; border:3px dashed #000; border-radius:8px; display:flex; flex-direction:column; align-items:center; justify-content:center; font-weight:800; color:#000;">
-              <i class="fas fa-spinner fa-spin" style="font-size:24px; margin-bottom:4px;"></i>
-              <span style="font-size:11px;">UPLOADING...</span>
-            </div>
-          `;
-          container.appendChild(loader);
-
-          const reader = new FileReader();
-          reader.onload = async function(event) {
-            const compressedBase64 = await compressImage(event.target.result);
-            callApi('uploadImage', { base64: compressedBase64, name: "maint_" + uniqueTicket + "_" + Date.now() + ".jpg" })
-              .then(res => {
-                const activeLoader = document.getElementById('maint-upload-loading-spn');
-                if (activeLoader) activeLoader.remove();
-                
-                if (res && res.url) { 
-                  photoQueue.push(res.url); 
-                  renderMaintPhotos(); 
-                } else {
-                  alert("Upload Failed: " + (res.error || "Check backend script deployment."));
-                }
-              })
-              .catch(err => {
-                const activeLoader = document.getElementById('maint-upload-loading-spn');
-                if (activeLoader) activeLoader.remove();
-                alert("Network error processing upload file.");
-              });
-          };
-          reader.readAsDataURL(file);
-        };
-
-        submit.onclick = () => {
-          const selectedApt = isEdit ? editData.apt : document.getElementById('m_apt').value;
-          if (!selectedApt) {
-            alert("Please select a Unit connection.");
-            return;
-          }
-
-          submit.disabled = true;
-          const payload = {
-            ticketId: uniqueTicket,
-            apt: selectedApt,
-            category: document.getElementById('m_category').value,
-            priority: document.getElementById('m_priority').value,
-            status: document.getElementById('m_status').value,
-            tech: document.getElementById('m_tech').value,
-            description: document.getElementById('m_desc').value,
-            photos: photoQueue.join(',')
-          };
-
-          const action = isEdit ? 'updateMaintenance' : 'saveMaintenance';
-          
-          callApi(action, payload).then(res => {
-            if (res && res.success) {
-              closeModal();
-              refreshData('maintenance');
-            } else {
-              submit.disabled = false;
-              alert("Error: " + (res ? res.error : "Unknown connection error"));
-            }
-          }).catch(err => {
-            submit.disabled = false;
-            console.error("Critical submission failure:", err);
-          });
-        };
+        maintEngineFillDropdown(isEdit, editData, uniqueTicket, photoQueue, renderMaintPhotos);
       }
       else if (type === 'utility') {
         title.innerText = "Record Utility Data";
@@ -1320,7 +1224,6 @@
               }
             });
           };
-          file.target = null;
           reader.readAsDataURL(file);
         };
 
@@ -1733,11 +1636,7 @@
     function editApartment(aptNum) { const apt = cache.apts.find(a => a.apt === aptNum); if (apt) openModal('apartment', apt); }
     function editAsset(tag) { const asset = cache.assets.find(a => a.tag === tag); if (asset) openModal('asset', asset); }
 
-    // =========================================================================
-    // NEW REPORTS CONSOLE LOGIC SWITCHBOARD ENGINE (PRESERVES 100% BASELINE RULES)
-    // =========================================================================
     function initReportsEngine() {
-      // Direct deep background sync prevents reliance on previously viewed routes
       callApi('getApartments', {}).then(r => cache.apts = r || []);
       callApi('getAssets', {}).then(r => cache.assets = r || []);
       callApi('getMaintenance', {}).then(r => cache.tickets = r || []);
@@ -1827,7 +1726,6 @@
       let headerStr = `<div style="text-align:center; padding-bottom:12px; border-bottom:3px solid #000000; margin-bottom:20px;"><h2 style="font-size:24px; font-weight:800; letter-spacing:1px;">FACILITY PRO INFRASTRUCTURE LOGISTICS DIRECTORY</h2><p style="font-size:12px; font-weight:600; text-transform:uppercase; margin-top:4px;">Official Operations Management Verification Report | Date Sync: ${new Date().toLocaleDateString()}</p></div>`;
       let contentHtml = "";
 
-      // 1. APARTMENTS PROFILE COMPILER LOGIC CHANNEL
       if (layout === "apt_selected") {
         const targetVal = document.getElementById('rep_p_apt').value;
         const aptItem = cache.apts.find(a => String(a.apt) === String(targetVal));
@@ -1920,8 +1818,6 @@
           <h4 style="margin-top:15px; border-top:1px dashed #000000; padding-top:10px;">FIELD PHOTO CAPTURE MANIFEST</h4>
           <div style="display:flex; flex-wrap:wrap; margin-top:10px;">${galleryHtml}</div>`;
       }
-
-      // 2. MAINTENANCE LEDGER WORKERS CHANNEL
       else if (layout === "tkt_status") {
         const stateChoice = document.getElementById('rep_p_status').value;
         const workLogs = cache.tickets.filter(t => t.status === stateChoice);
@@ -1962,8 +1858,6 @@
           <h4 style="margin-top:15px; border-top:1px dashed #000000; padding-top:10px;">FIELD PERFORMANCE VERIFICATION IMAGES</h4>
           <div style="display:flex; flex-wrap:wrap; margin-top:10px;">${galleryHtml}</div>`;
       }
-
-      // 3. EQUIPMENT & POWER GENERATION DATA CHANNELS
       else if (layout === "plant_history") {
         const targetEquipmentId = document.getElementById('rep_p_plant').value;
         const historicalTimeline = cache.utilities.filter(u => u.apt === targetEquipmentId);
@@ -1976,8 +1870,6 @@
             </tbody>
           </table>`;
       }
-
-      // 4. PERSONNEL RESOURCE & CONTRACTOR COMPLIANCE MANIFESTS
       else if (layout === "staff_selected") {
         const staffRowId = document.getElementById('rep_p_staff').value;
         const workerObj = cache.staff.find(s => s.rowId === staffRowId);
@@ -2036,11 +1928,131 @@
           </table>`;
       }
 
-      // Synchronizes dual pipeline endpoints concurrently
       let absoluteCompiledFrame = headerStr + contentHtml;
       document.getElementById('report-preview-viewport').innerHTML = absoluteCompiledFrame;
       document.getElementById('report-print-container').innerHTML = absoluteCompiledFrame;
       document.getElementById('report-onscreen-preview-card').style.display = "block";
+    }
+
+    // MODIFIED: Restructured dropdown engine builder to support asynchronous parallel cache resolution
+    function maintEngineFillDropdown(isEdit, editData, uniqueTicket, photoQueue, renderMaintPhotos) {
+      const unitSelect = document.getElementById('m_apt');
+      const techSelect = document.getElementById('m_tech');
+
+      const fillUnits = (listOfUnits) => {
+        listOfUnits.forEach(u => {
+          if (!u.apt) return;
+          const opt = document.createElement('option');
+          opt.value = u.apt;
+          opt.innerText = u.apt;
+          if (isEdit && String(u.apt) === String(editData.apt)) opt.selected = true;
+          unitSelect.appendChild(opt);
+        });
+      };
+
+      const fillTechs = () => {
+        techSelect.innerHTML = '<option value="">-- Select Assigned Party --</option>';
+        
+        // Populate active Staff directory options
+        if (cache.staff && cache.staff.length > 0) {
+          cache.staff.forEach(s => {
+            if (s.archived === 'Yes') return;
+            const opt = document.createElement('option');
+            const val = `${s.name} (${s.role})`;
+            opt.value = val;
+            opt.innerText = `${val} [Staff]`;
+            if (isEdit && editData.tech === val) opt.selected = true;
+            techSelect.appendChild(opt);
+          });
+        }
+
+        // Populate active corporate Vendor directory options
+        if (cache.vendors && cache.vendors.length > 0) {
+          cache.vendors.forEach(v => {
+            if (v.archived === 'Yes') return;
+            const opt = document.createElement('option');
+            const val = `${v.company} (${v.trade})`;
+            opt.value = val;
+            opt.innerText = `${val} [Vendor]`;
+            if (isEdit && editData.tech === val) opt.selected = true;
+            techSelect.appendChild(opt);
+          });
+        }
+
+        // Fallback catch mechanism: Prevents loss of older legacy manual text string values
+        if (isEdit && editData.tech) {
+          const loadedOptions = Array.from(techSelect.options).map(o => o.value);
+          if (!loadedOptions.includes(editData.tech)) {
+            const legacyOpt = document.createElement('option');
+            legacyOpt.value = editData.tech;
+            legacyOpt.innerText = `${editData.tech} [Legacy Input Entry]`;
+            legacyOpt.selected = true;
+            techSelect.appendChild(legacyOpt);
+          }
+        }
+      };
+
+      if (window.cache && window.cache.apts && window.cache.apts.length > 0) {
+        fillUnits(window.cache.apts);
+      } else {
+        callApi('getApartments', {}).then(units => {
+          if (units && units.length > 0) {
+            if (!window.cache) window.cache = {};
+            window.cache.apts = units;
+            fillUnits(units);
+          }
+        });
+      }
+
+      // Automatically triggers verification queries if user navigates straight into ticketing route
+      const asyncPipelines = [];
+      if (!cache.staff || cache.staff.length === 0) {
+        asyncPipelines.push(callApi('getStaff', {}).then(res => cache.staff = res || []));
+      }
+      if (!cache.vendors || cache.vendors.length === 0) {
+        asyncPipelines.push(callApi('getVendors', {}).then(res => cache.vendors = res || []));
+      }
+
+      if (asyncPipelines.length > 0) {
+        Promise.all(asyncPipelines).then(() => { fillTechs(); });
+      } else {
+        fillTechs();
+      }
+
+      document.getElementById('modalSubmit').onclick = () => {
+        const selectedApt = isEdit ? editData.apt : document.getElementById('m_apt').value;
+        if (!selectedApt) {
+          alert("Please select a Unit connection.");
+          return;
+        }
+
+        submit.disabled = true;
+        const payload = {
+          ticketId: uniqueTicket,
+          apt: selectedApt,
+          category: document.getElementById('m_category').value,
+          priority: document.getElementById('m_priority').value,
+          status: document.getElementById('m_status').value,
+          tech: techSelect.value, // Collects chosen string safely from dropdown value target
+          description: document.getElementById('m_desc').value,
+          photos: photoQueue.join(',')
+        };
+
+        const action = isEdit ? 'updateMaintenance' : 'saveMaintenance';
+        
+        callApi(action, payload).then(res => {
+          if (res && res.success) {
+            closeModal();
+            refreshData('maintenance');
+          } else {
+            submit.disabled = false;
+            alert("Error: " + (res ? res.error : "Unknown connection error"));
+          }
+        }).catch(err => {
+          submit.disabled = false;
+          console.error("Critical submission failure:", err);
+        });
+      };
     }
   </script>
 </body>
