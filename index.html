@@ -1076,7 +1076,6 @@
         const largeInput = 'style="font-size: 20px; padding: 16px; margin-bottom: 10px;"';
         const labelStyle = 'style="font-size: 16px; color: var(--text); font-weight: 800; display: block; margin-top: 12px; margin-bottom: 4px;"';
 
-        // MODIFIED: Changed "Assigned Technician" from text <input> to structured <select> drop framework
         body.innerHTML = `
           <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:10px;">
             <div>
@@ -1934,10 +1933,54 @@
       document.getElementById('report-onscreen-preview-card').style.display = "block";
     }
 
-    // MODIFIED: Restructured dropdown engine builder to support asynchronous parallel cache resolution
+    // FIXED: Safely encapsulated local btnSubmit instance to fix scoping block errors and restored the photo upload pipeline
     function maintEngineFillDropdown(isEdit, editData, uniqueTicket, photoQueue, renderMaintPhotos) {
       const unitSelect = document.getElementById('m_apt');
       const techSelect = document.getElementById('m_tech');
+      const btnSubmit = document.getElementById('modalSubmit');
+
+      // Restored picture capture handler rule logic
+      const cameraInput = document.getElementById('maintCameraInput');
+      if (cameraInput) {
+        cameraInput.onchange = async function(e) {
+          const file = e.target.files[0];
+          if (!file) return;
+          
+          const container = document.getElementById('maintPhotoPreview');
+          const loader = document.createElement('div');
+          loader.id = "maint-upload-loading-spn";
+          loader.innerHTML = `
+            <div style="width:100%; aspect-ratio:1/1; background:#F1F3F5; border:3px dashed #000; border-radius:8px; display:flex; flex-direction:column; align-items:center; justify-content:center; font-weight:800; color:#000;">
+              <i class="fas fa-spinner fa-spin" style="font-size:24px; margin-bottom:4px;"></i>
+              <span style="font-size:11px;">UPLOADING...</span>
+            </div>
+          `;
+          container.appendChild(loader);
+
+          const reader = new FileReader();
+          reader.onload = async function(event) {
+            const compressedBase64 = await compressImage(event.target.result);
+            callApi('uploadImage', { base64: compressedBase64, name: "maint_" + uniqueTicket + "_" + Date.now() + ".jpg" })
+              .then(res => {
+                const activeLoader = document.getElementById('maint-upload-loading-spn');
+                if (activeLoader) activeLoader.remove();
+                
+                if (res && res.url) { 
+                  photoQueue.push(res.url); 
+                  renderMaintPhotos(); 
+                } else {
+                  alert("Upload Failed: " + (res.error || "Check backend script deployment."));
+                }
+              })
+              .catch(err => {
+                const activeLoader = document.getElementById('maint-upload-loading-spn');
+                if (activeLoader) activeLoader.remove();
+                alert("Network error processing upload file.");
+              });
+          };
+          reader.readAsDataURL(file);
+        };
+      }
 
       const fillUnits = (listOfUnits) => {
         listOfUnits.forEach(u => {
@@ -1953,7 +1996,6 @@
       const fillTechs = () => {
         techSelect.innerHTML = '<option value="">-- Select Assigned Party --</option>';
         
-        // Populate active Staff directory options
         if (cache.staff && cache.staff.length > 0) {
           cache.staff.forEach(s => {
             if (s.archived === 'Yes') return;
@@ -1966,7 +2008,6 @@
           });
         }
 
-        // Populate active corporate Vendor directory options
         if (cache.vendors && cache.vendors.length > 0) {
           cache.vendors.forEach(v => {
             if (v.archived === 'Yes') return;
@@ -1979,7 +2020,6 @@
           });
         }
 
-        // Fallback catch mechanism: Prevents loss of older legacy manual text string values
         if (isEdit && editData.tech) {
           const loadedOptions = Array.from(techSelect.options).map(o => o.value);
           if (!loadedOptions.includes(editData.tech)) {
@@ -2004,7 +2044,6 @@
         });
       }
 
-      // Automatically triggers verification queries if user navigates straight into ticketing route
       const asyncPipelines = [];
       if (!cache.staff || cache.staff.length === 0) {
         asyncPipelines.push(callApi('getStaff', {}).then(res => cache.staff = res || []));
@@ -2019,21 +2058,21 @@
         fillTechs();
       }
 
-      document.getElementById('modalSubmit').onclick = () => {
+      btnSubmit.onclick = () => {
         const selectedApt = isEdit ? editData.apt : document.getElementById('m_apt').value;
         if (!selectedApt) {
           alert("Please select a Unit connection.");
           return;
         }
 
-        submit.disabled = true;
+        btnSubmit.disabled = true;
         const payload = {
           ticketId: uniqueTicket,
           apt: selectedApt,
           category: document.getElementById('m_category').value,
           priority: document.getElementById('m_priority').value,
           status: document.getElementById('m_status').value,
-          tech: techSelect.value, // Collects chosen string safely from dropdown value target
+          tech: techSelect.value, 
           description: document.getElementById('m_desc').value,
           photos: photoQueue.join(',')
         };
@@ -2045,11 +2084,11 @@
             closeModal();
             refreshData('maintenance');
           } else {
-            submit.disabled = false;
+            btnSubmit.disabled = false;
             alert("Error: " + (res ? res.error : "Unknown connection error"));
           }
         }).catch(err => {
-          submit.disabled = false;
+          btnSubmit.disabled = false;
           console.error("Critical submission failure:", err);
         });
       };
