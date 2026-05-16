@@ -1309,13 +1309,15 @@
       }
       return url;
     }
-    function closeModal() { 
-      document.getElementById('modalOverlay').style.display = 'none';
-      // Example inside your saveMaintenance payload block on success:
-      if (res && res.success) {
-        closeModal();
-        refreshData('maintenance');
-        updateDashboardCounters(); // Clears out old counts instantly!
+    function closeModal() {
+      const modal = document.getElementById('modal') || document.getElementById('myModal');
+      if (modal) {
+        modal.style.display = 'none';
+      }
+      
+      // Refresh the dashboard stats safely every time ANY modal closes
+      if (typeof updateDashboardCounters === 'function') {
+        updateDashboardCounters();
       }
     }
     function editApartment(aptNum) { const apt = cache.apts.find(a => a.apt === aptNum); if (apt) openModal('apartment', apt); }
