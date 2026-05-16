@@ -454,6 +454,24 @@
 
     window.onload = () => { refreshDashboardStats(); };
 
+    function updateDashboardCounters() {
+      callApi('getStats', {}).then(stats => {
+        if (!stats) return;
+        
+        // 1. Update Apartment Badge Count
+        const aptBadge = document.getElementById('count-apts') || document.getElementById('count-apartments');
+        if (aptBadge) aptBadge.innerText = stats.apts || 0;
+        
+        // 2. Update Asset Badge Count
+        const assetBadge = document.getElementById('count-assets');
+        if (assetBadge) assetBadge.innerText = stats.assets || 0;
+        
+        // 3. Update Maintenance Badge Count (Fixed)
+        const maintBadge = document.getElementById('count-maint');
+        if (maintBadge) maintBadge.innerText = stats.maint || 0;
+      }).catch(err => console.error("Error refreshing dashboard badges:", err));
+    }
+    
     function compressImage(base64Str) {
       return new Promise((resolve) => {
         const img = new Image();
@@ -1274,7 +1292,15 @@
       }
       return url;
     }
-    function closeModal() { document.getElementById('modalOverlay').style.display = 'none'; }
+    function closeModal() { 
+      document.getElementById('modalOverlay').style.display = 'none';
+      // Example inside your saveMaintenance payload block on success:
+      if (res && res.success) {
+        closeModal();
+        refreshData('maintenance');
+        updateDashboardCounters(); // Clears out old counts instantly!
+      }
+    }
     function editApartment(aptNum) { const apt = cache.apts.find(a => a.apt === aptNum); if (apt) openModal('apartment', apt); }
     function editAsset(tag) { const asset = cache.assets.find(a => a.tag === tag); if (asset) openModal('asset', asset); }
     function editTicket(id) { const ticket = cache.tickets.find(t => t.id === id); if (ticket) openModal('ticket', ticket); }
