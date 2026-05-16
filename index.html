@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Facility Pro Mobile</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght=400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -75,7 +75,7 @@
     .home-btn { background: var(--text); border: none; color: white; width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; }
     h2 { font-size: 24px; font-weight: 800; color: var(--text); }
 
-    /* 4. FORM COMPONENTS (Increased by ~25%) */
+    /* 4. FORM COMPONENTS */
     .card { 
       background: var(--bg); 
       border-radius: 20px; 
@@ -102,7 +102,7 @@
       border: 2px solid var(--text); /* Solid black borders */
       background: white; 
       color: black; 
-      font-size: 20px !important; /* ~25% Increase from 16px */
+      font-size: 20px !important; 
       font-weight: 500;
     }
     
@@ -148,7 +148,6 @@
     .active-view { display: block; }
     .fa-times { font-size: 20px; }
 
-    /* 4. MORE... MENU (High-Visibility Update) */
     .more-container { 
       position: relative; 
       margin-top: 10px; 
@@ -157,11 +156,11 @@
     .more-menu { 
       display: none; 
       position: absolute; 
-      bottom: 65px; /* Adjusted for larger buttons */
+      bottom: 65px; 
       left: 0; 
       right: 0; 
       background: #FFFFFF; 
-      border: 3px solid var(--text); /* Thick black border */
+      border: 3px solid var(--text); 
       border-radius: 20px; 
       z-index: 1000; 
       box-shadow: 0 10px 30px rgba(0,0,0,0.3); 
@@ -179,76 +178,53 @@
     }
 
     .menu-item { 
-      padding: 20px; /* Larger touch target for outdoor use */
+      padding: 20px; 
       border-bottom: 2px solid var(--border); 
       display: flex; 
       align-items: center; 
       gap: 15px; 
       cursor: pointer; 
       color: var(--text); 
-      font-size: 20px; /* 25% Increase */
+      font-size: 20px; 
       font-weight: 700; 
       background: white;
     }
 
-    .menu-item:active {
-      background: var(--card-light);
-    }
-
-    .menu-item i { 
-      color: var(--primary); 
-      width: 24px; 
-      text-align: center; 
-      font-size: 22px;
-    }
-
-    /* Target the last item to remove the border */
-    .menu-item:last-child {
-      border-bottom: none;
-    }
-    /* Forces the card labels (including More..) to pure black */
-.nav-card small { 
-  color: #000000 !important; 
-  opacity: 1 !important;
-  font-weight: 900; /* Extra thick for high visibility */
-}
-
-/* Also makes the '...' icon inside the More card black if needed */
-.nav-card i.fa-ellipsis-h, .nav-card .count {
-  color: #000000 !important;
-}
-
-/* Target the wide "MORE..." bar at the bottom */
-.more-container {
-  background: var(--card) !important;
-  border: 3px solid #000000 !important;
-  border-radius: 15px; /* Slightly tighter corners for a slimmer look */
-  padding: 6px 15px !important; /* Reduced from 15px to 6px height */
-  text-align: center;
-  cursor: pointer;
-  margin-top: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 40px; /* Ensures it stays tappable but thin */
-}
-
-/* Force the text and dots inside it to be black */
-.more-container, 
-/* Keep the text centered and bold */
-.more-container * {
-  color: #000000 !important;
-  font-weight: 900 !important;
-  font-size: 16px !important; /* Slightly smaller to fit the slim bar */
-  letter-spacing: 2px;
-  line-height: 1;
-}
+    .menu-item:active { background: var(--card-light); }
+    .menu-item i { color: var(--primary); width: 24px; text-align: center; font-size: 22px; }
+    .menu-item:last-child { border-bottom: none; }
     
-/* Darken the bar slightly when you press it so you know it clicked */
-.more-container:active {
-  background: #DEE2E6 !important;
-}    
+    .nav-card small { 
+      color: #000000 !important; 
+      opacity: 1 !important;
+      font-weight: 900; 
+    }
+
+    .nav-card i.fa-ellipsis-h, .nav-card .count { color: #000000 !important; }
+
+    .more-container {
+      background: var(--card) !important;
+      border: 3px solid #000000 !important;
+      border-radius: 15px; 
+      padding: 6px 15px !important; 
+      text-align: center;
+      cursor: pointer;
+      margin-top: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 40px; 
+    }
+
+    .more-container * {
+      color: #000000 !important;
+      font-weight: 900 !important;
+      font-size: 16px !important; 
+      letter-spacing: 2px;
+      line-height: 1;
+    }
     
+    .more-container:active { background: #DEE2E6 !important; } 
   </style>
 </head>
 <body>
@@ -277,7 +253,7 @@
           </div>
           <div class="nav-card" onclick="showPage('maint'); refreshData('maintenance');">
             <i class="fas fa-tools"></i>
-            <div class="count" id="count-maint">--</div> 
+            <div id="count-maint" class="count">--</div> 
             <small>Tickets</small>
           </div>
           <div class="nav-card" onclick="showPage('utilities')">
@@ -308,13 +284,10 @@
       <div id="view-apartments" class="page-view">
         <div class="page-header">
           <div class="header-group">
-            <button class="home-btn" onclick="showPage('dashboard')">
-              <i class="fas fa-home"></i>
-            </button>
+            <button class="home-btn" onclick="showPage('dashboard')"><i class="fas fa-home"></i></button>
             <h2>Units</h2>
           </div>
-          </div>
-        
+        </div>
         <div id="apt-list"></div>
       </div>
 
@@ -324,61 +297,47 @@
             <button class="home-btn" onclick="showPage('dashboard')"><i class="fas fa-home"></i></button>
             <h2>Assets</h2>
           </div>
-          <button class="add-btn" onclick="openModal('asset')">Add Asset</button>
+          <button class="action-btn" style="width:auto; padding:10px 20px;" onclick="openModal('asset')">Add Asset</button>
         </div>
-      
         <div style="margin-bottom: 20px;">
           <label style="font-size: 14px; font-weight: 800; color: var(--text); display: block; margin-bottom: 5px;">VIEW BY UNIT:</label>
           <select id="asset-unit-filter" onchange="refreshData('assets')" style="font-size: 18px; padding: 12px; border: 3px solid #000;">
             <option value="ALL">-- ALL ASSETS --</option>
-            </select>
+          </select>
         </div>
-      
         <div id="asset-list"></div>
       </div>
 
       <div id="view-maint" class="page-view">
-  <div class="page-header">
-    <div class="header-group">
-      <button class="home-btn" onclick="showPage('dashboard')"><i class="fas fa-home"></i></button>
-      <h2>Maintenance</h2>
-    </div>
-    <button class="add-btn" onclick="openModal('maintenance')">Log Ticket</button>
-  </div>
-
-  <div style="margin-bottom: 20px;">
-    <label style="font-size: 14px; font-weight: 800; color: var(--text); display: block; margin-bottom: 5px;">FILTER BY STATUS:</label>
-    <select id="maint-status-filter" onchange="refreshData('maintenance')" style="font-size: 18px; padding: 12px; border: 3px solid #000; background: #fff; color: #000; font-weight: 700;">
-      <option value="ALL">-- ALL TICKETS --</option>
-      <option value="Open">Open</option>
-      <option value="In Progress">In Progress</option>
-      <option value="Resolved">Resolved</option>
-    </select>
-  </div>
-
-  <div id="maint-list"></div>
-</div>
+        <div class="page-header">
+          <div class="header-group">
+            <button class="home-btn" onclick="showPage('dashboard')"><i class="fas fa-home"></i></button>
+            <h2>Maintenance</h2>
+          </div>
+          <button class="action-btn" style="width:auto; padding:10px 20px;" onclick="openModal('maintenance')">Log Ticket</button>
+        </div>
+        <div style="margin-bottom: 20px;">
+          <label style="font-size: 14px; font-weight: 800; color: var(--text); display: block; margin-bottom: 5px;">FILTER BY STATUS:</label>
+          <select id="maint-status-filter" onchange="refreshData('maintenance')" style="font-size: 18px; padding: 12px; border: 3px solid #000; background: #fff; color: #000; font-weight: 700;">
+            <option value="ALL">-- ALL TICKETS --</option>
+            <option value="Open">Open</option>
+            <option value="In Progress">In Progress</option>
+            <option value="Resolved">Resolved</option>
+          </select>
+        </div>
+        <div id="maint-list"></div>
+      </div>
       
       <div id="view-inventory" class="page-view">
         <div class="page-header">
           <div class="header-group"><button class="home-btn" onclick="showPage('dashboard')"><i class="fas fa-home"></i></button><h2>Inventory</h2></div>
-          <button class="add-btn" onclick="('inventory')">Restock</button>
         </div>
         <div id="inventory-list"></div>
-      </div>
-
-      <div id="view-maintenance" class="page-view">
-        <div class="page-header">
-          <div class="header-group"><button class="home-btn" onclick="showPage('dashboard')"><i class="fas fa-home"></i></button><h2>Maint.</h2></div>
-          <button class="add-btn" onclick="('ticket')">Log</button>
-        </div>
-        <div id="maint-list"></div>
       </div>
 
       <div id="view-utilities" class="page-view">
         <div class="page-header">
           <div class="header-group"><button class="home-btn" onclick="showPage('dashboard')"><i class="fas fa-home"></i></button><h2>Utilities</h2></div>
-          <button class="add-btn" onclick="('utility')">Record</button>
         </div>
         <div id="util-list"></div>
       </div>
@@ -393,7 +352,6 @@
       <div id="view-staff" class="page-view">
         <div class="page-header">
           <div class="header-group"><button class="home-btn" onclick="showPage('dashboard')"><i class="fas fa-home"></i></button><h2>Staff</h2></div>
-          <button class="add-btn" onclick="('staff')">Add</button>
         </div>
         <div id="staff-list"></div>
       </div>
@@ -401,7 +359,6 @@
       <div id="view-vendors" class="page-view">
         <div class="page-header">
           <div class="header-group"><button class="home-btn" onclick="showPage('dashboard')"><i class="fas fa-home"></i></button><h2>Vendors</h2></div>
-          <button class="add-btn" onclick="('vendor')">Add</button>
         </div>
         <div id="vendor-list"></div>
       </div>
@@ -439,53 +396,47 @@
                      
     async function callApi(action, data = {}) {
       try {
+        console.log("SENDING TO GOOGLE:", action, data);
         const response = await fetch(GAS_URL, {
           method: "POST",
           body: JSON.stringify({ action: action, data: data }),
         });
-        return await response.json();
+        const result = await response.json();
+        console.log("RECEIVED FROM GOOGLE:", result);
+        return result;
       } catch (err) {
-        console.error("API Error:", err);
+        console.error("CRITICAL API ERROR:", err);
         return null;
       }
     }
     
     let cache = { apts: [], assets: [], tickets: [] };
 
-    window.onload = () => { refreshDashboardStats(); };
+    window.onload = () => { updateDashboardCounters(); };
 
     function updateDashboardCounters() {
-  callApi('getStats', {}).then(stats => {
-    if (!stats) {
-      console.error("❌ Error: No data returned from getStats");
-      return;
+      callApi('getStats', {}).then(stats => {
+        if (!stats) {
+          console.error("❌ Error: No data returned from getStats");
+          return;
+        }
+        
+        console.log("📊 CURRENT LIVE METRICS:", JSON.stringify(stats));
+        
+        const ids = {
+          's-tenancy': stats.tenancy,
+          's-asset': stats.asset,
+          's-inv': stats.inventory,
+          'count-maint': stats.maint,
+          's-util': stats.utilities
+        };
+        
+        for (let id in ids) {
+          const el = document.getElementById(id);
+          if (el) el.innerText = ids[id] !== undefined ? ids[id] : '--';
+        }
+      }).catch(err => console.error("❌ Network error updating badges:", err));
     }
-    
-    console.log("📊 CURRENT LIVE METRICS:", JSON.stringify(stats));
-    
-    // 1. Update Apartments
-    const aptBadge = document.getElementById('count-apts') || document.getElementById('count-apartments');
-    if (aptBadge) aptBadge.innerText = stats.tenancy !== undefined ? stats.tenancy : 0;
-    
-    // 2. Update Assets
-    const assetBadge = document.getElementById('count-assets');
-    if (assetBadge) assetBadge.innerText = stats.asset !== undefined ? stats.asset : 0;
-    
-    // 3. Update Inventory
-    const invBadge = document.getElementById('count-inventory') || document.getElementById('count-inv');
-    if (invBadge) invBadge.innerText = stats.inventory !== undefined ? stats.inventory : 0;
-
-    // 4. Update Tickets (Direct ID Target)
-    const maintBadge = document.getElementById('count-maint');
-    if (maintBadge) {
-      maintBadge.innerText = stats.maint !== undefined ? stats.maint : 0;
-      console.log("🎯 SUCCESS: Updated #count-maint element to:", stats.maint);
-    } else {
-      console.error("❌ CRITICAL: The browser cannot find any HTML element with id='count-maint'!");
-    }
-    
-  }).catch(err => console.error("❌ Network error updating badges:", err));
-}
     
     function compressImage(base64Str) {
       return new Promise((resolve) => {
@@ -496,7 +447,6 @@
           let width = img.width;
           let height = img.height;
     
-          // 1. Downscale dimensions first if the image is massive
           const MAX_WIDTH = 1000;
           const MAX_HEIGHT = 1000;
           if (width > height) {
@@ -510,7 +460,6 @@
           const ctx = canvas.getContext('2d');
           ctx.drawImage(img, 0, 0, width, height);
     
-          // 2. Loop down quality until the base64 length is strictly under ~266,000 chars (200kB)
           let quality = 0.8;
           let resultBase64 = canvas.toDataURL('image/jpeg', quality);
           
@@ -525,11 +474,6 @@
       });
     }
     
-    function toggleMore() {
-      const menu = document.querySelector('.more-menu');
-      menu.classList.toggle('show');
-    }
-    
     function toggleMoreMenu(e) { 
       e.stopPropagation(); 
       document.getElementById('moreMenu').classList.toggle('show'); 
@@ -541,68 +485,22 @@
     });
 
     function showPage(p) {
-  // Hide all views
-  document.querySelectorAll('.page-view').forEach(v => v.classList.remove('active-view'));
-  
-  // Show target view
-  const target = document.getElementById('view-' + p);
-  if (target) { 
-    target.classList.add('active-view'); 
-    window.scrollTo(0,0); 
-  }
+      document.querySelectorAll('.page-view').forEach(v => v.classList.remove('active-view'));
+      
+      const target = document.getElementById('view-' + p);
+      if (target) { 
+        target.classList.add('active-view'); 
+        window.scrollTo(0,0); 
+      }
 
-  // ONLY refresh stats if we are going back to the dashboard
-  if (p === 'dashboard') {
-    refreshDashboardStats(); 
-  } else {
-    refreshData(p);
-  }
-}
-
-    async function callApi(action, data = {}) {
-      try {
-        console.log("SENDING TO GOOGLE:", action, data); // <--- ADD THIS
-        const response = await fetch(GAS_URL, {
-          method: "POST",
-          body: JSON.stringify({ action: action, data: data }),
-        });
-        const result = await response.json();
-        console.log("RECEIVED FROM GOOGLE:", result); // <--- ADD THIS
-        return result;
-      } catch (err) {
-        console.error("CRITICAL API ERROR:", err);
-        return null;
+      if (p === 'dashboard') {
+        updateDashboardCounters(); 
+      } else {
+        refreshData(p);
       }
     }
 
-    async function compressImage(base64Str, maxWidth = 800, quality = 0.7) {
-      return new Promise((resolve) => {
-        const img = new Image();
-        img.src = base64Str;
-        img.onload = () => {
-          const canvas = document.createElement('canvas');
-          let width = img.width;
-          let height = img.height;
-    
-          // Maintain aspect ratio
-          if (width > maxWidth) {
-            height = Math.round((height * maxWidth) / width);
-            width = maxWidth;
-          }
-    
-          canvas.width = width;
-          canvas.height = height;
-          const ctx = canvas.getContext('2d');
-          ctx.drawImage(img, 0, 0, width, height);
-          
-          // 0.7 quality usually hits that <200KB sweet spot for mobile photos
-          resolve(canvas.toDataURL('image/jpeg', quality));
-        };
-      });
-    }
-
     function refreshData(p) {
-      // 1. Maps the page parameter to the correct screen list container
       const idMap = { 
         'apartments': 'apt-list', 
         'assets': 'asset-list',
@@ -611,22 +509,17 @@
       const listEl = document.getElementById(idMap[p]);
       if (!listEl) return;
     
-      // 2. Directs the app to the correct Google Apps Script backend function
       let apiCmd = 'getApartments';
-      if (p === 'assets') apiCmd = 'getAssetData';
+      if (p === 'assets') apiCmd = 'getAssets';
       if (p === 'maintenance') apiCmd = 'getMaintenance';
     
       callApi(apiCmd, {}).then(data => {
         let displayData = data || [];
     
-        // --- MODULE A: ASSET FILTERING LOGIC ---
         if (p === 'assets') {
           const filter = document.getElementById('asset-unit-filter');
           if (filter) {
-            // Extract a unique list of units found on your actual Assets sheet
             const uniqueUnitsFromAssets = [...new Set(data.map(item => item.apt))].filter(Boolean).sort();
-            
-            // Dynamically build the select menu options if they haven't been loaded yet
             if (filter.options.length <= 1) {
               uniqueUnitsFromAssets.forEach(unitName => {
                 const opt = document.createElement('option');
@@ -635,15 +528,12 @@
                 filter.appendChild(opt);
               });
             }
-            
-            // Apply view filtering constraints if an item is selected
             if (filter.value !== "ALL") {
               displayData = data.filter(item => item.apt === filter.value);
             }
           }
         }
     
-        // --- MODULE B: MAINTENANCE FILTERING LOGIC ---
         if (p === 'maintenance') {
           const filter = document.getElementById('maint-status-filter');
           if (filter && filter.value !== "ALL") {
@@ -651,10 +541,7 @@
           }
         }
     
-        // --- 3. HIGH-VISIBILITY LAYOUT CARD RENDERING RENDERING ---
         listEl.innerHTML = displayData.map(item => {
-          
-          // CASE 1: Maintenance Layout
           if (p === 'maintenance') {
             return `
               <div class="card" onclick='openModal("maintenance", ${JSON.stringify(item)})'>
@@ -676,8 +563,6 @@
               </div>
             `;
           } 
-          
-          // CASE 2: Assets Layout
           else if (p === 'assets') {
             return `
               <div class="card" onclick='openModal("asset", ${JSON.stringify(item)})'>
@@ -695,8 +580,6 @@
               </div>
             `;
           } 
-          
-          // CASE 3: Apartments Layout (Default fallback)
           else {
             return `
               <div class="card" onclick='openModal("apartment", ${JSON.stringify(item)})'>
@@ -716,17 +599,6 @@
         }).join('');
       });
     }
-    
-    function refreshDashboardStats() {
-      callApi('getStats').then(d => {
-        if(!d) return;
-        const ids = {'s-tenancy':d.tenancy, 's-asset':d.asset, 's-inv':d.inventory, 's-maint':d.maint, 's-util':d.utilities};
-        for(let id in ids) { 
-          const el = document.getElementById(id);
-          if(el) el.innerText = ids[id] || 0; 
-        }
-      });
-    }
 
     function openModal(type, editData = null) {
       const body = document.getElementById('modalBody');
@@ -740,14 +612,11 @@
       submit.disabled = false;
       submit.innerText = isEdit ? "Update" : "Save";
     
-      // Shared Styles for "Pro" feel
       const largeInput = 'style="font-size: 20px; padding: 12px; margin-bottom: 5px;"';
       const labelStyle = 'style="font-size: 16px; color: var(--muted); display: block; margin-top: 10px; margin-bottom: 4px;"';
     
       if (type === 'apartment') {
         title.innerText = "Unit Profile: " + (editData.apt || '');
-        
-        // 1. Photo Management Logic
         let photoQueue = isEdit && editData.photos ? editData.photos.split(',').filter(url => url.trim() !== "") : [];
     
         const renderPhotoPreview = () => {
@@ -763,13 +632,11 @@
           `).join('');
         };
     
-        // Global helper for the delete button
         window.removePhoto = (index) => {
           photoQueue.splice(index, 1);
           renderPhotoPreview();
         };
     
-        // 2. Form HTML Structure
         body.innerHTML = `
           <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
             <div>
@@ -815,7 +682,6 @@
     
         renderPhotoPreview();
     
-        // 3. Camera Upload Logic
         document.getElementById('cameraInput').onchange = async function(e) {
           const file = e.target.files[0];
           if (!file) return;
@@ -823,8 +689,6 @@
           const reader = new FileReader();
           reader.onload = async function(event) {
             const compressedBase64 = await compressImage(event.target.result);
-            
-            // Instant visual feedback (optional placeholder)
             callApi('uploadImage', { base64: compressedBase64, name: "apt_" + Date.now() + ".jpg" }).then(res => {
               if (res && res.url) { 
                 photoQueue.push(res.url); 
@@ -835,7 +699,6 @@
           reader.readAsDataURL(file);
         };
     
-        // 4. Submit with Validation
         submit.onclick = () => {
           const p1 = document.getElementById('f_p1').value;
           const p2 = document.getElementById('f_p2').value;
@@ -871,173 +734,108 @@
           });
         };
       }
-    
-          else if (type === 'asset') {
-    const isEdit = !!editData;
-    const uniqueTag = isEdit ? (editData.tag || '') : "AST-" + Math.random().toString(36).substr(2, 5).toUpperCase();
-    title.innerText = isEdit ? "Update Asset: " + uniqueTag : "Register Asset";
+      else if (type === 'asset') {
+        const uniqueTag = isEdit ? (editData.tag || '') : "AST-" + Math.random().toString(36).substr(2, 5).toUpperCase();
+        title.innerText = isEdit ? "Update Asset: " + uniqueTag : "Register Asset";
 
-    // 1. Safe Photo Queue initialization
-    let photoQueue = isEdit && editData.photos ? editData.photos.split(',').filter(url => url.trim() !== "") : [];
+        let photoQueue = isEdit && editData.photos ? editData.photos.split(',').filter(url => url.trim() !== "") : [];
 
-    const renderAssetPhotos = () => {
-      const container = document.getElementById('assetPhotoPreview');
-      if (!container) return;
-      container.innerHTML = photoQueue.map((url, index) => `
-        <div style="position:relative; width:100%; aspect-ratio:1/1;">
-          <img src="${getDirectImageUrl(url)}" style="width:100%; height:100%; object-fit:cover; border-radius:8px; border: 2px solid var(--text);">
-          <button onclick="window.removeAssetPhoto(${index})" style="position:absolute; top:5px; right:5px; background:rgba(220,53,69,0.9); color:white; border:none; border-radius:50%; width:28px; height:28px; cursor:pointer; display:flex; align-items:center; justify-content:center;">
-            <i class="fas fa-times"></i>
-          </button>
-        </div>
-      `).join('');
-    };
+        const renderAssetPhotos = () => {
+          const container = document.getElementById('assetPhotoPreview');
+          if (!container) return;
+          container.innerHTML = photoQueue.map((url, index) => `
+            <div style="position:relative; width:100%; aspect-ratio:1/1;">
+              <img src="${getDirectImageUrl(url)}" style="width:100%; height:100%; object-fit:cover; border-radius:8px; border: 2px solid var(--text);">
+              <button onclick="window.removeAssetPhoto(${index})" style="position:absolute; top:5px; right:5px; background:rgba(220,53,69,0.9); color:white; border:none; border-radius:50%; width:28px; height:28px; cursor:pointer; display:flex; align-items:center; justify-content:center;">
+                <i class="fas fa-times"></i>
+              </button>
+            </div>
+          `).join('');
+        };
 
-    window.removeAssetPhoto = (index) => {
-      photoQueue.splice(index, 1);
-      renderAssetPhotos();
-    };
+        window.removeAssetPhoto = (index) => {
+          photoQueue.splice(index, 1);
+          renderAssetPhotos();
+        };
 
-    const largeInput = 'style="font-size: 20px; padding: 16px; margin-bottom: 10px;"';
-    const labelStyle = 'style="font-size: 16px; color: var(--text); font-weight: 800; display: block; margin-top: 12px; margin-bottom: 4px;"';
+        const largeInput = 'style="font-size: 20px; padding: 16px; margin-bottom: 10px;"';
+        const labelStyle = 'style="font-size: 16px; color: var(--text); font-weight: 800; display: block; margin-top: 12px; margin-bottom: 4px;"';
 
-    // 2. Form Generation (Notice the clean drop-down structure here)
-    body.innerHTML = `
-      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:10px;">
-        <div>
-          <label ${labelStyle}>Unit</label>
-          <select id="a_apt" ${largeInput} ${isEdit ? 'disabled style="opacity:0.6; background:#e9ecef; border-color:#adb5bd; color:#495057;"' : ''}>
-            <option value="">-- Select Unit --</option>
+        body.innerHTML = `
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:10px;">
+            <div>
+              <label ${labelStyle}>Unit</label>
+              <select id="a_apt" ${largeInput} ${isEdit ? 'disabled style="opacity:0.6; background:#e9ecef; border-color:#adb5bd; color:#495057;"' : ''}>
+                <option value="">-- Select Unit --</option>
+              </select>
+            </div>
+            <div style="text-align:center;">
+              <label ${labelStyle}>Asset Tag</label>
+              <strong style="font-size:20px; display:block; padding:12px; color:#000;">${uniqueTag}</strong>
+            </div>
+          </div>
+
+          <label ${labelStyle}>Category / Type</label>
+          <input id="a_type" value="${isEdit ? (editData.type || '') : ''}" placeholder="e.g. Air Conditioner" ${largeInput}>
+          
+          <label ${labelStyle}>Status</label>
+          <select id="a_status" ${largeInput}>
+            <option value="Operational" ${isEdit && editData.status === 'Operational' ? 'selected' : ''}>Operational</option>
+            <option value="Faulty" ${isEdit && editData.status === 'Faulty' ? 'selected' : ''}>Faulty</option>
+            <option value="Under Repair" ${isEdit && editData.status === 'Under Repair' ? 'selected' : ''}>Under Repair</option>
+            <option value="Decommissioned" ${isEdit && editData.status === 'Decommissioned' ? 'selected' : ''}>Decommissioned</option>
           </select>
-        </div>
-        <div style="text-align:center;">
-          <label ${labelStyle}>Asset Tag</label>
-          <strong style="font-size:20px; display:block; padding:12px; color:#000;">${uniqueTag}</strong>
-        </div>
-      </div>
 
-      <label ${labelStyle}>Category / Type</label>
-      <input id="a_type" value="${isEdit ? (editData.type || '') : ''}" placeholder="e.g. Air Conditioner" ${largeInput}>
-      
-      <label ${labelStyle}>Status</label>
-      <select id="a_status" ${largeInput}>
-        <option value="Operational" ${isEdit && editData.status === 'Operational' ? 'selected' : ''}>Operational</option>
-        <option value="Faulty" ${isEdit && editData.status === 'Faulty' ? 'selected' : ''}>Faulty</option>
-        <option value="Under Repair" ${isEdit && editData.status === 'Under Repair' ? 'selected' : ''}>Under Repair</option>
-        <option value="Decommissioned" ${isEdit && editData.status === 'Decommissioned' ? 'selected' : ''}>Decommissioned</option>
-      </select>
+          <label ${labelStyle}>Location in Unit</label>
+          <input id="a_loc" value="${isEdit ? (editData.loc || '') : ''}" placeholder="e.g. Living Room" ${largeInput}>
 
-      <label ${labelStyle}>Location in Unit</label>
-      <input id="a_loc" value="${isEdit ? (editData.loc || '') : ''}" placeholder="e.g. Living Room" ${largeInput}>
+          <label ${labelStyle}>Technical Specs</label>
+          <input id="a_specs" value="${isEdit ? (editData.specs || '') : ''}" placeholder="e.g. Panasonic / 1.5HP" ${largeInput}>
 
-      <label ${labelStyle}>Technical Specs</label>
-      <input id="a_specs" value="${isEdit ? (editData.specs || '') : ''}" placeholder="e.g. Panasonic / 1.5HP" ${largeInput}>
+          <label ${labelStyle}>Last Serviced</label>
+          <input id="a_serviced" type="date" value="${isEdit ? fromSheetDate(editData.lastServiced) : ''}" ${largeInput}>
 
-      <label ${labelStyle}>Last Serviced</label>
-      <input id="a_serviced" type="date" value="${isEdit ? fromSheetDate(editData.lastServiced) : ''}" ${largeInput}>
+          <label ${labelStyle}>Last Inspected</label>
+          <input id="a_inspected" type="date" value="${isEdit ? fromSheetDate(editData.lastInspected) : ''}" ${largeInput}>
+          
+          <label ${labelStyle}>Notes</label>
+          <textarea id="a_notes" rows="3" ${largeInput}>${isEdit ? (editData.notes || '') : ''}</textarea>
 
-      <label ${labelStyle}>Last Inspected</label>
-      <input id="a_inspected" type="date" value="${isEdit ? fromSheetDate(editData.lastInspected) : ''}" ${largeInput}>
-      
-      <label ${labelStyle}>Notes</label>
-      <textarea id="a_notes" rows="3" ${largeInput}>${isEdit ? (editData.notes || '') : ''}</textarea>
+          <div style="margin-top:20px; border-top:3px solid var(--text); padding-top:15px;">
+            <label class="action-btn" style="background:var(--text); color:white; display:block; text-align:center; padding:18px; cursor:pointer; font-size: 18px; border-radius: 12px;">
+              <i class="fas fa-camera"></i> Capture Asset Photo
+              <input type="file" id="assetCameraInput" accept="image/*" capture="environment" style="display:none">
+            </label>
+            <div id="assetPhotoPreview" style="display:grid; grid-template-columns: repeat(3, 1fr); gap:10px; margin-top:15px;"></div>
+          </div>
+        `;
 
-      <div style="margin-top:20px; border-top:3px solid var(--text); padding-top:15px;">
-        <label class="action-btn" style="background:var(--text); color:white; display:block; text-align:center; padding:18px; cursor:pointer; font-size: 18px; border-radius: 12px;">
-          <i class="fas fa-camera"></i> Capture Asset Photo
-          <input type="file" id="assetCameraInput" accept="image/*" capture="environment" style="display:none">
-        </label>
-        <div id="assetPhotoPreview" style="display:grid; grid-template-columns: repeat(3, 1fr); gap:10px; margin-top:15px;"></div>
-      </div>
-    `;
-
-    renderAssetPhotos();
-
-    // 3. SMART DROPDOWN POPULATION (Fills the <select> tag we just drew above)
-    const unitSelect = document.getElementById('a_apt');
-
-    const fillDropdown = (listOfUnits) => {
-      listOfUnits.forEach(u => {
-        if (!u.apt) return;
-        const opt = document.createElement('option');
-        opt.value = u.apt;
-        opt.innerText = u.apt;
-        if (isEdit && String(u.apt) === String(editData.apt)) {
-          opt.selected = true;
-        }
-        unitSelect.appendChild(opt);
-      });
-    };
-
-    if (window.cache && window.cache.apts && window.cache.apts.length > 0) {
-      fillDropdown(window.cache.apts);
-    } else {
-      callApi('getApartments', {}).then(units => {
-        if (units && units.length > 0) {
-          if (!window.cache) window.cache = {};
-          window.cache.apts = units;
-          fillDropdown(units);
-        }
-      });
-    }
-
-    // 4. Camera Upload Wiring
-    document.getElementById('assetCameraInput').onchange = async function(e) {
-      const file = e.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = async function(event) {
-        const compressedBase64 = await compressImage(event.target.result);
-        callApi('uploadImage', { base64: compressedBase64, name: "asset_" + uniqueTag + ".jpg" }).then(res => {
-          if (res && res.url) { 
-            photoQueue.push(res.url); 
-            renderAssetPhotos(); 
-          }
-        });
-      };
-      reader.readAsDataURL(file);
-    };
-
-    // 5. Save/Update Execution
-    submit.onclick = () => {
-      const selectedApt = isEdit ? editData.apt : document.getElementById('a_apt').value;
-      if (!selectedApt) {
-        alert("Please select a Unit connection.");
-        return;
-      }
-
-      submit.disabled = true;
-      const payload = {
-        apt: selectedApt,
-        tag: uniqueTag,
-        type: document.getElementById('a_type').value,
-        status: document.getElementById('a_status').value,
-        lastServiced: toSheetDate(document.getElementById('a_serviced').value),
-        lastInspected: toSheetDate(document.getElementById('a_inspected').value),
-        loc: document.getElementById('a_loc').value,
-        specs: document.getElementById('a_specs').value,
-        photos: photoQueue.join(','),
-        notes: document.getElementById('a_notes').value
-      };
-
-      const action = isEdit ? 'updateAsset' : 'saveAsset';
-      callApi(action, payload).then(res => {
-        if (res && res.success) {
-          document.getElementById('asset-unit-filter').innerHTML = '<option value="ALL">-- ALL ASSETS --</option>';
-          closeModal();
-          refreshData('assets');
-        } else {
-          submit.disabled = false;
-          alert("Error: " + (res ? res.error : "Unknown connection error"));
-        }
-      });
-    };
-  
-    // ----------------------------------
-    
         renderAssetPhotos();
-    
-        // 3. Camera Input wiring
+
+        const unitSelect = document.getElementById('a_apt');
+        const fillDropdown = (listOfUnits) => {
+          listOfUnits.forEach(u => {
+            if (!u.apt) return;
+            const opt = document.createElement('option');
+            opt.value = u.apt;
+            opt.innerText = u.apt;
+            if (isEdit && String(u.apt) === String(editData.apt)) opt.selected = true;
+            unitSelect.appendChild(opt);
+          });
+        };
+
+        if (window.cache && window.cache.apts && window.cache.apts.length > 0) {
+          fillDropdown(window.cache.apts);
+        } else {
+          callApi('getApartments', {}).then(units => {
+            if (units && units.length > 0) {
+              if (!window.cache) window.cache = {};
+              window.cache.apts = units;
+              fillDropdown(units);
+            }
+          });
+        }
+
         document.getElementById('assetCameraInput').onchange = async function(e) {
           const file = e.target.files[0];
           if (!file) return;
@@ -1053,15 +851,14 @@
           };
           reader.readAsDataURL(file);
         };
-    
-        // 4. Submit Payload Builder
+
         submit.onclick = () => {
           const selectedApt = isEdit ? editData.apt : document.getElementById('a_apt').value;
           if (!selectedApt) {
             alert("Please select a Unit connection.");
             return;
           }
-    
+
           submit.disabled = true;
           const payload = {
             apt: selectedApt,
@@ -1075,7 +872,7 @@
             photos: photoQueue.join(','),
             notes: document.getElementById('a_notes').value
           };
-    
+
           const action = isEdit ? 'updateAsset' : 'saveAsset';
           callApi(action, payload).then(res => {
             if (res && res.success) {
@@ -1090,249 +887,217 @@
         };
       }
       else if (type === 'maintenance') {
-    const isEdit = !!editData;
-    const uniqueTicket = isEdit ? (editData.ticketId || '') : "TKT-" + Math.random().toString(36).substr(2, 5).toUpperCase();
-    title.innerText = isEdit ? "Update Ticket: " + uniqueTicket : "Log Maintenance Issue";
+        const uniqueTicket = isEdit ? (editData.ticketId || '') : "TKT-" + Math.random().toString(36).substr(2, 5).toUpperCase();
+        title.innerText = isEdit ? "Update Ticket: " + uniqueTicket : "Log Maintenance Issue";
 
-    let photoQueue = isEdit && editData.photos ? editData.photos.split(',').filter(url => url.trim() !== "") : [];
+        let photoQueue = isEdit && editData.photos ? editData.photos.split(',').filter(url => url.trim() !== "") : [];
 
-    const renderMaintPhotos = () => {
-      const container = document.getElementById('maintPhotoPreview');
-      if (!container) return;
-      container.innerHTML = photoQueue.map((url, index) => `
-        <div style="position:relative; width:100%; aspect-ratio:1/1;">
-          <img src="${getDirectImageUrl(url)}" style="width:100%; height:100%; object-fit:cover; border-radius:8px; border: 2px solid var(--text);">
-          <button onclick="window.removeMaintPhoto(${index})" style="position:absolute; top:5px; right:5px; background:rgba(220,53,69,0.9); color:white; border:none; border-radius:50%; width:28px; height:28px; cursor:pointer; display:flex; align-items:center; justify-content:center;">
-            <i class="fas fa-times"></i>
-          </button>
-        </div>
-      `).join('');
-    };
+        const renderMaintPhotos = () => {
+          const container = document.getElementById('maintPhotoPreview');
+          if (!container) return;
+          container.innerHTML = photoQueue.map((url, index) => `
+            <div style="position:relative; width:100%; aspect-ratio:1/1;">
+              <img src="${getDirectImageUrl(url)}" style="width:100%; height:100%; object-fit:cover; border-radius:8px; border: 2px solid var(--text);">
+              <button onclick="window.removeMaintPhoto(${index})" style="position:absolute; top:5px; right:5px; background:rgba(220,53,69,0.9); color:white; border:none; border-radius:50%; width:28px; height:28px; cursor:pointer; display:flex; align-items:center; justify-content:center;">
+                <i class="fas fa-times"></i>
+              </button>
+            </div>
+          `).join('');
+        };
 
-    window.removeMaintPhoto = (index) => {
-      photoQueue.splice(index, 1);
-      renderMaintPhotos();
-    };
+        window.removeMaintPhoto = (index) => {
+          photoQueue.splice(index, 1);
+          renderMaintPhotos();
+        };
 
-    const largeInput = 'style="font-size: 20px; padding: 16px; margin-bottom: 10px;"';
-    const labelStyle = 'style="font-size: 16px; color: var(--text); font-weight: 800; display: block; margin-top: 12px; margin-bottom: 4px;"';
+        const largeInput = 'style="font-size: 20px; padding: 16px; margin-bottom: 10px;"';
+        const labelStyle = 'style="font-size: 16px; color: var(--text); font-weight: 800; display: block; margin-top: 12px; margin-bottom: 4px;"';
 
-    body.innerHTML = `
-      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:10px;">
-        <div>
-          <label ${labelStyle}>Unit</label>
-          <select id="m_apt" ${largeInput} ${isEdit ? 'disabled style="opacity:0.6; background:#e9ecef; border-color:#adb5bd; color:#495057;"' : ''}>
-            <option value="">-- Select --</option>
-          </select>
-        </div>
-        <div style="text-align:center;">
-          <label ${labelStyle}>Ticket ID</label>
-          <strong style="font-size:20px; display:block; padding:12px; color:#000;">${uniqueTicket}</strong>
-        </div>
-      </div>
+        body.innerHTML = `
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:10px;">
+            <div>
+              <label ${labelStyle}>Unit</label>
+              <select id="m_apt" ${largeInput} ${isEdit ? 'disabled style="opacity:0.6; background:#e9ecef; border-color:#adb5bd; color:#495057;"' : ''}>
+                <option value="">-- Select --</option>
+              </select>
+            </div>
+            <div style="text-align:center;">
+              <label ${labelStyle}>Ticket ID</label>
+              <strong style="font-size:20px; display:block; padding:12px; color:#000;">${uniqueTicket}</strong>
+            </div>
+          </div>
 
-      <label ${labelStyle}>Issue Category</label>
-      <input id="m_category" value="${isEdit ? (editData.category || '') : ''}" placeholder="e.g. Plumbing, Electrical" ${largeInput}>
+          <label ${labelStyle}>Issue Category</label>
+          <input id="m_category" value="${isEdit ? (editData.category || '') : ''}" placeholder="e.g. Plumbing, Electrical" ${largeInput}>
 
-      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
-        <div>
-          <label ${labelStyle}>Priority</label>
-          <select id="m_priority" ${largeInput}>
-            <option value="Low" ${isEdit && editData.priority === 'Low' ? 'selected' : ''}>Low</option>
-            <option value="Medium" ${isEdit && editData.priority === 'Medium' ? 'selected' : 'selected'}>Medium</option>
-            <option value="High" ${isEdit && editData.priority === 'High' ? 'selected' : ''}>High</option>
-            <option value="Emergency" ${isEdit && editData.priority === 'Emergency' ? 'selected' : ''}>Emergency</option>
-          </select>
-        </div>
-        <div>
-          <label ${labelStyle}>Status</label>
-          <select id="m_status" ${largeInput}>
-            <option value="Open" ${isEdit && editData.status === 'Open' ? 'selected' : 'selected'}>Open</option>
-            <option value="In Progress" ${isEdit && editData.status === 'In Progress' ? 'selected' : ''}>In Progress</option>
-            <option value="Resolved" ${isEdit && editData.status === 'Resolved' ? 'selected' : ''}>Resolved</option>
-          </select>
-        </div>
-      </div>
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+            <div>
+              <label ${labelStyle}>Priority</label>
+              <select id="m_priority" ${largeInput}>
+                <option value="Low" ${isEdit && editData.priority === 'Low' ? 'selected' : ''}>Low</option>
+                <option value="Medium" ${isEdit && editData.priority === 'Medium' ? 'selected' : 'selected'}>Medium</option>
+                <option value="High" ${isEdit && editData.priority === 'High' ? 'selected' : ''}>High</option>
+                <option value="Emergency" ${isEdit && editData.priority === 'Emergency' ? 'selected' : ''}>Emergency</option>
+              </select>
+            </div>
+            <div>
+              <label ${labelStyle}>Status</label>
+              <select id="m_status" ${largeInput}>
+                <option value="Open" ${isEdit && editData.status === 'Open' ? 'selected' : 'selected'}>Open</option>
+                <option value="In Progress" ${isEdit && editData.status === 'In Progress' ? 'selected' : ''}>In Progress</option>
+                <option value="Resolved" ${isEdit && editData.status === 'Resolved' ? 'selected' : ''}>Resolved</option>
+              </select>
+            </div>
+          </div>
 
-      <label ${labelStyle}>Assigned Technician</label>
-      <input id="m_tech" value="${isEdit ? (editData.tech || '') : ''}" placeholder="e.g. Electrician, Internal Team" ${largeInput}>
+          <label ${labelStyle}>Assigned Technician</label>
+          <input id="m_tech" value="${isEdit ? (editData.tech || '') : ''}" placeholder="e.g. Electrician, Internal Team" ${largeInput}>
 
-      <label ${labelStyle}>Problem Description</label>
-      <textarea id="m_desc" rows="3" placeholder="Describe the issue here..." ${largeInput}>${isEdit ? (editData.description || '') : ''}</textarea>
+          <label ${labelStyle}>Problem Description</label>
+          <textarea id="m_desc" rows="3" placeholder="Describe the issue here..." ${largeInput}>${isEdit ? (editData.description || '') : ''}</textarea>
 
-      <div style="margin-top:20px; border-top:3px solid var(--text); padding-top:15px;">
-        <label class="action-btn" style="background:var(--text); color:white; display:block; text-align:center; padding:18px; cursor:pointer; font-size: 18px; border-radius: 12px;">
-          <i class="fas fa-camera"></i> Take Job Photo
-          <input type="file" id="maintCameraInput" accept="image/*" capture="environment" style="display:none">
-        </label>
-        <div id="maintPhotoPreview" style="display:grid; grid-template-columns: repeat(3, 1fr); gap:10px; margin-top:15px;"></div>
-      </div>
-    `;
+          <div style="margin-top:20px; border-top:3px solid var(--text); padding-top:15px;">
+            <label class="action-btn" style="background:var(--text); color:white; display:block; text-align:center; padding:18px; cursor:pointer; font-size: 18px; border-radius: 12px;">
+              <i class="fas fa-camera"></i> Take Job Photo
+              <input type="file" id="maintCameraInput" accept="image/*" capture="environment" style="display:none">
+            </label>
+            <div id="maintPhotoPreview" style="display:grid; grid-template-columns: repeat(3, 1fr); gap:10px; margin-top:15px;"></div>
+          </div>
+        `;
 
-    renderMaintPhotos();
+        renderMaintPhotos();
 
-    // Smart Dropdown Load
-    const unitSelect = document.getElementById('m_apt');
-    const fillDropdown = (listOfUnits) => {
-      listOfUnits.forEach(u => {
-        if (!u.apt) return;
-        const opt = document.createElement('option');
-        opt.value = u.apt;
-        opt.innerText = u.apt;
-        if (isEdit && String(u.apt) === String(editData.apt)) opt.selected = true;
-        unitSelect.appendChild(opt);
-      });
-    };
-
-    if (window.cache && window.cache.apts && window.cache.apts.length > 0) {
-      fillDropdown(window.cache.apts);
-    } else {
-      callApi('getApartments', {}).then(units => {
-        if (units && units.length > 0) {
-          if (!window.cache) window.cache = {};
-          window.cache.apts = units;
-          fillDropdown(units);
-        }
-      });
-    }
-
-// Camera Upload with Error Notifications
-    document.getElementById('maintCameraInput').onchange = async function(e) {
-      const file = e.target.files[0];
-      if (!file) return;
-      
-      // Show loading card instantly
-      const container = document.getElementById('maintPhotoPreview');
-      const loader = document.createElement('div');
-      loader.id = "maint-upload-loading-spn";
-      loader.innerHTML = `
-        <div style="width:100%; aspect-ratio:1/1; background:#F1F3F5; border:3px dashed #000; border-radius:8px; display:flex; flex-direction:column; align-items:center; justify-content:center; font-weight:800; color:#000;">
-          <i class="fas fa-spinner fa-spin" style="font-size:24px; margin-bottom:4px;"></i>
-          <span style="font-size:11px;">UPLOADING...</span>
-        </div>
-      `;
-      container.appendChild(loader);
-
-      const reader = new FileReader();
-      reader.onload = async function(event) {
-        // Run the 200kB loop compressor
-        const compressedBase64 = await compressImage(event.target.result);
-        
-        callApi('uploadImage', { base64: compressedBase64, name: "maint_" + uniqueTicket + "_" + Date.now() + ".jpg" })
-          .then(res => {
-            const activeLoader = document.getElementById('maint-upload-loading-spn');
-            if (activeLoader) activeLoader.remove();
-            
-            if (res && res.url) { 
-              photoQueue.push(res.url); 
-              renderMaintPhotos(); // Displays preview thumbnail immediately
-            } else {
-              alert("Upload Failed: " + (res.error || "Check backend script deployment."));
-            }
-          })
-          .catch(err => {
-            const activeLoader = document.getElementById('maint-upload-loading-spn');
-            if (activeLoader) activeLoader.remove();
-            alert("Network error processing upload file.");
+        const unitSelect = document.getElementById('m_apt');
+        const fillDropdown = (listOfUnits) => {
+          listOfUnits.forEach(u => {
+            if (!u.apt) return;
+            const opt = document.createElement('option');
+            opt.value = u.apt;
+            opt.innerText = u.apt;
+            if (isEdit && String(u.apt) === String(editData.apt)) opt.selected = true;
+            unitSelect.appendChild(opt);
           });
-      };
-      reader.readAsDataURL(file);
-    };
-    // Save/Update Execution
-    // Save/Update Execution
-    submit.onclick = () => {
-      const selectedApt = isEdit ? editData.apt : document.getElementById('m_apt').value;
-      if (!selectedApt) {
-        alert("Please select a Unit connection.");
-        return;
-      }
+        };
 
-      submit.disabled = true;
-      const payload = {
-        ticketId: uniqueTicket,
-        apt: selectedApt,
-        category: document.getElementById('m_category').value,
-        priority: document.getElementById('m_priority').value,
-        status: document.getElementById('m_status').value,
-        tech: document.getElementById('m_tech').value,
-        description: document.getElementById('m_desc').value,
-        photos: photoQueue.join(',')
-      };
-
-      const action = isEdit ? 'updateMaintenance' : 'saveMaintenance';
-      
-      callApi(action, payload).then(res => {
-        if (res && res.success) {
-          // 1. Force the modal shut instantly right here, bypassing potential global issues
-          const targetModal = document.getElementById('modal') || document.getElementById('myModal');
-          if (targetModal) targetModal.style.display = 'none';
-          
-          // 2. Refresh lists and counters
-          refreshData('maintenance');
-          if (typeof updateDashboardCounters === 'function') {
-            updateDashboardCounters();
-          }
+        if (window.cache && window.cache.apts && window.cache.apts.length > 0) {
+          fillDropdown(window.cache.apts);
         } else {
-          submit.disabled = false;
-          alert("Error: " + (res ? res.error : "Unknown connection error"));
+          callApi('getApartments', {}).then(units => {
+            if (units && units.length > 0) {
+              if (!window.cache) window.cache = {};
+              window.cache.apts = units;
+              fillDropdown(units);
+            }
+          });
         }
-      }).catch(err => {
-        submit.disabled = false;
-        console.error("Critical submission failure:", err);
-      });
-    };
-  }
+
+        document.getElementById('maintCameraInput').onchange = async function(e) {
+          const file = e.target.files[0];
+          if (!file) return;
+          
+          const container = document.getElementById('maintPhotoPreview');
+          const loader = document.createElement('div');
+          loader.id = "maint-upload-loading-spn";
+          loader.innerHTML = `
+            <div style="width:100%; aspect-ratio:1/1; background:#F1F3F5; border:3px dashed #000; border-radius:8px; display:flex; flex-direction:column; align-items:center; justify-content:center; font-weight:800; color:#000;">
+              <i class="fas fa-spinner fa-spin" style="font-size:24px; margin-bottom:4px;"></i>
+              <span style="font-size:11px;">UPLOADING...</span>
+            </div>
+          `;
+          container.appendChild(loader);
+
+          const reader = new FileReader();
+          reader.onload = async function(event) {
+            const compressedBase64 = await compressImage(event.target.result);
+            callApi('uploadImage', { base64: compressedBase64, name: "maint_" + uniqueTicket + "_" + Date.now() + ".jpg" })
+              .then(res => {
+                const activeLoader = document.getElementById('maint-upload-loading-spn');
+                if (activeLoader) activeLoader.remove();
+                
+                if (res && res.url) { 
+                  photoQueue.push(res.url); 
+                  renderMaintPhotos(); 
+                } else {
+                  alert("Upload Failed: " + (res.error || "Check backend script deployment."));
+                }
+              })
+              .catch(err => {
+                const activeLoader = document.getElementById('maint-upload-loading-spn');
+                if (activeLoader) activeLoader.remove();
+                alert("Network error processing upload file.");
+              });
+          };
+          reader.readAsDataURL(file);
+        };
+
+        submit.onclick = () => {
+          const selectedApt = isEdit ? editData.apt : document.getElementById('m_apt').value;
+          if (!selectedApt) {
+            alert("Please select a Unit connection.");
+            return;
+          }
+
+          submit.disabled = true;
+          const payload = {
+            ticketId: uniqueTicket,
+            apt: selectedApt,
+            category: document.getElementById('m_category').value,
+            priority: document.getElementById('m_priority').value,
+            status: document.getElementById('m_status').value,
+            tech: document.getElementById('m_tech').value,
+            description: document.getElementById('m_desc').value,
+            photos: photoQueue.join(',')
+          };
+
+          const action = isEdit ? 'updateMaintenance' : 'saveMaintenance';
+          
+          callApi(action, payload).then(res => {
+            if (res && res.success) {
+              closeModal();
+              refreshData('maintenance');
+            } else {
+              submit.disabled = false;
+              alert("Error: " + (res ? res.error : "Unknown connection error"));
+            }
+          }).catch(err => {
+            submit.disabled = false;
+            console.error("Critical submission failure:", err);
+          });
+        };
+      }
     }
     
-    function filterAssetsForTicket(aptNum, selectedAsset = '') {
-      const assetSelect = document.getElementById('t_asset');
-      if (!assetSelect) return;
-      const filtered = cache.assets.filter(a => a.apt === aptNum);
-      assetSelect.innerHTML = '<option value="">General Area</option>' + 
-        filtered.map(a => `<option value="${a.tag}" ${selectedAsset === a.tag ? 'selected' : ''}>${a.type} (${a.tag})</option>`).join('');
-    }
-    function editInventory(itemName) {
-      const item = cache.inventory.find(i => i.item === itemName);
-      if (item) openModal('inventory', item);
-    }
-
-    // CONVERT DATE FOR SHEET (dd/mm/yyyy)
     function toSheetDate(dateStr) {
       if (!dateStr) return "";
       const [y, m, d] = dateStr.split('-');
       return `${d}/${m}/${y}`;
     }
     
-    // CONVERT DATE FOR UI (yyyy-mm-dd)
     function fromSheetDate(dateStr) {
       if (!dateStr || !dateStr.includes('/')) return "";
       const [d, m, y] = dateStr.split('/');
       return `${y}-${m}-${d}`;
     }
-    // Add this helper function to your script
+
     function getDirectImageUrl(url) {
       if (!url) return "";
-      // If it's a Google Drive "open" or "view" link, convert it to a thumbnail link
       if (url.includes('drive.google.com')) {
         const fileId = url.split('/d/')[1]?.split('/')[0] || url.split('id=')[1]?.split('&')[0];
         return `https://drive.google.com/thumbnail?id=${fileId}&sz=w800`;
       }
       return url;
     }
+
     function closeModal() {
-      const modal = document.getElementById('modal') || document.getElementById('myModal');
-      if (modal) {
-        modal.style.display = 'none';
+      const overlay = document.getElementById('modalOverlay');
+      if (overlay) {
+        overlay.style.display = 'none';
       }
-      if (typeof updateDashboardCounters === 'function') {
-        updateDashboardCounters();
-      }
+      updateDashboardCounters();
     }
     
     function editApartment(aptNum) { const apt = cache.apts.find(a => a.apt === aptNum); if (apt) openModal('apartment', apt); }
     function editAsset(tag) { const asset = cache.assets.find(a => a.tag === tag); if (asset) openModal('asset', asset); }
-    function editTicket(id) { const ticket = cache.tickets.find(t => t.id === id); if (ticket) openModal('ticket', ticket); }
-    function archiveAsset(tag) { if(confirm("Archive?")) callApi('archiveAsset', {tag: tag}).then(() => refreshData('assets')); }
   </script>
 </body>
 </html>
