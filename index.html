@@ -455,23 +455,30 @@
     window.onload = () => { refreshDashboardStats(); };
 
     function updateDashboardCounters() {
-      callApi('getStats', {}).then(stats => {
-        if (!stats) return;
-        
-        // Maps perfectly to the keys returned by your working backend script
-        const aptBadge = document.getElementById('count-apts') || document.getElementById('count-apartments');
-        if (aptBadge) aptBadge.innerText = stats.tenancy || 0;
-        
-        const assetBadge = document.getElementById('count-assets');
-        if (assetBadge) assetBadge.innerText = stats.asset || 0;
-        
-        const invBadge = document.getElementById('count-inventory') || document.getElementById('count-inv');
-        if (invBadge) invBadge.innerText = stats.inventory || 0;
-        
-        const maintBadge = document.getElementById('count-maint');
-        if (maintBadge) maintBadge.innerText = stats.maint || 0;
-      }).catch(err => console.error("Error refreshing dashboard badges:", err));
-    }
+  callApi('getStats', {}).then(stats => {
+    if (!stats) return;
+    
+    // 1. Apartments safety check
+    const aptBadge = document.getElementById('count-apts') || document.getElementById('count-apartments');
+    if (aptBadge) aptBadge.innerText = stats.tenancy || 0;
+    
+    // 2. Assets check
+    const assetBadge = document.getElementById('count-assets');
+    if (assetBadge) assetBadge.innerText = stats.asset || 0;
+    
+    // 3. Inventory safety check
+    const invBadge = document.getElementById('count-inventory') || document.getElementById('count-inv');
+    if (invBadge) invBadge.innerText = stats.inventory || 0;
+    
+    // 4. Maintenance safety check (THE FIX)
+    // This loops through every possible ID name your original HTML card might have used!
+    const maintBadge = document.getElementById('count-maint') || 
+                       document.getElementById('maint-count') || 
+                       document.getElementById('count-maintenance');
+    if (maintBadge) maintBadge.innerText = stats.maint || 0;
+    
+  }).catch(err => console.error("Error refreshing dashboard badges:", err));
+}
     
     function compressImage(base64Str) {
       return new Promise((resolve) => {
