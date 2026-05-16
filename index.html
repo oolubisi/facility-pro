@@ -1241,6 +1241,7 @@
       reader.readAsDataURL(file);
     };
     // Save/Update Execution
+    // Save/Update Execution
     submit.onclick = () => {
       const selectedApt = isEdit ? editData.apt : document.getElementById('m_apt').value;
       if (!selectedApt) {
@@ -1261,14 +1262,25 @@
       };
 
       const action = isEdit ? 'updateMaintenance' : 'saveMaintenance';
+      
       callApi(action, payload).then(res => {
         if (res && res.success) {
-          closeModal();
-          refreshData('maintenance'); // Ensure your list layout refreshes
+          // 1. Force the modal shut instantly right here, bypassing potential global issues
+          const targetModal = document.getElementById('modal') || document.getElementById('myModal');
+          if (targetModal) targetModal.style.display = 'none';
+          
+          // 2. Refresh lists and counters
+          refreshData('maintenance');
+          if (typeof updateDashboardCounters === 'function') {
+            updateDashboardCounters();
+          }
         } else {
           submit.disabled = false;
           alert("Error: " + (res ? res.error : "Unknown connection error"));
         }
+      }).catch(err => {
+        submit.disabled = false;
+        console.error("Critical submission failure:", err);
       });
     };
   }
@@ -1314,12 +1326,11 @@
       if (modal) {
         modal.style.display = 'none';
       }
-      
-      // Refresh the dashboard stats safely every time ANY modal closes
       if (typeof updateDashboardCounters === 'function') {
         updateDashboardCounters();
       }
     }
+    
     function editApartment(aptNum) { const apt = cache.apts.find(a => a.apt === aptNum); if (apt) openModal('apartment', apt); }
     function editAsset(tag) { const asset = cache.assets.find(a => a.tag === tag); if (asset) openModal('asset', asset); }
     function editTicket(id) { const ticket = cache.tickets.find(t => t.id === id); if (ticket) openModal('ticket', ticket); }
