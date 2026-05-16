@@ -458,25 +458,33 @@
   callApi('getStats', {}).then(stats => {
     if (!stats) return;
     
-    // 1. Apartments safety check
+    // 1. Standard updates with safety guards
     const aptBadge = document.getElementById('count-apts') || document.getElementById('count-apartments');
     if (aptBadge) aptBadge.innerText = stats.tenancy || 0;
     
-    // 2. Assets check
     const assetBadge = document.getElementById('count-assets');
     if (assetBadge) assetBadge.innerText = stats.asset || 0;
     
-    // 3. Inventory safety check
     const invBadge = document.getElementById('count-inventory') || document.getElementById('count-inv');
     if (invBadge) invBadge.innerText = stats.inventory || 0;
-    
-    // 4. Maintenance safety check (THE FIX)
-    // This loops through every possible ID name your original HTML card might have used!
-    const maintBadge = document.getElementById('count-maint') || 
-                       document.getElementById('maint-count') || 
-                       document.getElementById('count-maintenance');
-    if (maintBadge) maintBadge.innerText = stats.maint || 0;
-    
+
+    // 2. THE BULLETPROOF FIX: Find the card by text, ignore the ID entirely
+    try {
+      const allCards = document.querySelectorAll('.nav-card');
+      allCards.forEach(card => {
+        // If this dashboard card mentions "maintenance", hunt down its counter
+        if (card.innerText.toLowerCase().includes('maintenance')) {
+          const countEl = card.querySelector('.count') || card.querySelector('div');
+          if (countEl) {
+            countEl.innerText = stats.maint || 0;
+            console.log("🎯 Match found! Fixed badge. Its real HTML ID was:", countEl.id);
+          }
+        }
+      });
+    } catch (domErr) {
+      console.error("Error during text-search layout update:", domErr);
+    }
+
   }).catch(err => console.error("Error refreshing dashboard badges:", err));
 }
     
