@@ -358,14 +358,22 @@
 
       <div id="view-staff" class="page-view">
         <div class="page-header">
-          <div class="header-group"><button class="home-btn" onclick="showPage('dashboard')"><i class="fas fa-home"></i></button><h2>Staff</h2></div>
+          <div class="header-group">
+            <button class="home-btn" onclick="showPage('dashboard')"><i class="fas fa-home"></i></button>
+            <h2>Staff Directory</h2>
+          </div>
+          <button class="action-btn" style="width:auto; padding:10px 20px;" onclick="openModal('staff')">Add Staff</button>
         </div>
         <div id="staff-list"></div>
       </div>
 
       <div id="view-vendors" class="page-view">
         <div class="page-header">
-          <div class="header-group"><button class="home-btn" onclick="showPage('dashboard')"><i class="fas fa-home"></i></button><h2>Vendors</h2></div>
+          <div class="header-group">
+            <button class="home-btn" onclick="showPage('dashboard')"><i class="fas fa-home"></i></button>
+            <h2>Vendors</h2>
+          </div>
+          <button class="action-btn" style="width:auto; padding:10px 20px;" onclick="openModal('vendor')">Add Vendor</button>
         </div>
         <div id="vendor-list"></div>
       </div>
@@ -516,7 +524,9 @@
         'apartments': 'apt-list', 
         'assets': 'asset-list',
         'maintenance': 'maint-list',
-        'utilities': 'util-list'
+        'utilities': 'util-list',
+        'staff': 'staff-list',
+        'vendors': 'vendor-list'
       };
       const listEl = document.getElementById(idMap[p]);
       if (!listEl) return;
@@ -525,6 +535,8 @@
       if (p === 'assets') apiCmd = 'getAssets';
       if (p === 'maintenance') apiCmd = 'getMaintenance';
       if (p === 'utilities') apiCmd = 'getUtilities';
+      if (p === 'staff') apiCmd = 'getStaff';
+      if (p === 'vendors') apiCmd = 'getVendors';
     
       callApi(apiCmd, {}).then(data => {
         let displayData = data || [];
@@ -646,6 +658,36 @@
                 </div>
               `;
             }
+          }
+          else if (p === 'staff') {
+            return `
+              <div class="card" onclick='openModal("staff", ${JSON.stringify(item)})'>
+                <div style="display:flex; gap:16px; align-items:center;">
+                  <img src="${getDirectImageUrl(item.passport) || 'https://via.placeholder.com/150'}" style="width:75px; height:75px; object-fit:cover; border-radius:50%; border:3px solid #000; background:#fff;">
+                  <div style="flex:1;">
+                    <strong style="font-size:22px; color:#000;">${item.name}</strong><br>
+                    <span style="font-size:16px; font-weight:800; color:var(--primary);">${item.role}</span><br>
+                    <span style="font-size:14px; font-weight:700; color:var(--muted);"><i class="fas fa-phone"></i> ${item.phone || 'No phone'}</span>
+                  </div>
+                  <button onclick="event.stopPropagation(); archiveRecord('staff', '${item.rowId}')" style="background:none; border:none; color:var(--danger); font-size:22px; padding:8px;"><i class="fas fa-archive"></i></button>
+                </div>
+              </div>
+            `;
+          }
+          else if (p === 'vendors') {
+            return `
+              <div class="card" onclick='openModal("vendor", ${JSON.stringify(item)})'>
+                <div style="display:flex; gap:16px; align-items:center;">
+                  <img src="${getDirectImageUrl(item.passport) || 'https://via.placeholder.com/150'}" style="width:75px; height:75px; object-fit:cover; border-radius:12px; border:3px solid #000; background:#fff;">
+                  <div style="flex:1;">
+                    <strong style="font-size:22px; color:#000;">${item.company}</strong><br>
+                    <span style="font-size:16px; font-weight:800; color:var(--success);">${item.trade.toUpperCase()}</span><br>
+                    <span style="font-size:14px; font-weight:700; color:var(--muted);"><i class="fas fa-user"></i> ${item.contactName || 'N/A'} (${item.phone})</span>
+                  </div>
+                  <button onclick="event.stopPropagation(); archiveRecord('vendor', '${item.rowId}')" style="background:none; border:none; color:var(--danger); font-size:22px; padding:8px;"><i class="fas fa-archive"></i></button>
+                </div>
+              </div>
+            `;
           }
           else {
             return `
@@ -811,7 +853,7 @@
         const renderAssetPhotos = () => {
           const container = document.getElementById('assetPhotoPreview');
           if (!container) return;
-          container.innerHTML = photoQueue.map((url, index) => Vin `
+          container.innerHTML = photoQueue.map((url, index) => `
             <div style="position:relative; width:100%; aspect-ratio:1/1;">
               <img src="${getDirectImageUrl(url)}" style="width:100%; height:100%; object-fit:cover; border-radius:8px; border: 2px solid var(--text);">
               <button onclick="window.removeAssetPhoto(${index})" style="position:absolute; top:5px; right:5px; background:rgba(220,53,69,0.9); color:white; border:none; border-radius:50%; width:28px; height:28px; cursor:pointer; display:flex; align-items:center; justify-content:center;">
@@ -1186,7 +1228,6 @@
           </div>
         `;
 
-        // FALLBACK DROPDOWN POPULATOR FOR UNITS
         const unitSelect = document.getElementById('u_apt');
         const populateUtilUnits = (listOfUnits) => {
           unitSelect.innerHTML = '<option value="">-- Select Unit --</option>';
@@ -1267,9 +1308,6 @@
           `).join('');
         };
 
-        const largeInput = 'style="font-size: 20px; padding: 16px; margin-bottom: 10px;"';
-        const labelStyle = 'style="font-size: 16px; color: var(--text); font-weight: 800; display: block; margin-top: 12px; margin-bottom: 4px;"';
-
         body.innerHTML = `
           <label ${labelStyle}>Select Plant Equipment</label>
           <select id="g_equipment" ${largeInput}>
@@ -1347,8 +1385,231 @@
           });
         };
       }
+      else if (type === 'staff') {
+        title.innerText = isEdit ? "Update Staff Profile" : "Register Facility Staff";
+        let passportUrl = isEdit ? (editData.passport || '') : '';
+        let attachmentsQueue = isEdit && editData.attachments ? editData.attachments.split(',').filter(Boolean) : [];
+
+        const renderStaffFiles = () => {
+          const passEl = document.getElementById('staffPassportPreview');
+          if (passEl) {
+            passEl.innerHTML = passportUrl ? `<img src="${getDirectImageUrl(passportUrl)}" style="width:110px; height:110px; object-fit:cover; border-radius:50%; border:3px solid #000;">` : `<div style="width:110px; height:110px; border-radius:50%; border:3px dashed var(--border); display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:800; color:var(--muted); background:#F1F3F5;">NO PHOTO</div>`;
+          }
+          const docsEl = document.getElementById('staffDocsPreview');
+          if (docsEl) {
+            docsEl.innerHTML = attachmentsQueue.map((url, i) => `
+              <div style="background:var(--card); border:2px solid #000; padding:10px 14px; border-radius:10px; display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; font-weight:700;">
+                <a href="${url}" target="_blank" style="color:var(--primary); text-decoration:none; font-size:16px;"><i class="fas fa-file-alt"></i> File Attachment ${i+1}</a>
+                <button onclick="window.removeStaffDoc(${i})" style="background:none; border:none; color:var(--danger); font-size:18px; cursor:pointer;"><i class="fas fa-times"></i></button>
+              </div>
+            `).join('');
+          }
+        };
+
+        window.removeStaffDoc = (idx) => { attachmentsQueue.splice(idx, 1); renderStaffFiles(); };
+
+        body.innerHTML = `
+          <div style="display:flex; gap:16px; align-items:center; margin-bottom:15px; background:var(--card); padding:12px; border-radius:16px; border:2px solid var(--border);">
+            <div id="staffPassportPreview"></div>
+            <label class="action-btn" style="background:#000; color:#fff; padding:12px 16px; font-size:14px; cursor:pointer; width:auto; border-radius:8px; margin:0;">
+              <i class="fas fa-camera"></i> Passport Photo
+              <input type="file" id="staffPassportInput" accept="image/*" capture="user" style="display:none">
+            </label>
+          </div>
+
+          <label ${labelStyle}>Staff Member Name</label>
+          <input id="st_name" value="${isEdit ? editData.name : ''}" placeholder="e.g. Samuel Okon" ${largeInput}>
+
+          <label ${labelStyle}>Role / Designation</label>
+          <input id="st_role" value="${isEdit ? editData.role : ''}" placeholder="e.g. Facility Electrician" ${largeInput}>
+
+          <label ${labelStyle}>Phone Number (11 Digits)</label>
+          <input id="st_phone" type="tel" maxlength="11" value="${isEdit ? editData.phone : ''}" placeholder="e.g. 08034567890" ${largeInput}>
+
+          <label ${labelStyle}>Credentials & Documentation (JPEG or PDF Max 500KB)</label>
+          <label class="action-btn" style="background:var(--primary); color:white; display:block; text-align:center; padding:14px; cursor:pointer; font-size:16px; border-radius:10px; margin-bottom:10px;">
+            <i class="fas fa-paperclip"></i> Upload Document (JPEG/PDF)
+            <input type="file" id="staffDocInput" accept="image/*,application/pdf" style="display:none">
+          </label>
+          <div id="staffDocsPreview"></div>
+        `;
+
+        renderStaffFiles();
+
+        document.getElementById('staffPassportInput').onchange = function(e) {
+          const file = e.target.files[0];
+          if (!file) return;
+          const reader = new FileReader();
+          reader.onload = async function(evt) {
+            const compressed = await compressImage(evt.target.result);
+            callApi('uploadImage', { base64: compressed, name: "avatar_" + Date.now() + ".jpg" }).then(res => {
+              if (res && res.url) { passportUrl = res.url; renderStaffFiles(); }
+            });
+          };
+          reader.readAsDataURL(file);
+        };
+
+        document.getElementById('staffDocInput').onchange = function(e) {
+          const file = e.target.files[0];
+          if (!file) return;
+          if (file.type === 'application/pdf' && file.size > 500 * 1024) {
+            alert("PDF layout constraint mismatch: File exceeds 500KB maximum load threshold.");
+            return;
+          }
+          const reader = new FileReader();
+          reader.onload = async function(evt) {
+            let base64Payload = evt.target.result;
+            if (file.type.startsWith('image/')) base64Payload = await compressImage(base64Payload);
+            callApi('uploadImage', { base64: base64Payload, name: "stf_doc_" + Date.now() + "_" + file.name }).then(res => {
+              if (res && res.url) { attachmentsQueue.push(res.url); renderStaffFiles(); }
+            });
+          };
+          reader.readAsDataURL(file);
+        };
+
+        submit.onclick = () => {
+          const staffName = document.getElementById('st_name').value.trim();
+          if (!staffName) { alert("Please input full name."); return; }
+
+          submit.disabled = true;
+          const payload = {
+            rowId: isEdit ? editData.rowId : "STF-" + Math.random().toString(36).substr(2, 5).toUpperCase(),
+            name: staffName,
+            role: document.getElementById('st_role').value,
+            phone: document.getElementById('st_phone').value,
+            passport: passportUrl,
+            attachments: attachmentsQueue.join(',')
+          };
+
+          const action = isEdit ? 'updateStaff' : 'saveStaff';
+          callApi(action, payload).then(res => {
+            if (res && res.success) { closeModal(); refreshData('staff'); }
+            else { submit.disabled = false; alert("Error syncing staff portfolio."); }
+          });
+        };
+      }
+      else if (type === 'vendor') {
+        title.innerText = isEdit ? "Update Vendor Profile" : "Register Business Vendor";
+        let logoUrl = isEdit ? (editData.passport || '') : '';
+        let attachmentsQueue = isEdit && editData.attachments ? editData.attachments.split(',').filter(Boolean) : [];
+
+        const renderVendorFiles = () => {
+          const logoEl = document.getElementById('vendorLogoPreview');
+          if (logoEl) {
+            logoEl.innerHTML = logoUrl ? `<img src="${getDirectImageUrl(logoUrl)}" style="width:110px; height:110px; object-fit:cover; border-radius:12px; border:3px solid #000;">` : `<div style="width:110px; height:110px; border-radius:12px; border:3px dashed var(--border); display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:800; color:var(--muted); background:#F1F3F5;">NO LOGO</div>`;
+          }
+          const docsEl = document.getElementById('vendorDocsPreview');
+          if (docsEl) {
+            docsEl.innerHTML = attachmentsQueue.map((url, i) => `
+              <div style="background:var(--card); border:2px solid #000; padding:10px 14px; border-radius:10px; display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; font-weight:700;">
+                <a href="${url}" target="_blank" style="color:var(--primary); text-decoration:none; font-size:16px;"><i class="fas fa-file-contract"></i> Agreement Doc ${i+1}</a>
+                <button onclick="window.removeVendorDoc(${i})" style="background:none; border:none; color:var(--danger); font-size:18px; cursor:pointer;"><i class="fas fa-times"></i></button>
+              </div>
+            `).join('');
+          }
+        };
+
+        window.removeVendorDoc = (idx) => { attachmentsQueue.splice(idx, 1); renderVendorFiles(); };
+
+        body.innerHTML = `
+          <div style="display:flex; gap:16px; align-items:center; margin-bottom:15px; background:var(--card); padding:12px; border-radius:16px; border:2px solid var(--border);">
+            <div id="vendorLogoPreview"></div>
+            <label class="action-btn" style="background:#000; color:#fff; padding:12px 16px; font-size:14px; cursor:pointer; width:auto; border-radius:8px; margin:0;">
+              <i class="fas fa-store"></i> Upload Logo / Photo
+              <input type="file" id="vendorLogoInput" accept="image/*" style="display:none">
+            </label>
+          </div>
+
+          <label ${labelStyle}>Company Name</label>
+          <input id="v_company" value="${isEdit ? editData.company : ''}" placeholder="e.g. Rapid Plumbing Services" ${largeInput}>
+
+          <label ${labelStyle}>Trade / Core Specialization</label>
+          <input id="v_trade" value="${isEdit ? editData.trade : ''}" placeholder="e.g. Elevators, Fire Alarms" ${largeInput}>
+
+          <label ${labelStyle}>Contact Person Name</label>
+          <input id="v_contact" value="${isEdit ? editData.contactName : ''}" placeholder="e.g. Engr. Kunle" ${largeInput}>
+
+          <label ${labelStyle}>Office Phone Number</label>
+          <input id="v_phone" type="tel" value="${isEdit ? editData.phone : ''}" placeholder="e.g. 08123456789" ${largeInput}>
+
+          <label ${labelStyle}>Service Contracts & SLA Documents (JPEG or PDF Max 500KB)</label>
+          <label class="action-btn" style="background:var(--success); color:white; display:block; text-align:center; padding:14px; cursor:pointer; font-size:16px; border-radius:10px; margin-bottom:10px;">
+            <i class="fas fa-file-upload"></i> Append SLA Document (JPEG/PDF)
+            <input type="file" id="vendorDocInput" accept="image/*,application/pdf" style="display:none">
+          </label>
+          <div id="vendorDocsPreview"></div>
+        `;
+
+        renderVendorFiles();
+
+        document.getElementById('vendorLogoInput').onchange = function(e) {
+          const file = e.target.files[0];
+          if (!file) return;
+          const reader = new FileReader();
+          reader.onload = async function(evt) {
+            const compressed = await compressImage(evt.target.result);
+            callApi('uploadImage', { base64: compressed, name: "vendor_" + Date.now() + ".jpg" }).then(res => {
+              if (res && res.url) { logoUrl = res.url; renderVendorFiles(); }
+            });
+          };
+          reader.readAsDataURL(file);
+        };
+
+        document.getElementById('vendorDocInput').onchange = function(e) {
+          const file = e.target.files[0];
+          if (!file) return;
+          if (file.type === 'application/pdf' && file.size > 500 * 1024) {
+            alert("PDF layout constraint mismatch: File exceeds 500KB maximum load threshold.");
+            return;
+          }
+          const reader = new FileReader();
+          reader.onload = async function(evt) {
+            let base64Payload = evt.target.result;
+            if (file.type.startsWith('image/')) base64Payload = await compressImage(base64Payload);
+            callApi('uploadImage', { base64: base64Payload, name: "vnd_doc_" + Date.now() + "_" + file.name }).then(res => {
+              if (res && res.url) { attachmentsQueue.push(res.url); renderVendorFiles(); }
+            });
+          };
+          reader.readAsDataURL(file);
+        };
+
+        submit.onclick = () => {
+          const companyName = document.getElementById('v_company').value.trim();
+          if (!companyName) { alert("Please input Company Name."); return; }
+
+          submit.disabled = true;
+          const payload = {
+            rowId: isEdit ? editData.rowId : "VND-" + Math.random().toString(36).substr(2, 5).toUpperCase(),
+            company: companyName,
+            trade: document.getElementById('v_trade').value,
+            contactName: document.getElementById('v_contact').value,
+            phone: document.getElementById('v_phone').value,
+            passport: logoUrl,
+            attachments: attachmentsQueue.join(',')
+          };
+
+          const action = isEdit ? 'updateVendor' : 'saveVendor';
+          callApi(action, payload).then(res => {
+            if (res && res.success) { closeModal(); refreshData('vendors'); }
+            else { submit.disabled = false; alert("Error syncing vendor registry profile."); }
+          });
+        };
+      }
     }
     
+    // 6. RECORD ARCHIVE PIPELINE
+    function archiveRecord(type, id) {
+      if (!confirm("Are you sure you want to transfer this record profile to the archive bin?")) return;
+      const apiCmd = type === 'staff' ? 'archiveStaff' : 'archiveVendor';
+      callApi(apiCmd, { rowId: id }).then(res => {
+        if (res && res.success) {
+          refreshData(type === 'staff' ? 'staff' : 'vendors');
+        } else {
+          alert("Error processing archival pipeline logic.");
+        }
+      });
+    }
+
     function toSheetDate(dateStr) {
       if (!dateStr) return "";
       const [y, m, d] = dateStr.split('-');
