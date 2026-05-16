@@ -458,15 +458,16 @@
       callApi('getStats', {}).then(stats => {
         if (!stats) return;
         
-        // 1. Update Apartment Badge Count
+        // Maps perfectly to the keys returned by your working backend script
         const aptBadge = document.getElementById('count-apts') || document.getElementById('count-apartments');
-        if (aptBadge) aptBadge.innerText = stats.apts || 0;
+        if (aptBadge) aptBadge.innerText = stats.tenancy || 0;
         
-        // 2. Update Asset Badge Count
         const assetBadge = document.getElementById('count-assets');
-        if (assetBadge) assetBadge.innerText = stats.assets || 0;
+        if (assetBadge) assetBadge.innerText = stats.asset || 0;
         
-        // 3. Update Maintenance Badge Count (Fixed)
+        const invBadge = document.getElementById('count-inventory') || document.getElementById('count-inv');
+        if (invBadge) invBadge.innerText = stats.inventory || 0;
+        
         const maintBadge = document.getElementById('count-maint');
         if (maintBadge) maintBadge.innerText = stats.maint || 0;
       }).catch(err => console.error("Error refreshing dashboard badges:", err));
