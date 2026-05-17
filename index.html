@@ -566,19 +566,19 @@
       const listEl = document.getElementById(idMap[p]); if (!listEl) return;
     
       const isMaint = (p === 'maintenance' || p === 'maint');
-      let apiCmd = p === 'assets' ? 'getAssets' : isMaint ? 'getMaintenance' : p === 'utilities' ? 'getUtilities' : p === 'staff' ? 'getStaff' : p === 'vendors' ? 'getVendors' : p === 'workorders' ? 'getWorkOrders' : p === 'inventory' ? 'getInventory' : 'getApartments';
+      let apiCmd = p === 'assets' ? 'getAssets' : p === 'vendors' ? 'getVendors' : isMaint ? 'getMaintenance' : p === 'utilities' ? 'getUtilities' : p === 'staff' ? 'getStaff' : p === 'workorders' ? 'getWorkOrders' : p === 'inventory' ? 'getInventory' : 'getApartments';
       if (p === 'archived') { renderArchiveBinDashboardView(listEl); return; }
 
       callApi(apiCmd, {}).then(data => {
         let displayData = data || [];
         if (p === 'apartments') cache.apts = displayData;
-        if (p === 'assets') { cache.assets = displayData; displayData = displayData.filter(item => item.status !== 'Archived'); }
+        if (p === 'assets') { cache.assets = displayData; displayData = displayData.filter(item => item && item.status !== 'Archived'); }
         if (isMaint) cache.tickets = displayData;
-        if (p === 'staff') { cache.staff = displayData; displayData = displayData.filter(item => item.archived !== 'Yes'); }
-        if (p === 'vendors') { cache.vendors = displayData; displayData = displayData.filter(item => item.archived !== 'Yes'); }
+        if (p === 'staff') { cache.staff = displayData; displayData = displayData.filter(item => item && item.archived !== 'Yes'); }
+        if (p === 'vendors') { cache.vendors = displayData; displayData = displayData.filter(item => item && item.archived !== 'Yes'); }
         if (p === 'utilities') cache.utilities = displayData;
         if (p === 'workorders') cache.workorders = displayData;
-        if (p === 'inventory') { cache.inventory = displayData; displayData = displayData.filter(item => item.archived !== 'Yes'); }
+        if (p === 'inventory') { cache.inventory = displayData; displayData = displayData.filter(item => item && item.archived !== 'Yes'); }
     
         if (p === 'assets') {
           const filter = document.getElementById('asset-unit-filter');
@@ -594,14 +594,15 @@
         }
     
         listEl.innerHTML = displayData.map(item => {
+          if (!item) return '';
           if (isMaint) {
             return `
               <div class="card" onclick="openRecordRow('maintenance', '${item.ticketId}')">
                 <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:4px;">
                   <div><strong style="font-size:20px;">Unit ${item.apt}</strong><br><small style="color:var(--muted); font-weight:700;">${item.ticketId}</small></div>
-                  <span style="padding:4px 10px; border:2px solid #000; border-radius:6px; font-size:12px; font-weight:900; background:${item.status === 'Resolved' ? 'var(--success)' : 'var(--danger)'}; color:#fff;">${item.status.toUpperCase()}</span>
+                  <span style="padding:4px 10px; border:2px solid #000; border-radius:6px; font-size:12px; font-weight:900; background:${item.status === 'Resolved' ? 'var(--success)' : 'var(--danger)'}; color:#fff;">${item.status ? item.status.toUpperCase() : 'OPEN'}</span>
                 </div>
-                <div style="font-size:16px; font-weight:800; color:var(--primary);">${item.category}</div>
+                <div style="font-size:16px; font-weight:800; color:var(--primary);">${item.category || ''}</div>
                 <div style="font-size:15px; color:#000; font-weight:600;">${item.description || ''}</div>
               </div>`;
           } 
@@ -610,9 +611,9 @@
               <div class="card" onclick="openRecordRow('workorder', '${item.workOrderId}')">
                 <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:4px;">
                   <div><strong style="font-size:20px;">Unit ${item.apt}</strong><br><small style="color:var(--muted); font-weight:700;">${item.workOrderId}</small></div>
-                  <span style="padding:4px 10px; border:2px solid #000; border-radius:6px; font-size:12px; font-weight:900; background:${item.status === 'Approved' ? 'var(--success)' : item.status === 'Declined' ? 'var(--danger)' : '#ffc107'}; color:#fff;">${item.status.toUpperCase()}</span>
+                  <span style="padding:4px 10px; border:2px solid #000; border-radius:6px; font-size:12px; font-weight:900; background:${item.status === 'Approved' ? 'var(--success)' : item.status === 'Declined' ? 'var(--danger)' : '#ffc107'}; color:#fff;">${item.status ? item.status.toUpperCase() : 'PENDING'}</span>
                 </div>
-                <div style="font-size:18px; font-weight:900; color:var(--success)">₦${Number(item.amount).toLocaleString()}</div>
+                <div style="font-size:18px; font-weight:900; color:var(--success)">₦${Number(item.amount || 0).toLocaleString()}</div>
                 <div style="font-size:15px; font-weight:600; color:#000;">${item.description || ''}</div>
               </div>`;
           }
@@ -620,8 +621,8 @@
             return `
               <div class="card" onclick="openRecordRow('inventory', '${item.itemId}')">
                 <div style="display:flex; justify-content:space-between; align-items:center;">
-                  <div><strong style="font-size:20px; color:#000;">${item.name}</strong><br><small style="color:var(--muted); font-weight:700;">ID: ${item.itemId} [${item.category}]</small></div>
-                  <div style="text-align:right;"><span style="font-size:22px; font-weight:900; color:var(--primary);">${item.qty}</span><br><small style="font-weight:800; font-size:10px; color:var(--muted)">UNITS</small></div>
+                  <div><strong style="font-size:20px; color:#000;">${item.name || 'Unnamed Item'}</strong><br><small style="color:var(--muted); font-weight:700;">ID: ${item.itemId || ''} [${item.category || 'General'}]</small></div>
+                  <div style="text-align:right;"><span style="font-size:22px; font-weight:900; color:var(--primary);">${item.qty || 0}</span><br><small style="font-weight:800; font-size:10px; color:var(--muted)">UNITS</small></div>
                 </div>
               </div>`;
           }
@@ -629,10 +630,10 @@
             return `
               <div class="card" onclick="openRecordRow('asset', '${item.tag}')">
                 <div style="display:flex; justify-content:space-between; align-items:start;">
-                  <div><strong style="font-size:20px;">Unit ${item.apt}</strong><br><span style="font-weight:800; color:var(--primary);">${item.type}</span></div>
-                  <span style="padding:4px 10px; border:2px solid #000; border-radius:6px; font-size:12px; font-weight:900; background:#000; color:#fff;">${item.status.toUpperCase()}</span>
+                  <div><strong style="font-size:20px;">Unit ${item.apt}</strong><br><span style="font-weight:800; color:var(--primary);">${item.type || ''}</span></div>
+                  <span style="padding:4px 10px; border:2px solid #000; border-radius:6px; font-size:12px; font-weight:900; background:#000; color:#fff;">${item.status ? item.status.toUpperCase() : 'OPERATIONAL'}</span>
                 </div>
-                <div style="font-size:14px; font-weight:700; margin-top:4px;">Tag Parameter: ${item.tag}</div>
+                <div style="font-size:14px; font-weight:700; margin-top:4px;">Tag Parameter: ${item.tag || ''}</div>
               </div>`;
           }
           else if (p === 'staff') {
@@ -640,25 +641,30 @@
               <div class="card" onclick="openRecordRow('staff', '${item.rowId}')">
                 <div style="display:flex; gap:12px; align-items:center;">
                   <img src="${getDirectImageUrl(item.passport) || 'https://via.placeholder.com/150'}" style="width:60px; height:60px; object-fit:cover; border-radius:50%; border:2px solid #000;">
-                  <div style="flex:1;"><strong style="font-size:18px;">${item.name}</strong><br><span style="font-weight:700; color:var(--muted); font-size:13px;">ID: ${item.rowId}</span><br><span style="font-weight:700; color:var(--primary); font-size:14px;">${item.role}</span></div>
+                  <div style="flex:1;"><strong style="font-size:18px;">${item.name || ''}</strong><br><span style="font-weight:700; color:var(--muted); font-size:13px;">ID: ${item.rowId || ''}</span><br><span style="font-weight:700; color:var(--primary); font-size:14px;">${item.role || ''}</span></div>
                 </div>
               </div>`;
           }
+          // SPECIFICATION COMPLIANCE: SYSTEM SAFETY STRIP FALLBACK PREVENTS CRASHES DURING TRADE OR STRING RESOLUTIONS
           else if (p === 'vendors') {
             return `
-              <div class="card" onclick="openRecordRow('vendor', '${item.rowId}')">
+              <div class="card" onclick="openRecordRow('vendor', '${item.rowId || ''}')">
                 <div style="display:flex; gap:12px; align-items:center;">
-                  <div style="flex:1;"><strong style="font-size:18px;">${item.company}</strong><br><span style="font-weight:700; color:var(--muted); font-size:13px;">ID: ${item.rowId}</span><br><span style="font-weight:700; color:var(--success); font-size:14px;">${item.trade.toUpperCase()}</span></div>
+                  <div style="flex:1;">
+                    <strong style="font-size:18px;">${item.company || 'Unnamed Corporate Vendor'}</strong><br>
+                    <span style="font-weight:700; color:var(--muted); font-size:13px;">ID: ${item.rowId || ''}</span><br>
+                    <span style="font-weight:700; color:var(--success); font-size:14px;">${String(item.trade || '').toUpperCase()}</span>
+                  </div>
                 </div>
               </div>`;
           }
           else if (p === 'utilities') {
-            const isPlant = item.type === 'Plant Check' || item.apt.includes('GENERATOR') || item.apt === 'DIESEL-TANK';
+            const isPlant = item.type === 'Plant Check' || String(item.apt || '').includes('GENERATOR') || item.apt === 'DIESEL-TANK';
             return `
               <div class="card" style="border-left: 6px solid ${isPlant ? '#fd7e14' : 'var(--primary)'};">
                 <div style="display:flex; justify-content:space-between; align-items:start;">
-                  <div><strong>${item.apt}</strong><br><span style="font-size:12px; font-weight:800; color:var(--muted);">${item.type.toUpperCase()}</span></div>
-                  <span style="padding:4px 10px; font-weight:900; background:#000; color:#fff; border-radius:6px; font-size:14px;">${item.reading}</span>
+                  <div><strong>${item.apt || ''}</strong><br><span style="font-size:12px; font-weight:800; color:var(--muted);">${String(item.type || '').toUpperCase()}</span></div>
+                  <span style="padding:4px 10px; font-weight:900; background:#000; color:#fff; border-radius:6px; font-size:14px;">${item.reading || 0}</span>
                 </div>
               </div>`;
           }
@@ -667,7 +673,7 @@
               <div class="card" onclick="openRecordRow('apartment', '${item.apt}')">
                 <div style="display:flex; justify-content:space-between; align-items:center;">
                   <div><strong style="font-size:22px;">Unit ${item.apt}</strong><br><span style="font-weight:600; color:var(--muted);">${item.tenant || 'Vacant Infrastructure'}</span></div>
-                  <span style="padding:4px 10px; border:2px solid #000; border-radius:6px; font-size:12px; font-weight:900; background:${item.status === 'Occupied' ? 'var(--success)' : item.status === 'Common Area' ? 'var(--primary)' : 'var(--danger)'}; color:#fff;">${item.status}</span>
+                  <span style="padding:4px 10px; border:2px solid #000; border-radius:6px; font-size:12px; font-weight:900; background:${item.status === 'Occupied' ? 'var(--success)' : item.status === 'Common Area' ? 'var(--primary)' : 'var(--danger)'}; color:#fff;">${item.status || 'Vacant'}</span>
                 </div>
               </div>`;
           }
@@ -677,20 +683,20 @@
 
     function renderArchiveBinDashboardView(targetContainerElement) {
       let archiveBundleHTML = "";
-      const archivedAssets = cache.assets.filter(a => a.status === 'Archived');
-      const archivedStaff = cache.staff.filter(s => s.archived === 'Yes');
-      const archivedVendors = cache.vendors.filter(v => v.archived === 'Yes');
-      const archivedInventory = cache.inventory.filter(i => i.archived === 'Yes');
+      const archivedAssets = cache.assets.filter(a => a && a.status === 'Archived');
+      const archivedStaff = cache.staff.filter(s => s && s.archived === 'Yes');
+      const archivedVendors = cache.vendors.filter(v => v && v.archived === 'Yes');
+      const archivedInventory = cache.inventory.filter(i => i && i.archived === 'Yes');
 
       if(archivedAssets.length === 0 && archivedStaff.length === 0 && archivedVendors.length === 0 && archivedInventory.length === 0) {
         targetContainerElement.innerHTML = `<p style="text-align:center; padding:30px; font-weight:700; color:var(--muted)">Archive bin file history is empty.</p>`;
         return;
       }
 
-      archivedAssets.forEach(a => { archiveBundleHTML += `<div class="card" style="border-left:5px solid var(--danger)"><strong>[ASSET ARCHIVE] ${a.type}</strong><br><small>Tag Ref ID: ${a.tag} | Location: Unit ${a.apt}</small></div>`; });
-      archivedStaff.forEach(s => { archiveBundleHTML += `<div class="card" style="border-left:5px solid var(--primary)"><strong>[STAFF ARCHIVE] ${s.name}</strong><br><small>Role: ${s.role} | Staff ID: ${s.rowId}</small></div>`; });
-      archivedVendors.forEach(v => { archiveBundleHTML += `<div class="card" style="border-left:5px solid var(--success)"><strong>[VENDOR ARCHIVE] ${v.company}</strong><br><small>Trade Field: ${v.trade} | Vendor ID: ${v.rowId}</small></div>`; });
-      archivedInventory.forEach(i => { archiveBundleHTML += `<div class="card" style="border-left:5px solid #ffc107"><strong>[INVENTORY ARCHIVE] ${i.name}</strong><br><small>Category: ${i.category} | Qty Remaining: ${i.qty} | ID: ${i.itemId}</small></div>`; });
+      archivedAssets.forEach(a => { archiveBundleHTML += `<div class="card" style="border-left:5px solid var(--danger)"><strong>[ASSET ARCHIVE] ${a.type || 'Asset'}</strong><br><small>Tag Ref ID: ${a.tag} | Location: Unit ${a.apt}</small></div>`; });
+      archivedStaff.forEach(s => { archiveBundleHTML += `<div class="card" style="border-left:5px solid var(--primary)"><strong>[STAFF ARCHIVE] ${s.name || ''}</strong><br><small>Role: ${s.role} | Staff ID: ${s.rowId}</small></div>`; });
+      archivedVendors.forEach(v => { archiveBundleHTML += `<div class="card" style="border-left:5px solid var(--success)"><strong>[VENDOR ARCHIVE] ${v.company || ''}</strong><br><small>Trade Field: ${v.trade} | Vendor ID: ${v.rowId}</small></div>`; });
+      archivedInventory.forEach(i => { archiveBundleHTML += `<div class="card" style="border-left:5px solid #ffc107"><strong>[INVENTORY ARCHIVE] ${i.name || ''}</strong><br><small>Category: ${i.category} | Qty: ${i.qty} | ID: ${i.itemId}</small></div>`; });
       targetContainerElement.innerHTML = archiveBundleHTML;
     }
 
@@ -843,7 +849,7 @@
           <div id="maintPreviews" class="modal-preview-grid" style="display:none;"></div>
           <label class="icon-upload-label"><i class="fas fa-camera"></i><input type="file" id="maintCameraInput" accept="image/*" capture="environment" style="display:none"></label>`;
 
-        const aSel = document.getElementById('m_apt'); (cache.apts || []).forEach(u => { const o=document.createElement('option'); o.value=u.apt; o.innerText=`Unit ${u.apt}`; if(isEdit&&String(u.apt)===String(editData.apt)) o.selected=true; aSel.appendChild(o); });
+        const aSel = document.getElementById('m_apt'); (cache.apts || []).forEach(u => { const o=document.createElement('option'); o.value=u.apt; o.innerText='Unit ' + u.apt; if(isEdit&&String(u.apt)===String(editData.apt)) o.selected=true; aSel.appendChild(o); });
         const tSel = document.getElementById('m_tech'); tSel.innerHTML = '<option value="">-- Unassigned Responder --</option>';
         (cache.staff || []).forEach(s => { const o=document.createElement('option'); o.value=`${s.name} (${s.role})`; o.innerText=`${s.name} [Staff]`; if(isEdit&&editData.tech===o.value) o.selected=true; tSel.appendChild(o); });
         (cache.vendors || []).forEach(v => { const o=document.createElement('option'); o.value=`${v.company} (${v.trade})`; o.innerText=`${v.company} [Vendor]`; if(isEdit&&editData.tech===o.value) o.selected=true; tSel.appendChild(o); });
@@ -880,7 +886,7 @@
           ${isApproved ? `<button class="action-btn" style="background:var(--success); margin-top:15px;" onclick="printSingleWorkOrderDirect('${uniqueWO}')"><i class="fas fa-print"></i> Print Work Order</button>` : ''}`;
         
         const wSel = document.getElementById('w_apt'); 
-        (cache.apts || []).forEach(u => { const o=document.createElement('option'); o.value=u.apt; o.innerText=`Unit ${u.apt}`; if(isEdit && String(u.apt)===String(editData.apt)) o.selected=true; wSel.appendChild(o); });
+        (cache.apts || []).forEach(u => { const o=document.createElement('option'); o.value=u.apt; o.innerText='Unit ' + u.apt; if(isEdit && String(u.apt)===String(editData.apt)) o.selected=true; wSel.appendChild(o); });
         
         if (isApproved) { submit.style.display = "none"; }
         else {
@@ -922,7 +928,7 @@
           <label ${labelStyle}>Consumption Meter Reading</label><input id="u_reading" type="number" ${largeInput}>
           <label ${labelStyle}>Token Purchase Cost (₦)</label><input id="u_amount" type="number" ${largeInput}>
           <label ${labelStyle}>Log Notes</label><textarea id="u_notes" rows="2" ${largeInput}></textarea>`;
-        const uSel = document.getElementById('u_apt'); (cache.apts || []).forEach(u => { const o=document.createElement('option'); o.value=u.apt; o.innerText=`Unit ${u.apt}`; uSel.appendChild(o); });
+        const uSel = document.getElementById('u_apt'); (cache.apts || []).forEach(u => { const o=document.createElement('option'); o.value=u.apt; o.innerText='Unit ' + u.apt; uSel.appendChild(o); });
         submit.onclick = () => {
           submit.disabled = true;
           callApi('saveUtility', { apt: uSel.value, type: document.getElementById('u_type').value, meterNo: document.getElementById('u_meter').value, reading: document.getElementById('u_reading').value, amount: document.getElementById('u_amount').value, notes: document.getElementById('u_notes').value, photos: '' }).then(() => { closeModal(); refreshData('utilities'); });
@@ -943,6 +949,7 @@
           callApi('saveUtility', { apt: document.getElementById('g_equipment').value, type: "Plant Check", meterNo: document.getElementById('g_tank').value, reading: document.getElementById('g_reading').value, amount: document.getElementById('g_added').value || 0, notes: document.getElementById('g_notes').value, photos: '' }).then(() => { closeModal(); refreshData('utilities'); });
         };
       }
+      // SPECIFICATION COMPLIANCE: PHONE 1 & PHONE 2 ARE FORCED TO DIGIT STRIPS & VALIDATED ON DESPATCH FOR STAFF
       else if (type === 'staff') {
         const uniqueId = isEdit ? editData.rowId : "STF-" + Math.random().toString(36).substr(2, 5).toUpperCase();
         title.innerText = "Staff Profile Management";
@@ -961,8 +968,8 @@
           <label ${labelStyle}>Staff ID</label><input id="st_id" value="${uniqueId}" ${largeInput} ${isEdit?'disabled':''}>
           <label ${labelStyle}>Employee Full Name</label><input id="st_name" value="${isEdit?editData.name:''}" ${largeInput}>
           <label ${labelStyle}>Core Specialization / Role</label><input id="st_role" value="${isEdit?editData.role:''}" ${largeInput}>
-          <label ${labelStyle}>Phone 1</label><input id="st_p1" type="tel" maxlength="11" value="${isEdit?(editData.phone1 || ''):''}" ${largeInput}>
-          <label ${labelStyle}>Phone 2</label><input id="st_p2" type="tel" maxlength="11" value="${isEdit?(editData.phone2 || ''):''}" ${largeInput}>
+          <label ${labelStyle}>Phone 1</label><input id="st_p1" type="tel" maxlength="11" inputmode="numeric" oninput="this.value=this.value.replace(/[^0-9]/g,'')" value="${isEdit?(editData.phone1 || ''):''}" ${largeInput}>
+          <label ${labelStyle}>Phone 2</label><input id="st_p2" type="tel" maxlength="11" inputmode="numeric" oninput="this.value=this.value.replace(/[^0-9]/g,'')" value="${isEdit?(editData.phone2 || ''):''}" ${largeInput}>
           <label ${labelStyle}>Staff Email Address</label><input id="st_email" type="email" value="${isEdit?(editData.email || ''):''}" ${largeInput}>
           
           <label ${labelStyle}>Profile Archive Lifecycle Deployment State</label>
@@ -991,10 +998,16 @@
         };
 
         submit.onclick = () => {
+          const p1 = document.getElementById('st_p1').value;
+          const p2 = document.getElementById('st_p2').value;
+          if(!p1 || p1.length !== 11) { alert("Phone 1 field data is missing or is not exactly 11 numeric digits."); return; }
+          if(!p2 || p2.length !== 11) { alert("Phone 2 field data is missing or is not exactly 11 numeric digits."); return; }
+          
           submit.disabled = true;
-          callApi(isEdit?'updateStaff':'saveStaff', { rowId: document.getElementById('st_id').value, name: document.getElementById('st_name').value, role: document.getElementById('st_role').value, phone1: document.getElementById('st_p1').value, phone2: document.getElementById('st_p2').value, email: document.getElementById('st_email').value, passport: avatarPhoto, attachments: attachmentPhotoQueue.join(','), archived: document.getElementById('st_archived').value }).then(() => { closeModal(); refreshData('staff'); });
+          callApi(isEdit?'updateStaff':'saveStaff', { rowId: document.getElementById('st_id').value, name: document.getElementById('st_name').value, role: document.getElementById('st_role').value, phone1: p1, phone2: p2, email: document.getElementById('st_email').value, passport: avatarPhoto, attachments: attachmentPhotoQueue.join(','), archived: document.getElementById('st_archived').value }).then(() => { closeModal(); refreshData('staff'); });
         };
       }
+      // SPECIFICATION COMPLIANCE: PHONE 1 & PHONE 2 ARE FORCED TO DIGIT STRIPS & VALIDATED ON DESPATCH FOR VENDORS
       else if (type === 'vendor') {
         const uniqueId = isEdit ? editData.rowId : "VND-" + Math.random().toString(36).substr(2, 5).toUpperCase();
         title.innerText = "Vendor SLA Registry Profile";
@@ -1014,8 +1027,8 @@
           <label ${labelStyle}>Corporate Entity Name</label><input id="v_company" value="${isEdit?editData.company:''}" ${largeInput}>
           <label ${labelStyle}>Trade Domain Specialization</label><input id="v_trade" value="${isEdit?editData.trade:''}" ${largeInput}>
           <label ${labelStyle}>Primary Account Contact Name</label><input id="v_contact" value="${isEdit?editData.contactName:''}" ${largeInput}>
-          <label ${labelStyle}>Phone 1</label><input id="v_phone1" type="tel" value="${isEdit?(editData.phone1 || ''):''}" ${largeInput}>
-          <label ${labelStyle}>Phone 2</label><input id="v_phone2" type="tel" value="${isEdit?(editData.phone2 || ''):''}" ${largeInput}>
+          <label ${labelStyle}>Phone 1</label><input id="v_phone1" type="tel" maxlength="11" inputmode="numeric" oninput="this.value=this.value.replace(/[^0-9]/g,'')" value="${isEdit?(editData.phone1 || ''):''}" ${largeInput}>
+          <label ${labelStyle}>Phone 2</label><input id="v_phone2" type="tel" maxlength="11" inputmode="numeric" oninput="this.value=this.value.replace(/[^0-9]/g,'')" value="${isEdit?(editData.phone2 || ''):''}" ${largeInput}>
           <label ${labelStyle}>Corporate Support Email</label><input id="v_email" type="email" value="${isEdit?(editData.email || ''):''}" ${largeInput}>
           <label ${labelStyle}>SLA Contract Expiration Timeline</label><input id="v_end" type="date" value="${isEdit?fromSheetDate(editData.contractEnd):''}" ${largeInput}>
           
@@ -1045,8 +1058,13 @@
         };
 
         submit.onclick = () => {
+          const p1 = document.getElementById('v_phone1').value;
+          const p2 = document.getElementById('v_phone2').value;
+          if(!p1 || p1.length !== 11) { alert("Phone 1 field data is missing or is not exactly 11 numeric digits."); return; }
+          if(!p2 || p2.length !== 11) { alert("Phone 2 field data is missing or is not exactly 11 numeric digits."); return; }
+
           submit.disabled = true;
-          callApi(isEdit?'updateVendor':'saveVendor', { rowId: document.getElementById('v_id').value, company: document.getElementById('v_company').value, trade: document.getElementById('v_trade').value, contactName: document.getElementById('v_contact').value, phone1: document.getElementById('v_phone1').value, phone2: document.getElementById('v_phone2').value, email: document.getElementById('v_email').value, contractEnd: toSheetDate(document.getElementById('v_end').value), passport: avatarPhoto, attachments: attachmentPhotoQueue.join(','), archived: document.getElementById('v_archived').value }).then(() => { closeModal(); refreshData('vendors'); });
+          callApi(isEdit?'updateVendor':'saveVendor', { rowId: document.getElementById('v_id').value, company: document.getElementById('v_company').value, trade: document.getElementById('v_trade').value, contactName: document.getElementById('v_contact').value, phone1: p1, phone2: p2, email: document.getElementById('v_email').value, contractEnd: toSheetDate(document.getElementById('v_end').value), passport: avatarPhoto, attachments: attachmentPhotoQueue.join(','), archived: document.getElementById('v_archived').value }).then(() => { closeModal(); refreshData('vendors'); });
         };
       }
     }
@@ -1130,8 +1148,7 @@
       let contentHtml = "";
 
       if (layout === "apt_short_all") {
-        // SPECIFICATION COMPLIANCE: EXCLUDES ALL APARTMENT UNITS STAMPED OR DESIGNATED UNDER "SERVICES" STATUS, TENANT, OR TYPE FIELDS
-        const filteredApts = cache.apts.filter(a => a.status !== 'Services' && a.tenant !== 'Services' && a.type !== 'Services');
+        const filteredApts = cache.apts.filter(a => a && a.status !== 'Services' && a.tenant !== 'Services' && a.type !== 'Services');
         contentHtml = `
           <h3>PROPERTY OCCUPANCY SHORT DIRECTORY</h3>
           <table class="print-table">
@@ -1147,10 +1164,10 @@
             <tbody>
               ${filteredApts.map(a => `
                 <tr>
-                  <td>Unit ${a.apt}</td>
+                  <td>Unit ${a.apt || ''}</td>
                   <td>${a.type || 'Standard'}</td>
                   <td>${a.tenant || 'VACANT'}</td>
-                  <td>${a.status}</td>
+                  <td>${a.status || ''}</td>
                   <td>${a.leaseEnd || 'N/A'}</td>
                 </tr>
               `).join('')}
@@ -1168,7 +1185,7 @@
         contentHtml = `<div style="border:3px solid #000; padding:15px; border-radius:12px;"><h3>Work Order Individual Financial Job Card</h3><p><strong>Tracking Work Order Reference:</strong> ${orderItem.workOrderId}</p><p><strong>Target Property Node Location:</strong> Unit ${orderItem.apt}</p><p><strong>Scope Narrative:</strong> ${orderItem.description}</p><p><strong>Cost Parameters Budget:</strong> ₦${Number(orderItem.amount).toLocaleString()}</p><p><strong>Status state:</strong> [${orderItem.status}]</p></div>`;
       }
       else if (layout === "apt_complete_all") {
-        const filteredApts = cache.apts.filter(a => a.status !== 'Services' && a.tenant !== 'Services' && a.type !== 'Services');
+        const filteredApts = cache.apts.filter(a => a && a.status !== 'Services' && a.tenant !== 'Services' && a.type !== 'Services');
         contentHtml = `<h3>COMPREHENSIVE SPACE LOGISTICS FRAME MATRIX</h3>`;
         filteredApts.forEach(a => { contentHtml += `<h4>Unit ${a.apt} Profile Overview</h4><p>Tenant Label: ${a.tenant || 'Vacant'}</p>`; });
       }
