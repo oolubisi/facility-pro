@@ -565,7 +565,6 @@
       };
       const listEl = document.getElementById(idMap[p]); if (!listEl) return;
     
-      // SPECIFICATION COMPLIANCE: ISMAINT FLAG INTERCEPT ROUTER TO ENSURE STABLE PIPELINE LOOPS ON SHORT CODES
       const isMaint = (p === 'maintenance' || p === 'maint');
       let apiCmd = p === 'assets' ? 'getAssets' : isMaint ? 'getMaintenance' : p === 'utilities' ? 'getUtilities' : p === 'staff' ? 'getStaff' : p === 'vendors' ? 'getVendors' : p === 'workorders' ? 'getWorkOrders' : p === 'inventory' ? 'getInventory' : 'getApartments';
       if (p === 'archived') { renderArchiveBinDashboardView(listEl); return; }
@@ -1131,8 +1130,8 @@
       let contentHtml = "";
 
       if (layout === "apt_short_all") {
-        const filteredApts = cache.apts.filter(a => a.status !== 'Services' && a.tenant !== 'Services');
-        // SPECIFICATION COMPLIANCE: EXTENDED RE-ENGINEERED COMPREHENSIVE DIRECTORY HEADER COLUMNS
+        // SPECIFICATION COMPLIANCE: EXCLUDES ALL APARTMENT UNITS STAMPED OR DESIGNATED UNDER "SERVICES" STATUS, TENANT, OR TYPE FIELDS
+        const filteredApts = cache.apts.filter(a => a.status !== 'Services' && a.tenant !== 'Services' && a.type !== 'Services');
         contentHtml = `
           <h3>PROPERTY OCCUPANCY SHORT DIRECTORY</h3>
           <table class="print-table">
@@ -1169,8 +1168,9 @@
         contentHtml = `<div style="border:3px solid #000; padding:15px; border-radius:12px;"><h3>Work Order Individual Financial Job Card</h3><p><strong>Tracking Work Order Reference:</strong> ${orderItem.workOrderId}</p><p><strong>Target Property Node Location:</strong> Unit ${orderItem.apt}</p><p><strong>Scope Narrative:</strong> ${orderItem.description}</p><p><strong>Cost Parameters Budget:</strong> ₦${Number(orderItem.amount).toLocaleString()}</p><p><strong>Status state:</strong> [${orderItem.status}]</p></div>`;
       }
       else if (layout === "apt_complete_all") {
+        const filteredApts = cache.apts.filter(a => a.status !== 'Services' && a.tenant !== 'Services' && a.type !== 'Services');
         contentHtml = `<h3>COMPREHENSIVE SPACE LOGISTICS FRAME MATRIX</h3>`;
-        cache.apts.forEach(a => { contentHtml += `<h4>Unit ${a.apt} Profile Overview</h4><p>Tenant Label: ${a.tenant || 'Vacant'}</p>`; });
+        filteredApts.forEach(a => { contentHtml += `<h4>Unit ${a.apt} Profile Overview</h4><p>Tenant Label: ${a.tenant || 'Vacant'}</p>`; });
       }
 
       document.getElementById('report-preview-viewport').innerHTML = headerStr + contentHtml;
