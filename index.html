@@ -3,24 +3,22 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Facility Pro Mobile</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght=400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     
     :root {
-      /* HIGH-VISIBILITY OUTDOOR PALETTE */
-      --bg: #FFFFFF;           /* Pure white to fight glare */
-      --card: #F1F3F5;        /* Light gray for card depth */
+      --bg: #FFFFFF;           
+      --card: #F1F3F5;        
       --card-light: #E9ECEF;
-      --primary: #0056b3;     /* Deeper blue for text-on-white contrast */
-      --text: #000000;        /* Pure black for maximum legibility */
-      --muted: #495057;       /* Darker muted text */
-      --danger: #C00000;      /* High-saturation red */
-      --success: #157347;     /* High-saturation green */
-      --border: #ADB5BD;      /* Defined borders for outdoor visibility */
+      --primary: #0056b3;     
+      --text: #000000;        
+      --muted: #495057;       
+      --danger: #C00000;      
+      --success: #157347;     
+      --border: #ADB5BD;      
     }
 
     body { 
@@ -32,78 +30,79 @@
       line-height: 1.5;
     }
     
-    /* LAYOUT & SPACING */
-    .sidebar { display: none !important; }
     .main { 
       width: 100%; 
       max-width: 500px; 
       margin: 0 auto; 
-      padding: 20px 16px 100px 16px; 
+      padding: 15px 12px 100px 12px; 
       min-height: 100vh; 
     }
 
-    /* DASHBOARD GRID */
-    .nav-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+    /* AUTOFIT MOBILE DASHBOARD NAVIGATION GRID */
+    .nav-grid { 
+      display: grid; 
+      grid-template-columns: repeat(2, 1fr); 
+      gap: 10px; 
+      margin-bottom: 15px; 
+    }
     .nav-card {
       background: var(--card); 
-      border: 2px solid var(--border); /* Thicker borders for visibility */
-      border-radius: 24px; 
-      padding: 15px;
+      border: 2px solid var(--border); 
+      border-radius: 20px; 
+      padding: 12px;
       text-align: center; 
-      aspect-ratio: 1 / 1; 
       display: flex; 
       flex-direction: column;
       justify-content: center; 
       align-items: center; 
       cursor: pointer; 
-      box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+      min-height: 105px;
     }
     .nav-card:active { background: var(--card-light); transform: scale(0.98); }
-    .nav-card i { font-size: 28px; color: var(--primary); margin-bottom: 8px; }
-    .nav-card .count { font-size: 32px; font-weight: 900; color: var(--text); }
-    .nav-card small { font-size: 12px; text-transform: uppercase; color: var(--text); font-weight: 800; }
+    .nav-card i { font-size: 24px; color: var(--primary); margin-bottom: 4px; }
+    .nav-card .count { font-size: 26px; font-weight: 900; color: var(--text); line-height: 1.1; }
+    .nav-card small { font-size: 11px; text-transform: uppercase; color: var(--text); font-weight: 800; margin-top: 2px; }
 
-    /* HEADERS */
     .page-header { 
       display: flex; 
       align-items: center; 
       justify-content: space-between; 
-      margin-bottom: 25px; 
-      padding-bottom: 15px; 
-      border-bottom: 3px solid var(--text); /* Heavy line for structure */
+      margin-bottom: 20px; 
+      padding-bottom: 12px; 
+      border-bottom: 3px solid var(--text); 
     }
-    .header-group { display: flex; align-items: center; gap: 12px; }
-    .home-btn { background: var(--text); border: none; color: white; width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; }
-    h2 { font-size: 24px; font-weight: 800; color: var(--text); }
+    .header-group { display: flex; align-items: center; gap: 10px; }
+    .home-btn { background: var(--text); border: none; color: white; width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+    h2 { font-size: 22px; font-weight: 800; color: var(--text); }
 
-    /* FORM COMPONENTS */
     .card { 
       background: var(--bg); 
-      border-radius: 20px; 
-      padding: 20px; 
+      border-radius: 16px; 
+      padding: 16px; 
       border: 2px solid var(--border); 
-      margin-bottom: 15px; 
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      margin-bottom: 12px; 
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
     }
     
     label { 
       display: block; 
       font-weight: 800; 
-      font-size: 16px; 
+      font-size: 15px; 
       color: var(--text); 
-      margin-bottom: 6px; 
-      margin-top: 12px; 
+      margin-bottom: 4px; 
+      margin-top: 10px; 
     }
 
     input, select, textarea { 
       width: 100%; 
-      padding: 16px; 
-      margin-bottom: 10px; 
-      border-radius: 12px; 
-      border: 2px solid var(--text); /* Solid black borders */
+      padding: 14px; 
+      margin-bottom: 8px; 
+      border-radius: 10px; 
+      border: 2px solid var(--text); 
       background: white; 
       color: black; 
-      font-size: 20px !important; 
+      font-size: 18px !important; 
       font-weight: 500;
     }
     
@@ -113,20 +112,38 @@
       background: var(--text); 
       color: white; 
       border: none; 
-      padding: 20px; 
-      border-radius: 15px; 
+      padding: 16px; 
+      border-radius: 12px; 
       font-weight: 900; 
       width: 100%; 
-      font-size: 20px; 
+      font-size: 18px; 
       text-transform: uppercase;
-      letter-spacing: 1px;
+      letter-spacing: 0.5px;
+      cursor: pointer;
     }
 
-    /* MODAL */
+    /* ICON-ONLY SHIELD CAPTURE BUTTON STYLING */
+    .icon-upload-label {
+      background: var(--card-light);
+      border: 2px solid var(--text);
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      cursor: pointer;
+      color: var(--text);
+      margin: 10px auto;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+    }
+    .icon-upload-label:active { background: var(--border); }
+
     .modal-overlay { 
       position: fixed; 
       inset: 0; 
-      background: rgba(255,255,255,0.95); /* Light overlay for outdoor use */
+      background: rgba(255,255,255,0.96); 
       display: none; 
       justify-content: center; 
       align-items: center; 
@@ -137,98 +154,49 @@
       background: var(--bg); 
       width: 100%; 
       max-width: 480px; 
-      padding: 25px; 
-      border-radius: 24px; 
+      padding: 20px; 
+      border-radius: 20px; 
       border: 3px solid var(--text); 
-      max-height: 92vh; 
+      max-height: 90vh; 
       overflow-y: auto; 
     }
 
-    /* UTILS */
     .page-view { display: none; }
     .active-view { display: block; }
-    .fa-times { font-size: 20px; }
 
-    .more-container { 
-      position: relative; 
-      margin-top: 10px; 
-    }
-
+    .more-container { position: relative; margin-top: 8px; }
     .more-menu { 
       display: none; 
       position: absolute; 
-      bottom: 65px; 
+      bottom: 60px; 
       left: 0; 
       right: 0; 
       background: #FFFFFF; 
       border: 3px solid var(--text); 
-      border-radius: 20px; 
+      border-radius: 16px; 
       z-index: 1000; 
-      box-shadow: 0 10px 30px rgba(0,0,0,0.3); 
+      box-shadow: 0 8px 24px rgba(0,0,0,0.2); 
       overflow: hidden;
     }
-
-    .more-menu.show { 
-      display: block; 
-      animation: menuPop 0.15s ease-out;
-    }
-
-    @keyframes menuPop {
-      from { opacity: 0; transform: translateY(10px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
+    .more-menu.show { display: block; animation: menuPop 0.12s ease-out; }
+    @keyframes menuPop { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 
     .menu-item { 
-      padding: 20px; 
+      padding: 16px; 
       border-bottom: 2px solid var(--border); 
       display: flex; 
       align-items: center; 
-      gap: 15px; 
+      gap: 12px; 
       cursor: pointer; 
       color: var(--text); 
-      font-size: 20px; 
+      font-size: 18px; 
       font-weight: 700; 
       background: white;
     }
-
     .menu-item:active { background: var(--card-light); }
-    .menu-item i { color: var(--primary); width: 24px; text-align: center; font-size: 22px; }
+    .menu-item i { color: var(--primary); width: 22px; text-align: center; }
     .menu-item:last-child { border-bottom: none; }
-    
-    .nav-card small { 
-      color: #000000 !important; 
-      opacity: 1 !important;
-      font-weight: 900; 
-    }
 
-    .nav-card i.fa-ellipsis-h, .nav-card .count { color: #000000 !important; }
-
-    .more-container {
-      background: var(--card) !important;
-      border: 3px solid #000000 !important;
-      border-radius: 15px; 
-      padding: 6px 15px !important; 
-      text-align: center;
-      cursor: pointer;
-      margin-top: 10px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 40px; 
-    }
-
-    .more-container * {
-      color: #000000 !important;
-      font-weight: 900 !important;
-      font-size: 16px !important; 
-      letter-spacing: 2px;
-      line-height: 1;
-    }
-    
-    .more-container:active { background: #DEE2E6 !important; } 
-
-    /* A4 MEDIA PRINT STYLES ENGINE */
-    #report-print-container { display: none; background: #ffffff; color: #000000; padding: 0; }
     .print-table { width: 100%; border-collapse: collapse; margin-top: 12px; margin-bottom: 18px; font-size: 14px; }
     .print-table th, .print-table td { border: 1px solid #000000; padding: 8px 10px; text-align: left; }
     .print-table th { background: #f2f2f2; font-weight: 800; text-transform: uppercase; }
@@ -238,9 +206,8 @@
       body * { visibility: hidden; }
       #report-print-container, #report-print-container * { visibility: visible; }
       #report-print-container { display: block !important; position: absolute; left: 0; top: 0; width: 100%; }
-      @page { size: A4; margin: 15mm 15mm 15mm 15mm; }
-      .page-break { page-break-before: always; padding-top: 10px; }
-      tr { page-break-inside: avoid; }
+      @page { size: A4; margin: 15mm; }
+      .page-break { page-break-before: always; }
     }
   </style>
 </head>
@@ -250,7 +217,7 @@
     <main class="main">
       
       <div id="view-dashboard" class="page-view active-view">
-        <h2 style="margin-bottom:20px; color:var(--primary); font-weight:800;">Facility Pro</h2>
+        <h2 style="margin-bottom:15px; color:var(--primary); font-weight:800;">Facility Pro</h2>
         
         <div class="nav-grid">
           <div class="nav-card" onclick="showPage('apartments')">
@@ -268,20 +235,19 @@
             <div id="s-inv" class="count">--</div>
             <small>Inventory</small>
           </div>
-          <div class="nav-card" onclick="showPage('maint'); refreshData('maintenance');">
-            <i class="fas fa-tools"></i>
+          <div class="nav-card" onclick="showPage('maint')">
+            <i class="fas fa-clipboard-list"></i>
             <div id="count-maint" class="count">--</div> 
             <small>Tickets</small>
           </div>
-          
-          <div class="nav-card" onclick="showPage('workorders'); refreshData('workorders');">
+          <div class="nav-card" onclick="showPage('workorders')">
             <i class="fas fa-file-invoice-dollar"></i>
             <div id="s-wo" class="count">--</div>
-            <small>Work Orders</small>
+            <small>W / O</small>
           </div>
           <div class="nav-card" onclick="showPage('reports');">
             <i class="fas fa-print"></i>
-            <div style="font-size:14px; font-weight:800; margin-top:5px;">VIEW/PRINT</div>
+            <div style="font-size:12px; font-weight:900; margin-top:2px;">PRINT</div>
             <small>Reports</small>
           </div>
         </div>
@@ -292,10 +258,9 @@
             <div class="menu-item" onclick="showPage('staff')"><i class="fas fa-users"></i> Staff Directory</div>
             <div class="menu-item" onclick="showPage('vendors')"><i class="fas fa-truck"></i> Vendors</div>
             <div class="menu-item" onclick="showPage('archived')"><i class="fas fa-archive"></i> Archive Bin</div>
-            <div class="menu-item" onclick="showPage('history')"><i class="fas fa-history"></i> System History</div>
           </div>
-          <button class="action-btn" style="background:var(--card-light); border:1px solid var(--border)" onclick="toggleMoreMenu(event)">
-            <i class="fas fa-ellipsis-h"></i> More...
+          <button class="action-btn" style="background:var(--card-light); border:2px solid var(--border); color:#000;" onclick="toggleMoreMenu(event)">
+            <i class="fas fa-ellipsis-h"></i> More Options
           </button>
         </div>
       </div>
@@ -304,7 +269,7 @@
         <div class="page-header">
           <div class="header-group">
             <button class="home-btn" onclick="showPage('dashboard')"><i class="fas fa-home"></i></button>
-            <h2>Units</h2>
+            <h2>Apartments</h2>
           </div>
         </div>
         <div id="apt-list"></div>
@@ -316,11 +281,11 @@
             <button class="home-btn" onclick="showPage('dashboard')"><i class="fas fa-home"></i></button>
             <h2>Assets</h2>
           </div>
-          <button class="action-btn" style="width:auto; padding:10px 20px;" onclick="openModal('asset')">Add Asset</button>
+          <button class="action-btn" style="width:auto; padding:10px 20px;" onclick="openModal('asset')">Add</button>
         </div>
-        <div style="margin-bottom: 20px;">
-          <label style="font-size: 14px; font-weight: 800; color: var(--text); display: block; margin-bottom: 5px;">VIEW BY UNIT:</label>
-          <select id="asset-unit-filter" onchange="refreshData('assets')" style="font-size: 18px; padding: 12px; border: 3px solid #000;">
+        <div style="margin-bottom: 15px;">
+          <label>VIEW BY UNIT:</label>
+          <select id="asset-unit-filter" onchange="refreshData('assets')">
             <option value="ALL">-- ALL ASSETS --</option>
           </select>
         </div>
@@ -333,11 +298,11 @@
             <button class="home-btn" onclick="showPage('dashboard')"><i class="fas fa-home"></i></button>
             <h2>Maintenance</h2>
           </div>
-          <button class="action-btn" style="width:auto; padding:10px 20px;" onclick="openModal('maintenance')">Log Ticket</button>
+          <button class="action-btn" style="width:auto; padding:10px 20px;" onclick="openModal('maintenance')">Add</button>
         </div>
-        <div style="margin-bottom: 20px;">
-          <label style="font-size: 14px; font-weight: 800; color: var(--text); display: block; margin-bottom: 5px;">FILTER BY STATUS:</label>
-          <select id="maint-status-filter" onchange="refreshData('maintenance')" style="font-size: 18px; padding: 12px; border: 3px solid #000; background: #fff; color: #000; font-weight: 700;">
+        <div style="margin-bottom: 15px;">
+          <label>FILTER BY STATUS:</label>
+          <select id="maint-status-filter" onchange="refreshData('maintenance')">
             <option value="ALL">-- ALL TICKETS --</option>
             <option value="Open">Open</option>
             <option value="In Progress">In Progress</option>
@@ -351,13 +316,13 @@
         <div class="page-header">
           <div class="header-group">
             <button class="home-btn" onclick="showPage('dashboard')"><i class="fas fa-home"></i></button>
-            <h2>Work Orders</h2>
+            <h2>W / O</h2>
           </div>
-          <button class="action-btn" style="width:auto; padding:10px 20px;" onclick="openModal('workorder')">Log WO</button>
+          <button class="action-btn" style="width:auto; padding:10px 20px;" onclick="openModal('workorder')">Add</button>
         </div>
-        <div style="margin-bottom: 20px;">
-          <label style="font-size: 14px; font-weight: 800; color: var(--text); display: block; margin-bottom: 5px;">FILTER BY AUTHORIZATION:</label>
-          <select id="wo-status-filter" onchange="refreshData('workorders')" style="font-size: 18px; padding: 12px; border: 3px solid #000; background: #fff; color: #000; font-weight: 700;">
+        <div style="margin-bottom: 15px;">
+          <label>FILTER BY STATUS:</label>
+          <select id="wo-status-filter" onchange="refreshData('workorders')">
             <option value="ALL">-- ALL RECORDS --</option>
             <option value="Pending Approval">Pending Approval</option>
             <option value="Approved">Approved</option>
@@ -369,54 +334,29 @@
       
       <div id="view-inventory" class="page-view">
         <div class="page-header">
-          <div class="header-group"><button class="home-btn" onclick="showPage('dashboard')"><i class="fas fa-home"></i></button><h2>Inventory</h2></div>
+          <div class="header-group">
+            <button class="home-btn" onclick="showPage('dashboard')"><i class="fas fa-home"></i></button>
+            <h2>Inventory</h2>
+          </div>
+          <button class="action-btn" style="width:auto; padding:10px 20px;" onclick="openModal('inventory')">Add</button>
         </div>
         <div id="inventory-list"></div>
       </div>
 
       <div id="view-utilities" class="page-view">
-        <div class="page-header">
-          <div class="header-group">
-            <button class="home-btn" onclick="showPage('dashboard')"><i class="fas fa-home"></i></button>
-            <h2>Utilities & Plant</h2>
+        <div class="page-header" style="flex-direction: column; align-items: flex-start; gap: 10px; border-bottom: 3px solid var(--text); padding-bottom:15px;">
+          <div style="display:flex; width:100%; justify-content:space-between; align-items:center;">
+            <div class="header-group">
+              <button class="home-btn" onclick="showPage('dashboard')"><i class="fas fa-home"></i></button>
+              <h2>Utilities & Plant</h2>
+            </div>
           </div>
-          <div style="display:flex; gap:6px;">
-            <button class="action-btn" style="width:auto; padding:10px 14px; font-size:14px;" onclick="openModal('utility')">Meter</button>
-            <button class="action-btn" style="width:auto; padding:10px 14px; font-size:14px; background:var(--primary);" onclick="openModal('generator')">Plant Log</button>
+          <div style="display:flex; gap:10px; width:100%;">
+            <button class="action-btn" style="flex:1; padding:12px; font-size:16px;" onclick="openModal('utility')"><i class="fas fa-bolt"></i> Meter Log</button>
+            <button class="action-btn" style="flex:1; padding:12px; font-size:16px; background:var(--primary);" onclick="openModal('generator')"><i class="fas fa-charging-station"></i> Plant Log</button>
           </div>
         </div>
-        <div id="util-list"></div>
-      </div>
-
-      <div id="view-reports" class="page-view">
-        <div class="page-header">
-          <div class="header-group"><button class="home-btn" onclick="showPage('dashboard')"><i class="fas fa-home"></i></button><h2>Reports Console</h2></div>
-        </div>
-        <div class="card">
-          <label>SELECT CATEGORY PROFILE</label>
-          <select id="rep-profile-selector" onchange="handleReportProfileSwitch()">
-            <option value="">-- Choose Profile Group --</option>
-            <option value="apartments">Apartments / Tenancy</option>
-            <option value="tickets">Maintenance Work Orders</option>
-            <option value="workorders">Financial Work Orders</option>
-            <option value="plants">Generators & Heavy Equipment</option>
-            <option value="staff">Staff Directories</option>
-            <option value="vendors">Vendors / Contractor SLAs</option>
-          </select>
-
-          <label>SELECT PRINT TYPE CONFIGURATION</label>
-          <select id="rep-layout-selector" onchange="handleReportLayoutSwitch()"></select>
-
-          <div id="rep-dynamic-parameters-frame"></div>
-
-          <button class="action-btn" style="background:var(--primary); margin-top:15px;" onclick="compileReportPreview()">Generate Data Preview</button>
-        </div>
-
-        <div id="report-onscreen-preview-card" class="card" style="display:none; border:3px dashed var(--text);">
-          <h4 style="text-transform:uppercase; font-weight:800; margin-bottom:10px;"><i class="fas fa-eye"></i> Layout Print Preview</h4>
-          <div id="report-preview-viewport" style="max-height:320px; overflow-y:auto; font-size:12px; background:#ffffff; border:1px solid var(--border); padding:10px;"></div>
-          <button class="action-btn" style="margin-top:15px; background:var(--success);" onclick="window.print()"><i class="fas fa-print"></i> Dispatch To A4 Print</button>
-        </div>
+        <div id="util-list" style="margin-top:15px;"></div>
       </div>
 
       <div id="view-staff" class="page-view">
@@ -425,7 +365,7 @@
             <button class="home-btn" onclick="showPage('dashboard')"><i class="fas fa-home"></i></button>
             <h2>Staff Directory</h2>
           </div>
-          <button class="action-btn" style="width:auto; padding:10px 20px;" onclick="openModal('staff')">Add Staff</button>
+          <button class="action-btn" style="width:auto; padding:10px 20px;" onclick="openModal('staff')">Add</button>
         </div>
         <div id="staff-list"></div>
       </div>
@@ -436,23 +376,48 @@
             <button class="home-btn" onclick="showPage('dashboard')"><i class="fas fa-home"></i></button>
             <h2>Vendors</h2>
           </div>
-          <button class="action-btn" style="width:auto; padding:10px 20px;" onclick="openModal('vendor')">Add Vendor</button>
+          <button class="action-btn" style="width:auto; padding:10px 20px;" onclick="openModal('vendor')">Add</button>
         </div>
         <div id="vendor-list"></div>
       </div>
 
       <div id="view-archived" class="page-view">
         <div class="page-header">
-          <div class="header-group"><button class="home-btn" onclick="showPage('dashboard')"><i class="fas fa-home"></i></button><h2>Archive</h2></div>
+          <div class="header-group">
+            <button class="home-btn" onclick="showPage('dashboard')"><i class="fas fa-home"></i></button>
+            <h2>Archive Bin</h2>
+          </div>
         </div>
         <div id="archived-list"></div>
       </div>
 
-      <div id="view-history" class="page-view">
+      <div id="view-reports" class="page-view">
         <div class="page-header">
-          <div class="header-group"><button class="home-btn" onclick="showPage('dashboard')"><i class="fas fa-home"></i></button><h2>History</h2></div>
+          <div class="header-group">
+            <button class="home-btn" onclick="showPage('dashboard')"><i class="fas fa-home"></i></button>
+            <h2>Reports Console</h2>
+          </div>
         </div>
-        <div id="history-list"></div>
+        <div class="card">
+          <label>SELECT CATEGORY PROFILE</label>
+          <select id="rep-profile-selector" onchange="handleReportProfileSwitch()">
+            <option value="">-- Choose Profile Group --</option>
+            <option value="apartments">Apartments / Tenancy</option>
+            <option value="tickets">Maintenance Work Orders</option>
+            <option value="workorders">Financial Work Orders</option>
+          </select>
+
+          <label>SELECT PRINT TYPE CONFIGURATION</label>
+          <select id="rep-layout-selector" onchange="handleReportLayoutSwitch()"></select>
+          <div id="rep-dynamic-parameters-frame"></div>
+          <button class="action-btn" style="background:var(--primary); margin-top:15px;" onclick="compileReportPreview()">Generate Data Preview</button>
+        </div>
+
+        <div id="report-onscreen-preview-card" class="card" style="display:none; border:3px dashed var(--text);">
+          <h4 style="text-transform:uppercase; font-weight:800; margin-bottom:10px;"><i class="fas fa-eye"></i> Layout Print Preview</h4>
+          <div id="report-preview-viewport" style="max-height:320px; overflow-y:auto; font-size:12px; background:#ffffff; border:1px solid var(--border); padding:10px;"></div>
+          <button class="action-btn" style="margin-top:15px; background:var(--success);" onclick="window.print()"><i class="fas fa-print"></i> Dispatch To A4 Print</button>
+        </div>
       </div>
 
     </main>
@@ -472,104 +437,53 @@
   </div>
 
   <script>
-    const GAS_URL = "https://script.google.com/macros/s/AKfycbz2Mgm-8O5yMivikqt1WwXf6msezVQcUNFMOoRjHpI4nDNHEevrucIfpNiKShcRG7_-/exec"; 
-                     
-    async function callApi(action, data = {}) {
-      try {
-        console.log("SENDING TO GOOGLE:", action, data);
-        const response = await fetch(GAS_URL, {
-          method: "POST",
-          body: JSON.stringify({ action: action, data: data }),
-        });
-        const result = await response.json();
-        console.log("RECEIVED FROM GOOGLE:", result);
-        return result;
-      } catch (err) {
-        console.error("CRITICAL API ERROR:", err);
-        return null;
+    // System operational dataset models initialization arrays
+    let cache = { apts: [], assets: [], tickets: [], staff: [], vendors: [], utilities: [], workorders: [], inventory: [] };
+
+    window.onload = () => { 
+      bootstrapDataRegistriesPipeline(); 
+    };
+
+    // Robust pre-fetching pipeline ensures all storage blocks are loaded globally to prevent unit population gaps
+    function bootstrapDataRegistriesPipeline() {
+      const actions = ['getApartments', 'getAssets', 'getMaintenance', 'getStaff', 'getVendors', 'getUtilities', 'getWorkOrders', 'getInventory'];
+      const map = ['apts', 'assets', 'tickets', 'staff', 'vendors', 'utilities', 'workorders', 'inventory'];
+      
+      Promise.all(actions.map(act => callApi(act, {}))).then(results => {
+        results.forEach((res, i) => { if(res) cache[map[i]] = res; });
+        updateDashboardCounters();
+        prepopulateStaticFilterSelectors();
+      });
+    }
+
+    function prepopulateStaticFilterSelectors() {
+      const uFilter = document.getElementById('asset-unit-filter');
+      if (uFilter && cache.apts.length > 0) {
+        uFilter.innerHTML = '<option value="ALL">-- ALL ASSETS --</option>';
+        cache.apts.forEach(a => { const o = document.createElement('option'); o.value = a.apt; o.innerText = `Unit ${a.apt}`; uFilter.appendChild(o); });
       }
     }
-    
-    let cache = { apts: [], assets: [], tickets: [], staff: [], vendors: [], utilities: [], workorders: [] };
-
-    window.onload = () => { updateDashboardCounters(); };
 
     function updateDashboardCounters() {
       callApi('getStats', {}).then(stats => {
         if (!stats) return;
-        console.log("📊 CURRENT LIVE METRICS:", JSON.stringify(stats));
-        const ids = {
-          's-tenancy': stats.tenancy,
-          's-asset': stats.asset,
-          's-inv': stats.inventory,
-          'count-maint': stats.maint,
-          's-wo': stats.workorders
-        };
-        for (let id in ids) {
-          const el = document.getElementById(id);
-          if (el) el.innerText = ids[id] !== undefined ? ids[id] : '--';
-        }
-      }).catch(err => console.error("❌ Network badge sync failure:", err));
+        const ids = { 's-tenancy': stats.tenancy, 's-asset': stats.asset, 's-inv': stats.inventory, 'count-maint': stats.maint, 's-wo': stats.workorders };
+        for (let id in ids) { const el = document.getElementById(id); if (el) el.innerText = ids[id] !== undefined ? ids[id] : '--'; }
+      }).catch(err => console.error("Network dashboard sync error:", err));
     }
     
-    function compressImage(base64Str) {
-      return new Promise((resolve) => {
-        const img = new Image();
-        img.src = base64Str;
-        img.onload = () => {
-          const canvas = document.createElement('canvas');
-          let width = img.width;
-          let height = img.height;
-    
-          const MAX_WIDTH = 1000;
-          const MAX_HEIGHT = 1000;
-          if (width > height) {
-            if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; }
-          } else {
-            if (height > MAX_HEIGHT) { width *= MAX_HEIGHT / height; height = MAX_HEIGHT; }
-          }
-    
-          canvas.width = width;
-          canvas.height = height;
-          const ctx = canvas.getContext('2d');
-          ctx.drawImage(img, 0, 0, width, height);
-    
-          let quality = 0.8;
-          let resultBase64 = canvas.toDataURL('image/jpeg', quality);
-          
-          while (resultBase64.length > 266000 && quality > 0.15) {
-            quality -= 0.1;
-            resultBase64 = canvas.toDataURL('image/jpeg', quality);
-          }
-          resolve(resultBase64);
-        };
-      });
-    }
-    
-    function toggleMoreMenu(e) { 
-      e.stopPropagation(); 
-      document.getElementById('moreMenu').classList.toggle('show'); 
-    }
-
-    document.addEventListener('click', () => { 
-      const menu = document.getElementById('moreMenu');
-      if(menu) menu.classList.remove('show'); 
-    });
+    function toggleMoreMenu(e) { e.stopPropagation(); document.getElementById('moreMenu').classList.toggle('show'); }
+    document.addEventListener('click', () => { const m = document.getElementById('moreMenu'); if(m) m.classList.remove('show'); });
 
     function showPage(p) {
       document.querySelectorAll('.page-view').forEach(v => v.classList.remove('active-view'));
       const target = document.getElementById('view-' + p);
-      if (target) { 
-        target.classList.add('active-view'); 
-        window.scrollTo(0,0); 
-      }
+      if (target) { target.classList.add('active-view'); window.scrollTo(0,0); }
       if (p === 'dashboard') updateDashboardCounters(); 
       else if (p === 'reports') initReportsEngine();
       else refreshData(p);
     }
 
-    /* FIXED: Router module queries data directly using unique id keys. 
-       This prevents quote truncation failures from crashing script click events. */
     function openRecordRow(type, lookupId) {
       let match = null;
       if (type === 'apartment') match = cache.apts.find(i => String(i.apt) === String(lookupId));
@@ -578,175 +492,121 @@
       if (type === 'staff') match = cache.staff.find(i => String(i.rowId) === String(lookupId));
       if (type === 'vendor') match = cache.vendors.find(i => String(i.rowId) === String(lookupId));
       if (type === 'workorder') match = cache.workorders.find(i => String(i.workOrderId) === String(lookupId));
+      if (type === 'inventory') match = cache.inventory.find(i => String(i.itemId) === String(lookupId));
       if (match) openModal(type, match);
     }
 
     function refreshData(p) {
-      const idMap = { 
-        'apartments': 'apt-list', 'assets': 'asset-list', 'maintenance': 'maint-list',
-        'utilities': 'util-list', 'staff': 'staff-list', 'vendors': 'vendor-list', 'workorders': 'wo-list'
-      };
-      const listEl = document.getElementById(idMap[p]);
-      if (!listEl) return;
+      const idMap = { 'apartments': 'apt-list', 'assets': 'asset-list', 'maintenance': 'maint-list', 'utilities': 'util-list', 'staff': 'staff-list', 'vendors': 'vendor-list', 'workorders': 'wo-list', 'inventory': 'inventory-list', 'archived': 'archived-list' };
+      const listEl = document.getElementById(idMap[p]); if (!listEl) return;
     
-      let apiCmd = 'getApartments';
-      if (p === 'assets') apiCmd = 'getAssets';
-      if (p === 'maintenance') apiCmd = 'getMaintenance';
-      if (p === 'utilities') apiCmd = 'getUtilities';
-      if (p === 'staff') apiCmd = 'getStaff';
-      if (p === 'vendors') apiCmd = 'getVendors';
-      if (p === 'workorders') apiCmd = 'getWorkOrders';
-    
+      let apiCmd = p === 'assets' ? 'getAssets' : p === 'maintenance' ? 'getMaintenance' : p === 'utilities' ? 'getUtilities' : p === 'staff' ? 'getStaff' : p === 'vendors' ? 'getVendors' : p === 'workorders' ? 'getWorkOrders' : p === 'inventory' ? 'getInventory' : 'getApartments';
+      
+      // Standalone collection loop logic optimized to render archived entities directly into the designated bin
+      if (p === 'archived') {
+        renderArchiveBinDashboardView(listEl);
+        return;
+      }
+
       callApi(apiCmd, {}).then(data => {
         let displayData = data || [];
-        
         if (p === 'apartments') cache.apts = displayData;
-        if (p === 'assets') cache.assets = displayData;
+        if (p === 'assets') { cache.assets = displayData; displayData = displayData.filter(item => item.status !== 'Archived'); }
         if (p === 'maintenance') cache.tickets = displayData;
-        if (p === 'staff') cache.staff = displayData;
-        if (p === 'vendors') cache.vendors = displayData;
+        if (p === 'staff') { cache.staff = displayData; displayData = displayData.filter(item => item.archived !== 'Yes'); }
+        if (p === 'vendors') { cache.vendors = displayData; displayData = displayData.filter(item => item.archived !== 'Yes'); }
         if (p === 'utilities') cache.utilities = displayData;
         if (p === 'workorders') cache.workorders = displayData;
+        if (p === 'inventory') cache.inventory = displayData;
     
         if (p === 'assets') {
           const filter = document.getElementById('asset-unit-filter');
-          if (filter) {
-            const uniqueUnitsFromAssets = [...new Set(data.map(item => item.apt))].filter(Boolean).sort();
-            if (filter.options.length <= 1) {
-              uniqueUnitsFromAssets.forEach(unitName => {
-                const opt = document.createElement('option'); opt.value = unitName; opt.innerText = unitName; filter.appendChild(opt);
-              });
-            }
-            if (filter.value !== "ALL") displayData = data.filter(item => item.apt === filter.value);
-          }
+          if (filter && filter.value !== "ALL") displayData = displayData.filter(item => item.apt === filter.value);
         }
-    
         if (p === 'maintenance') {
           const filter = document.getElementById('maint-status-filter');
-          if (filter && filter.value !== "ALL") displayData = data.filter(item => item.status === filter.value);
+          if (filter && filter.value !== "ALL") displayData = displayData.filter(item => item.status === filter.value);
         }
-
         if (p === 'workorders') {
           const filter = document.getElementById('wo-status-filter');
-          if (filter && filter.value !== "ALL") displayData = data.filter(item => item.status === filter.value);
+          if (filter && filter.value !== "ALL") displayData = displayData.filter(item => item.status === filter.value);
         }
     
         listEl.innerHTML = displayData.map(item => {
           if (p === 'maintenance') {
             return `
               <div class="card" onclick="openRecordRow('maintenance', '${item.ticketId}')">
-                <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:8px;">
-                  <div>
-                    <strong style="font-size:22px; color:#000;">Unit ${item.apt}</strong><br>
-                    <span style="font-size:14px; font-weight:700; color:var(--muted);">${item.ticketId}</span>
-                  </div>
-                  <span style="padding:6px 12px; border:2px solid #000; border-radius:8px; font-size:14px; font-weight:900; background:${item.status === 'Resolved' ? 'var(--success)' : 'var(--danger)'}; color:#fff;">
-                    ${item.status.toUpperCase()}
-                  </span>
+                <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:4px;">
+                  <div><strong style="font-size:20px;">Unit ${item.apt}</strong><br><small style="color:var(--muted); font-weight:700;">${item.ticketId}</small></div>
+                  <span style="padding:4px 10px; border:2px solid #000; border-radius:6px; font-size:12px; font-weight:900; background:${item.status === 'Resolved' ? 'var(--success)' : 'var(--danger)'}; color:#fff;">${item.status.toUpperCase()}</span>
                 </div>
-                <div style="font-size:18px; font-weight:800; color:var(--primary); margin-bottom:4px;">${item.category}</div>
-                <div style="font-size:16px; color:#000; font-weight:600; margin-bottom:8px;">${item.description || 'No notes added.'}</div>
-                <div style="display:flex; justify-content:space-between; font-size:12px; font-weight:800; color:var(--muted); border-top:1px dashed #ccc; padding-top:6px;">
-                  <span>Opened: ${item.dateOpened}</span>
-                  ${item.dateClosed ? `<span>Closed: ${item.dateClosed}</span>` : '<span>Active</span>'}
-                </div>
+                <div style="font-size:16px; font-weight:800; color:var(--primary);">${item.category}</div>
+                <div style="font-size:15px; font-weight:600;">${item.description || ''}</div>
               </div>`;
           } 
           else if (p === 'workorders') {
             return `
               <div class="card" onclick="openRecordRow('workorder', '${item.workOrderId}')">
-                <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:8px;">
-                  <div>
-                    <strong style="font-size:22px; color:#000;">Unit ${item.apt}</strong><br>
-                    <span style="font-size:14px; font-weight:700; color:var(--muted);">${item.workOrderId}</span>
-                  </div>
-                  <span style="padding:6px 12px; border:2px solid #000; border-radius:8px; font-size:14px; font-weight:900; background:${item.status === 'Approved' ? 'var(--success)' : item.status === 'Declined' ? 'var(--danger)' : '#ffc107'}; color:${item.status === 'Approved' || item.status === 'Declined' ? '#fff' : '#000'};">
-                    ${item.status.toUpperCase()}
-                  </span>
+                <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:4px;">
+                  <div><strong style="font-size:20px;">Unit ${item.apt}</strong><br><small style="color:var(--muted); font-weight:700;">${item.workOrderId}</small></div>
+                  <span style="padding:4px 10px; border:2px solid #000; border-radius:6px; font-size:12px; font-weight:900; background:${item.status === 'Approved' ? 'var(--success)' : item.status === 'Declined' ? 'var(--danger)' : '#ffc107'}; color:#fff;">${item.status.toUpperCase()}</span>
                 </div>
-                <div style="font-size:20px; font-weight:900; color:var(--success); margin-bottom:4px;">₦${Number(item.amount).toLocaleString()}</div>
-                <div style="font-size:16px; color:#000; font-weight:600; margin-bottom:8px;">${item.description || 'No description notes.'}</div>
-                <div style="font-size:12px; font-weight:800; color:var(--muted); border-top:1px dashed #ccc; padding-top:6px;">
-                  <span>Logged Date Reference: ${item.dateCreated || 'N/A'}</span>
+                <div style="font-size:18px; font-weight:900; color:var(--success)">₦${Number(item.amount).toLocaleString()}</div>
+                <div style="font-size:15px; font-weight:600;">${item.description || ''}</div>
+              </div>`;
+          }
+          else if (p === 'inventory') {
+            return `
+              <div class="card" onclick="openRecordRow('inventory', '${item.itemId}')">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                  <div><strong style="font-size:20px; color:#000;">${item.name}</strong><br><small style="color:var(--muted); font-weight:700;">ID: ${item.itemId} [${item.category}]</small></div>
+                  <div style="text-align:right;"><span style="font-size:22px; font-weight:900; color:var(--primary);">${item.qty}</span><br><small style="font-weight:800; font-size:10px; color:var(--muted)">UNITS</small></div>
                 </div>
               </div>`;
           }
           else if (p === 'assets') {
             return `
               <div class="card" onclick="openRecordRow('asset', '${item.tag}')">
-                <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:8px;">
-                  <div>
-                    <strong style="font-size:22px; color:#000;">Unit ${item.apt}</strong><br>
-                    <span style="font-size:18px; font-weight:800; color:var(--primary);">${item.type}</span>
-                  </div>
-                  <span style="padding:6px 12px; border:2px solid #000; border-radius:8px; font-size:14px; font-weight:900; background:#000; color:#fff;">
-                    ${item.status.toUpperCase()}
-                  </span>
+                <div style="display:flex; justify-content:space-between; align-items:start;">
+                  <div><strong style="font-size:20px;">Unit ${item.apt}</strong><br><span style="font-weight:800; color:var(--primary);">${item.type}</span></div>
+                  <span style="padding:4px 10px; border:2px solid #000; border-radius:6px; font-size:12px; font-weight:900; background:#000; color:#fff;">${item.status.toUpperCase()}</span>
                 </div>
-                <div style="font-size:16px; font-weight:700; color:#000;">Tag: ${item.tag}</div>
-                <div style="font-size:14px; font-weight:600; color:var(--muted); margin-top:4px;">Loc: ${item.loc || 'N/A'}</div>
+                <div style="font-size:14px; font-weight:700; margin-top:4px;">Tag Parameter: ${item.tag}</div>
               </div>`;
-          } 
-          else if (p === 'utilities') {
-            const isPlant = item.type === 'Plant Check' || item.apt.includes('GENERATOR') || item.apt === 'DIESEL-TANK';
-            if (isPlant) {
-              let displayName = "Central Diesel Tank"; let cardColor = "#20c997"; let metricDisplay = item.meterNo; 
-              if (item.apt === 'GENERATOR-1') { displayName = "Generator 1 (Main)"; cardColor = "#FFC107"; metricDisplay = item.reading + ' HRS'; }
-              if (item.apt === 'GENERATOR-2') { displayName = "Generator 2 (Backup)"; cardColor = "#fd7e14"; metricDisplay = item.reading + ' HRS'; }
-              return `
-                <div class="card" style="border-left: 6px solid ${cardColor};">
-                  <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:8px;">
-                    <div><strong style="font-size:22px; color:#000;"><i class="fas fa-charging-station"></i> ${displayName}</strong></div>
-                    <span style="padding:6px 12px; border:2px solid #000; border-radius:8px; font-size:16px; font-weight:900; background:${cardColor}; color:#000;">${metricDisplay}</span>
-                  </div>
-                  <div style="font-size:15px; font-weight:600; margin-bottom:8px; background:var(--card-light); padding:8px; border-radius:8px;">
-                    Fuel Topped: <strong>${item.amount > 0 ? item.amount + ' L' : '0 L'}</strong> | Date: ${item.dateRecorded}
-                  </div>
-                  ${item.notes ? `<div style="font-size:14px; color:var(--muted); font-style:italic;">Log: ${item.notes}</div>` : ''}
-                </div>`;
-            } else {
-              return `
-                <div class="card">
-                  <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:8px;">
-                    <div><strong>Unit ${item.apt}</strong><br><span style="font-size:14px; color:var(--primary); font-weight:800;">${item.type.toUpperCase()}</span></div>
-                    <span style="padding:6px 12px; border:2px solid #000; border-radius:8px; font-size:16px; font-weight:900; background:#000; color:#fff;">₦${Number(item.amount || 0).toLocaleString()}</span>
-                  </div>
-                  <div style="font-size:15px; font-weight:600; background:var(--card-light); padding:8px; border-radius:8px;">Reading: ${item.reading} kWh | Date: ${item.dateRecorded}</div>
-                </div>`;
-            }
           }
           else if (p === 'staff') {
             return `
               <div class="card" onclick="openRecordRow('staff', '${item.rowId}')">
-                <div style="display:flex; gap:16px; align-items:center;">
-                  <img src="${getDirectImageUrl(item.passport) || 'https://via.placeholder.com/150'}" style="width:75px; height:75px; object-fit:cover; border-radius:50%; border:3px solid #000;">
-                  <div style="flex:1;">
-                    <strong style="font-size:22px; color:#000;">${item.name}</strong><br>
-                    <span style="font-size:16px; font-weight:800; color:var(--primary);">${item.role}</span>
-                  </div>
-                  <button onclick="event.stopPropagation(); archiveRecord('staff', '${item.rowId}')" style="background:none; border:none; color:var(--danger); font-size:22px;"><i class="fas fa-archive"></i></button>
+                <div style="display:flex; gap:12px; align-items:center;">
+                  <img src="${getDirectImageUrl(item.passport) || 'https://via.placeholder.com/150'}" style="width:60px; height:60px; object-fit:cover; border-radius:50%; border:2px solid #000;">
+                  <div style="flex:1;"><strong style="font-size:18px;">${item.name}</strong><br><span style="font-weight:700; color:var(--primary); font-size:14px;">${item.role}</span></div>
                 </div>
               </div>`;
           }
           else if (p === 'vendors') {
             return `
               <div class="card" onclick="openRecordRow('vendor', '${item.rowId}')">
-                <div style="display:flex; gap:16px; align-items:center;">
-                  <img src="${getDirectImageUrl(item.passport) || 'https://via.placeholder.com/150'}" style="width:75px; height:75px; object-fit:cover; border-radius:12px; border:3px solid #000;">
-                  <div style="flex:1;">
-                    <strong style="font-size:22px; color:#000;">${item.company}</strong><br>
-                    <span style="font-size:16px; font-weight:800; color:var(--success);">${item.trade.toUpperCase()}</span>
-                  </div>
-                  <button onclick="event.stopPropagation(); archiveRecord('vendor', '${item.rowId}')" style="background:none; border:none; color:var(--danger); font-size:22px;"><i class="fas fa-archive"></i></button>
+                <div style="display:flex; gap:12px; align-items:center;">
+                  <div style="flex:1;"><strong style="font-size:18px;">${item.company}</strong><br><span style="font-weight:700; color:var(--success); font-size:14px;">${item.trade.toUpperCase()}</span></div>
+                </div>
+              </div>`;
+          }
+          else if (p === 'utilities') {
+            const isPlant = item.type === 'Plant Check' || item.apt.includes('GENERATOR') || item.apt === 'DIESEL-TANK';
+            return `
+              <div class="card" style="border-left: 6px solid ${isPlant ? '#fd7e14' : 'var(--primary)'};">
+                <div style="display:flex; justify-content:space-between; align-items:start;">
+                  <div><strong>${item.apt}</strong><br><span style="font-size:12px; font-weight:800; color:var(--muted);">${item.type.toUpperCase()}</span></div>
+                  <span style="padding:4px 10px; font-weight:900; background:#000; color:#fff; border-radius:6px; font-size:14px;">${item.reading}</span>
                 </div>
               </div>`;
           }
           else {
             return `
               <div class="card" onclick="openRecordRow('apartment', '${item.apt}')">
-                <div style="display:flex; justify-content:space-between; align-items:start;">
-                  <div><strong style="font-size:24px; color:#000;">Unit ${item.apt}</strong><br><span>${item.tenant || 'Vacant'}</span></div>
-                  <span style="padding:6px 12px; border:2px solid #000; border-radius:8px; background:${item.status === 'Occupied' ? 'var(--success)' : 'var(--danger)'}; color:#fff; font-weight:900;">${item.status}</span>
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                  <div><strong style="font-size:22px;">Unit ${item.apt}</strong><br><span style="font-weight:600; color:var(--muted);">${item.tenant || 'Vacant Infrastructure'}</span></div>
+                  <span style="padding:4px 10px; border:2px solid #000; border-radius:6px; font-size:12px; font-weight:900; background:${item.status === 'Occupied' ? 'var(--success)' : item.status === 'Common Area' ? 'var(--primary)' : 'var(--danger)'}; color:#fff;">${item.status}</span>
                 </div>
               </div>`;
           }
@@ -754,228 +614,192 @@
       });
     }
 
+    // ARCHIVE BIN EXTRACTION AGGREGATION LOOP
+    function renderArchiveBinDashboardView(targetContainerElement) {
+      let archiveBundleHTML = "";
+      
+      const archivedAssets = cache.assets.filter(a => a.status === 'Archived');
+      const archivedStaff = cache.staff.filter(s => s.archived === 'Yes');
+      const archivedVendors = cache.vendors.filter(v => v.archived === 'Yes');
+
+      if(archivedAssets.length === 0 && archivedStaff.length === 0 && archivedVendors.length === 0) {
+        targetContainerElement.innerHTML = `<p style="text-align:center; padding:30px; font-weight:700; color:var(--muted)">Archive bin file history is empty.</p>`;
+        return;
+      }
+
+      archivedAssets.forEach(a => {
+        archiveBundleHTML += `<div class="card" style="border-left:5px solid var(--danger)"><strong>[ASSET LOG] ${a.type}</strong><br><small>Tag Ref ID: ${a.tag} | Location: Unit ${a.apt}</small></div>`;
+      });
+      archivedStaff.forEach(s => {
+        archiveBundleHTML += `<div class="card" style="border-left:5px solid var(--primary)"><strong>[STAFF PROFILE] ${s.name}</strong><br><small>Role Rank: ${s.role} | ID: ${s.rowId}</small></div>`;
+      });
+      archivedVendors.forEach(v => {
+        archiveBundleHTML += `<div class="card" style="border-left:5px solid var(--success)"><strong>[VENDOR ACCOUNT] ${v.company}</strong><br><small>Trade Field: ${v.trade} | ID: ${v.rowId}</small></div>`;
+      });
+
+      targetContainerElement.innerHTML = archiveBundleHTML;
+    }
+
     function openModal(type, editData = null) {
-      const body = document.getElementById('modalBody');
-      const submit = document.getElementById('modalSubmit');
-      const title = document.getElementById('modalTitle');
-      const overlay = document.getElementById('modalOverlay');
-    
-      const isEdit = !!editData;
-      overlay.style.display = 'flex';
-      body.innerHTML = ''; 
-      submit.disabled = false;
-      submit.style.display = 'block';
+      const body = document.getElementById('modalBody'); const submit = document.getElementById('modalSubmit');
+      const title = document.getElementById('modalTitle'); const overlay = document.getElementById('modalOverlay');
+      const isEdit = !!editData; overlay.style.display = 'flex'; body.innerHTML = ''; submit.disabled = false; submit.style.display = 'block';
       submit.innerText = isEdit ? "Update" : "Save";
     
-      const largeInput = 'style="font-size: 20px; padding: 12px; margin-bottom: 5px;"';
-      const labelStyle = 'style="font-size: 16px; color: var(--text); font-weight:800; display: block; margin-top: 10px; margin-bottom: 4px;"';
+      const largeInput = 'style="font-size: 19px; padding: 12px; margin-bottom: 6px;"';
+      const labelStyle = 'style="font-size: 15px; color: var(--text); font-weight:800; display: block; margin-top: 8px; margin-bottom: 2px;"';
     
       if (type === 'apartment') {
         title.innerText = "Unit Profile: " + (editData.apt || '');
         let photoQueue = isEdit && editData.photos ? editData.photos.split(',').filter(Boolean) : [];
-        const renderPhotoPreview = () => {
-          const container = document.getElementById('photoPreview'); if (!container) return;
-          container.innerHTML = photoQueue.map((url, index) => `
-            <div style="position:relative; width:100%; aspect-ratio:1/1;">
-              <img src="${getDirectImageUrl(url)}" style="width:100%; height:100%; object-fit:cover; border-radius:8px;">
-              <button onclick="window.removePhoto(${index})" style="position:absolute; top:5px; right:5px; background:var(--danger); color:white; border:none; border-radius:50%; width:24px; height:24px;"><i class="fas fa-times"></i></button>
-            </div>`).join('');
-        };
-        window.removePhoto = (idx) => { photoQueue.splice(idx, 1); renderPhotoPreview(); };
-    
         body.innerHTML = `
           <label ${labelStyle}>Tenant Name</label><input id="f_tenant" value="${editData.tenant || ''}" ${largeInput}>
-          <label ${labelStyle}>Status</label>
+          <label ${labelStyle}>Status State</label>
           <select id="f_status" ${largeInput}>
             <option value="Occupied" ${editData.status==='Occupied'?'selected':''}>Occupied</option>
             <option value="Vacant" ${editData.status==='Vacant'?'selected':''}>Vacant</option>
+            <option value="Common Area" ${editData.status==='Common Area'?'selected':''}>Common Area</option>
           </select>
           <label ${labelStyle}>Phone 1</label><input id="f_p1" type="tel" maxlength="11" value="${editData.phone1 || ''}" ${largeInput}>
           <label ${labelStyle}>Phone 2</label><input id="f_p2" type="tel" maxlength="11" value="${editData.phone2 || ''}" ${largeInput}>
           <label ${labelStyle}>Lease End</label><input id="f_lease" type="date" value="${fromSheetDate(editData.leaseEnd)}" ${largeInput}>
           <label ${labelStyle}>Last Inspected</label><input id="f_inspected" type="date" value="${fromSheetDate(editData.inspected)}" ${largeInput}>
           <label ${labelStyle}>Notes</label><textarea id="f_notes" rows="2" ${largeInput}>${editData.notes || ''}</textarea>
-          <div style="margin-top:15px;">
-            <label class="action-btn" style="background:var(--card-light); display:block; text-align:center; padding:12px; cursor:pointer; color:#000;"><i class="fas fa-camera"></i> Upload Photo<input type="file" id="cameraInput" accept="image/*" style="display:none"></label>
-            <div id="photoPreview" style="display:grid; grid-template-columns: repeat(3, 1fr); gap:10px; margin-top:10px;"></div>
-          </div>`;
-        renderPhotoPreview();
+          <label class="icon-upload-label"><i class="fas fa-camera"></i><input type="file" id="cameraInput" accept="image/*" style="display:none"></label>
+          <div id="photoIndicator" style="text-align:center; font-size:11px; font-weight:800;">${photoQueue.length} Files Attached</div>`;
+        
         document.getElementById('cameraInput').onchange = (e) => {
           const file = e.target.files[0]; if (!file) return;
           const r = new FileReader(); r.onload = async (evt) => {
             const comp = await compressImage(evt.target.result);
-            callApi('uploadImage', { base64: comp, name: "apt_" + Date.now() + ".jpg" }).then(res => { if(res.url){ photoQueue.push(res.url); renderPhotoPreview(); } });
+            callApi('uploadImage', { base64: comp, name: "apt_" + Date.now() + ".jpg" }).then(res => { if(res.url){ photoQueue.push(res.url); document.getElementById('photoIndicator').innerText = `${photoQueue.length} Files Attached`; } });
           }; r.readAsDataURL(file);
         };
         submit.onclick = () => {
           submit.disabled = true;
-          callApi('updateApartment', { apt: editData.apt, tenant: document.getElementById('f_tenant').value, status: document.getElementById('f_status').value, phone1: document.getElementById('f_p1').value, phone2: document.getElementById('f_p2').value, leaseEnd: toSheetDate(document.getElementById('f_lease').value), inspected: toSheetDate(document.getElementById('f_inspected').value), notes: document.getElementById('f_notes').value, photos: photoQueue.join(','), type: editData.type, oldApt: editData.apt }).then(res => { closeModal(); refreshData('apartments'); });
+          callApi('updateApartment', { apt: editData.apt, tenant: document.getElementById('f_tenant').value, status: document.getElementById('f_status').value, phone1: document.getElementById('f_p1').value, phone2: document.getElementById('f_p2').value, leaseEnd: toSheetDate(document.getElementById('f_lease').value), inspected: toSheetDate(document.getElementById('f_inspected').value), notes: document.getElementById('f_notes').value, photos: photoQueue.join(','), type: editData.type, oldApt: editData.apt }).then(() => { closeModal(); refreshData('apartments'); });
         };
       }
       else if (type === 'asset') {
         const uniqueTag = isEdit ? editData.tag : "AST-" + Math.random().toString(36).substr(2, 5).toUpperCase();
-        title.innerText = isEdit ? "Update Asset" : "Register Asset";
+        title.innerText = isEdit ? "Update Asset Asset" : "Register Facility Asset";
         let photoQueue = isEdit && editData.photos ? editData.photos.split(',').filter(Boolean) : [];
-        const renderAssetPhotos = () => {
-          const container = document.getElementById('assetPhotoPreview'); if (!container) return;
-          container.innerHTML = photoQueue.map((url, index) => `
-            <div style="position:relative; width:100%; aspect-ratio:1/1;">
-              <img src="${getDirectImageUrl(url)}" style="width:100%; height:100%; object-fit:cover; border-radius:8px;">
-              <button onclick="window.removeAssetPhoto(${index})" style="position:absolute; top:5px; right:5px; background:var(--danger); color:white; border:none; border-radius:50%; width:24px; height:24px;"><i class="fas fa-times"></i></button>
-            </div>`).join('');
-        };
-        window.removeAssetPhoto = (idx) => { photoQueue.splice(idx, 1); renderAssetPhotos(); };
-
         body.innerHTML = `
-          <div style="background:var(--card); padding:10px; border-radius:10px; margin-bottom:10px; border:2px solid #000; font-weight:800;">
-            <span>TAG ID: ${uniqueTag}</span>
-            <label style="display:inline-flex; align-items:center; gap:8px; float:right; color:var(--danger); margin:0; font-size:14px;"><input type="checkbox" id="a_archive" style="width:18px; height:18px; margin:0;" ${isEdit && editData.archived === 'Yes' ? 'checked' : ''}> ARCHIVE</label>
-          </div>
-          <label ${labelStyle}>Unit Connection</label><select id="a_apt" ${largeInput} ${isEdit ? 'disabled' : ''}></select>
+          <label ${labelStyle}>Unit Connection Location</label><select id="a_apt" ${largeInput}></select>
           <label ${labelStyle}>Category Class Type</label><input id="a_type" value="${isEdit ? editData.type : ''}" ${largeInput}>
-          <label ${labelStyle}>Status</label>
+          <label ${labelStyle}>Asset Functional Status</label>
           <select id="a_status" ${largeInput}>
             <option value="Operational" ${isEdit&&editData.status==='Operational'?'selected':''}>Operational</option>
             <option value="Faulty" ${isEdit&&editData.status==='Faulty'?'selected':''}>Faulty</option>
             <option value="Under Repair" ${isEdit&&editData.status==='Under Repair'?'selected':''}>Under Repair</option>
+            <option value="Archived" ${isEdit&&editData.status==='Archived'?'selected':''}>Archived</option>
           </select>
-          <label ${labelStyle}>Specs</label><input id="a_specs" value="${isEdit ? editData.specs : ''}" ${largeInput}>
-          <label ${labelStyle}>Location</label><input id="a_loc" value="${isEdit ? editData.loc : ''}" ${largeInput}>
-          <label ${labelStyle}>Last Serviced</label><input id="a_serviced" type="date" value="${isEdit ? fromSheetDate(editData.lastServiced) : ''}" ${largeInput}>
-          <label ${labelStyle}>Last Inspected</label><input id="a_inspected" type="date" value="${isEdit ? fromSheetDate(editData.lastInspected) : ''}" ${largeInput}>
+          <label ${labelStyle}>Specs Configuration Profile</label><input id="a_specs" value="${isEdit ? editData.specs : ''}" ${largeInput}>
+          <label ${labelStyle}>Internal Placement Area</label><input id="a_loc" value="${isEdit ? editData.loc : ''}" ${largeInput}>
+          <label ${labelStyle}>Last Serviced Date</label><input id="a_serviced" type="date" value="${isEdit ? fromSheetDate(editData.lastServiced) : ''}" ${largeInput}>
+          <label ${labelStyle}>Last Inspected Date</label><input id="a_inspected" type="date" value="${isEdit ? fromSheetDate(editData.lastInspected) : ''}" ${largeInput}>
           <label ${labelStyle}>Notes</label><textarea id="a_notes" rows="2" ${largeInput}>${isEdit ? editData.notes : ''}</textarea>
-          <div style="margin-top:15px;">
-            <label class="action-btn" style="background:var(--text); color:#fff; display:block; text-align:center; padding:12px; cursor:pointer;"><i class="fas fa-camera"></i> Camera Capture<input type="file" id="assetCameraInput" accept="image/*" style="display:none"></label>
-            <div id="assetPhotoPreview" style="display:grid; grid-template-columns: repeat(3, 1fr); gap:10px; margin-top:10px;"></div>
-          </div>`;
+          <label class="icon-upload-label"><i class="fas fa-camera"></i><input type="file" id="assetCameraInput" accept="image/*" style="display:none"></label>
+          <div id="photoIndicator" style="text-align:center; font-size:11px; font-weight:800;">${photoQueue.length} Files Attached</div>`;
         
-        const sel = document.getElementById('a_apt'); (cache.apts || []).forEach(u => { const o=document.createElement('option'); o.value=u.apt; o.innerText=u.apt; if(isEdit&&u.apt===editData.apt) o.selected=true; sel.appendChild(o); });
-        renderAssetPhotos();
+        const sel = document.getElementById('a_apt'); (cache.apts || []).forEach(u => { const o=document.createElement('option'); o.value=u.apt; o.innerText=`Unit ${u.apt}`; if(isEdit&&u.apt===editData.apt) o.selected=true; sel.appendChild(o); });
         document.getElementById('assetCameraInput').onchange = (e) => {
           const file = e.target.files[0]; if(!file) return;
           const r = new FileReader(); r.onload = async (evt) => {
             const comp = await compressImage(evt.target.result);
-            callApi('uploadImage', { base64: comp, name: "asset_" + Date.now() + ".jpg" }).then(res => { if(res.url){ photoQueue.push(res.url); renderAssetPhotos(); } });
+            callApi('uploadImage', { base64: comp, name: "asset_" + Date.now() + ".jpg" }).then(res => { if(res.url){ photoQueue.push(res.url); document.getElementById('photoIndicator').innerText = `${photoQueue.length} Files Attached`; } });
           }; r.readAsDataURL(file);
         };
         submit.onclick = () => {
           submit.disabled = true;
-          callApi(isEdit?'updateAsset':'saveAsset', { apt: isEdit?editData.apt:sel.value, tag: uniqueTag, type: document.getElementById('a_type').value, status: document.getElementById('a_status').value, specs: document.getElementById('a_specs').value, loc: document.getElementById('a_loc').value, lastServiced: toSheetDate(document.getElementById('a_serviced').value), lastInspected: toSheetDate(document.getElementById('a_inspected').value), notes: document.getElementById('a_notes').value, photos: photoQueue.join(','), archived: document.getElementById('a_archive').checked ? "Yes" : "No" }).then(() => { closeModal(); refreshData('assets'); });
+          callApi(isEdit?'updateAsset':'saveAsset', { apt: sel.value, tag: uniqueTag, type: document.getElementById('a_type').value, status: document.getElementById('a_status').value, specs: document.getElementById('a_specs').value, loc: document.getElementById('a_loc').value, lastServiced: toSheetDate(document.getElementById('a_serviced').value), lastInspected: toSheetDate(document.getElementById('a_inspected').value), notes: document.getElementById('a_notes').value, photos: photoQueue.join(','), archived: document.getElementById('a_status').value === "Archived" ? "Yes" : "No" }).then(() => { closeModal(); refreshData('assets'); });
         };
       }
       else if (type === 'maintenance') {
         const uniqueTicket = isEdit ? editData.ticketId : "TKT-" + Math.random().toString(36).substr(2, 5).toUpperCase();
         title.innerText = isEdit ? "Update Ticket" : "Log Maintenance Issue";
         let photoQueue = isEdit && editData.photos ? editData.photos.split(',').filter(Boolean) : [];
-        const renderMaintPhotos = () => {
-          const container = document.getElementById('maintPhotoPreview'); if (!container) return;
-          container.innerHTML = photoQueue.map((url, index) => `
-            <div style="position:relative; width:100%; aspect-ratio:1/1;">
-              <img src="${getDirectImageUrl(url)}" style="width:100%; height:100%; object-fit:cover; border-radius:8px;">
-            </div>`).join('');
-        };
-
         body.innerHTML = `
-          <label ${labelStyle}>Unit</label><select id="m_apt" ${largeInput} ${isEdit ? 'disabled' : ''}></select>
+          <label ${labelStyle}>Property Target Unit Coordinate</label><select id="m_apt" ${largeInput}></select>
           <label ${labelStyle}>Issue Category</label><input id="m_category" value="${isEdit ? editData.category : ''}" ${largeInput}>
-          <label ${labelStyle}>Priority</label>
+          <label ${labelStyle}>Priority Level</label>
           <select id="m_priority" ${largeInput}>
             <option value="Low" ${isEdit&&editData.priority==='Low'?'selected':''}>Low</option>
             <option value="Medium" ${isEdit&&editData.priority==='Medium'?'selected':''}>Medium</option>
             <option value="High" ${isEdit&&editData.priority==='High'?'selected':''}>High</option>
           </select>
-          <label ${labelStyle}>Status</label>
+          <label ${labelStyle}>Ticket Lifecycle Status</label>
           <select id="m_status" ${largeInput}>
             <option value="Open" ${isEdit&&editData.status==='Open'?'selected':''}>Open</option>
             <option value="In Progress" ${isEdit&&editData.status==='In Progress'?'selected':''}>In Progress</option>
             <option value="Resolved" ${isEdit&&editData.status==='Resolved'?'selected':''}>Resolved</option>
           </select>
-          <label ${labelStyle}>Assigned Field Responder</label><select id="m_tech" ${largeInput}></select>
+          <label ${labelStyle}>Assigned Responder Entity</label><select id="m_tech" ${largeInput}></select>
           <label ${labelStyle}>Problem Narrative Description</label><textarea id="m_desc" rows="3" ${largeInput}>${isEdit ? editData.description : ''}</textarea>
-          <div style="margin-top:15px;">
-            <label class="action-btn" style="background:var(--text); color:#fff; display:block; text-align:center; padding:12px; cursor:pointer;"><i class="fas fa-camera"></i> Job Proof Snap<input type="file" id="maintCameraInput" accept="image/*" style="display:none"></label>
-            <div id="maintPhotoPreview" style="display:grid; grid-template-columns: repeat(3, 1fr); gap:10px; margin-top:10px;"></div>
-          </div>`;
+          <label class="icon-upload-label"><i class="fas fa-camera"></i><input type="file" id="maintCameraInput" accept="image/*" style="display:none"></label>
+          <div id="photoIndicator" style="text-align:center; font-size:11px; font-weight:800;">${photoQueue.length} Files Attached</div>`;
 
-        const aSel = document.getElementById('m_apt'); (cache.apts || []).forEach(u => { const o=document.createElement('option'); o.value=u.apt; o.innerText=u.apt; if(isEdit&&u.apt===editData.apt) o.selected=true; aSel.appendChild(o); });
-        const tSel = document.getElementById('m_tech'); tSel.innerHTML = '<option value="">-- Unassigned Internal Team --</option>';
+        const aSel = document.getElementById('m_apt'); (cache.apts || []).forEach(u => { const o=document.createElement('option'); o.value=u.apt; o.innerText=`Unit ${u.apt}`; if(isEdit&&String(u.apt)===String(editData.apt)) o.selected=true; aSel.appendChild(o); });
+        const tSel = document.getElementById('m_tech'); tSel.innerHTML = '<option value="">-- Unassigned Responder --</option>';
         (cache.staff || []).forEach(s => { const o=document.createElement('option'); o.value=`${s.name} (${s.role})`; o.innerText=`${s.name} [Staff]`; if(isEdit&&editData.tech===o.value) o.selected=true; tSel.appendChild(o); });
         (cache.vendors || []).forEach(v => { const o=document.createElement('option'); o.value=`${v.company} (${v.trade})`; o.innerText=`${v.company} [Vendor]`; if(isEdit&&editData.tech===o.value) o.selected=true; tSel.appendChild(o); });
-        renderMaintPhotos();
 
         document.getElementById('maintCameraInput').onchange = (e) => {
           const file = e.target.files[0]; if(!file) return;
           const r = new FileReader(); r.onload = async (evt) => {
             const comp = await compressImage(evt.target.result);
-            callApi('uploadImage', { base64: comp, name: "maint_" + Date.now() + ".jpg" }).then(res => { if(res.url){ photoQueue.push(res.url); renderMaintPhotos(); } });
+            callApi('uploadImage', { base64: comp, name: "maint_" + Date.now() + ".jpg" }).then(res => { if(res.url){ photoQueue.push(res.url); document.getElementById('photoIndicator').innerText = `${photoQueue.length} Files Attached`; } });
           }; r.readAsDataURL(file);
         };
-
         submit.onclick = () => {
           submit.disabled = true;
-          callApi(isEdit?'updateMaintenance':'saveMaintenance', { ticketId: uniqueTicket, apt: isEdit?editData.apt:aSel.value, category: document.getElementById('m_category').value, priority: document.getElementById('m_priority').value, status: document.getElementById('m_status').value, tech: tSel.value, description: document.getElementById('m_desc').value, photos: photoQueue.join(',') }).then(() => { closeModal(); refreshData('maintenance'); });
+          callApi(isEdit?'updateMaintenance':'saveMaintenance', { ticketId: uniqueTicket, apt: aSel.value, category: document.getElementById('m_category').value, priority: document.getElementById('m_priority').value, status: document.getElementById('m_status').value, tech: tSel.value, description: document.getElementById('m_desc').value, photos: photoQueue.join(',') }).then(() => { closeModal(); refreshData('maintenance'); });
         };
       }
-      
-      /* NEW SPEC: COMPLETE IN-DEPTH MODAL HANDLING LOGIC TRIGGERED FOR THE WORK ORDERS PAGE */
       else if (type === 'workorder') {
         const uniqueWO = isEdit ? editData.workOrderId : "WO-" + Math.random().toString(36).substr(2, 5).toUpperCase();
-        title.innerText = isEdit ? "Work Order Portfolio" : "Log Work Order Expense";
-        
-        // SPECIFICATION CRITICAL RULE: Verify execution lock if status value target is set to "Approved"
+        title.innerText = isEdit ? "W / O Portfolio" : "Log W / O Expense";
         const isApproved = isEdit && editData.status === "Approved";
         
         body.innerHTML = `
-          <div style="background:var(--card); padding:12px; border-radius:15px; border:2px solid #000; font-weight:800; font-size:18px; margin-bottom:15px;">
-            <span>TRACKING REF: ${uniqueWO}</span>
-          </div>
-          <label ${labelStyle}>Property Target Unit Coordinate</label>
-          <select id="w_apt" ${largeInput} ${isEdit || isApproved ? 'disabled' : ''}></select>
-          
-          <label ${labelStyle}>Financial Budget Commitment (₦)</label>
-          <input id="w_amount" type="number" value="${isEdit ? editData.amount : ''}" placeholder="Enter raw naira cost" ${largeInput} ${isApproved ? 'disabled' : ''}>
-          
+          <label ${labelStyle}>Unit</label><select id="w_apt" ${largeInput} ${isApproved ? 'disabled' : ''}></select>
+          <label ${labelStyle}>Budget (₦)</label><input id="w_amount" type="number" value="${isEdit ? editData.amount : ''}" placeholder="Cost allocation entry" ${largeInput} ${isApproved ? 'disabled' : ''}>
           <label ${labelStyle}>Authorization Status</label>
           <select id="w_status" ${largeInput} ${isApproved ? 'disabled' : ''}>
             <option value="Pending Approval" ${isEdit && editData.status==='Pending Approval'?'selected':''}>Pending Approval</option>
             <option value="Approved" ${isEdit && editData.status==='Approved'?'selected':''}>Approved</option>
             <option value="Declined" ${isEdit && editData.status==='Declined'?'selected':''}>Declined</option>
           </select>
-          
-          <label ${labelStyle}>Work Purpose Scope Narrative</label>
-          <textarea id="w_desc" rows="3" placeholder="Describe expenditure requirements..." ${largeInput} ${isApproved ? 'disabled' : ''}>${isEdit ? editData.description : ''}</textarea>
-          
-          <label ${labelStyle}>Operational Internal Remarks</label>
-          <textarea id="w_notes" rows="2" placeholder="Management feedback inputs..." ${largeInput} ${isApproved ? 'disabled' : ''}>${isEdit ? editData.notes : ''}</textarea>
-          
-          ${isApproved ? `<div style="background:#d1e7dd; color:#0f5132; border:2px solid #badbcc; padding:15px; border-radius:12px; font-weight:800; text-align:center; margin-top:15px; font-size:15px;"><i class="fas fa-lock"></i> APPROVED WORK ORDERS CANNOT BE EDITED (PRINT PREVIEW AVAILABLE via REPORTS)</div>` : ''}
-        `;
+          <label ${labelStyle}>Work Purpose Scope Narrative</label><textarea id="w_desc" rows="3" ${largeInput} ${isApproved ? 'disabled' : ''}>${isEdit ? editData.description : ''}</textarea>
+          <label ${labelStyle}>Operational Internal Remarks</label><textarea id="w_notes" rows="2" ${largeInput} ${isApproved ? 'disabled' : ''}>${isEdit ? editData.notes : ''}</textarea>`;
         
         const wSel = document.getElementById('w_apt'); 
-        (cache.apts || []).forEach(u => { const o=document.createElement('option'); o.value=u.apt; o.innerText="Unit " + u.apt; if(isEdit && String(u.apt)===String(editData.apt)) o.selected=true; wSel.appendChild(o); });
+        (cache.apts || []).forEach(u => { const o=document.createElement('option'); o.value=u.apt; o.innerText=`Unit ${u.apt}`; if(isEdit && String(u.apt)===String(editData.apt)) o.selected=true; wSel.appendChild(o); });
         
-        if (isApproved) {
-          submit.style.display = "none"; // Hide standard modification saving triggers completely
-        } else {
+        if (isApproved) { submit.style.display = "none"; }
+        else {
           submit.onclick = () => {
-            const budgetAmt = document.getElementById('w_amount').value;
-            if(!budgetAmt || Number(budgetAmt) <= 0) { alert("Please allocate a valid numerical cost framework entry."); return; }
-            
             submit.disabled = true;
-            const payload = {
-              workOrderId: uniqueWO,
-              apt: isEdit ? editData.apt : wSel.value,
-              amount: budgetAmt,
-              status: document.getElementById('w_status').value,
-              description: document.getElementById('w_desc').value,
-              notes: document.getElementById('w_notes').value
-            };
-            callApi(isEdit ? 'updateWorkOrder' : 'saveWorkOrder', payload).then(res => {
-              if (res && res.success) { closeModal(); refreshData('workorders'); } 
-              else { submit.disabled = false; alert("Sync error: " + (res ? res.error : "Disconnect")); }
-            });
+            callApi(isEdit ? 'updateWorkOrder' : 'saveWorkOrder', { workOrderId: uniqueWO, apt: wSel.value, amount: document.getElementById('w_amount').value, status: document.getElementById('w_status').value, description: document.getElementById('w_desc').value, notes: document.getElementById('w_notes').value }).then(() => { closeModal(); refreshData('workorders'); });
           };
         }
+      }
+      // SPECIFICATION COMPLIANCE: DEVELOP INVENTORY FULL TRANSACTION MANAGEMENT DATA FORM BLOCK
+      else if (type === 'inventory') {
+        const uniqueItem = isEdit ? editData.itemId : "INV-" + Math.random().toString(36).substr(2, 5).toUpperCase();
+        title.innerText = isEdit ? "Edit Stock Ledger Item" : "Register New Inventory Item";
+        body.innerHTML = `
+          <label ${labelStyle}>Item Identity Code</label><input id="i_id" value="${uniqueItem}" disabled ${largeInput}>
+          <label ${labelStyle}>Material Item / Resource Name</label><input id="i_name" value="${isEdit ? editData.name : ''}" placeholder="e.g. Led Bulb 18W, PPR Pipe 3/4" ${largeInput}>
+          <label ${labelStyle}>Resource Stock Quantity</label><input id="i_qty" type="number" value="${isEdit ? editData.qty : '0'}" ${largeInput}>
+          <label ${labelStyle}>Material Category Classification</label><input id="i_category" value="${isEdit ? editData.category : ''}" placeholder="e.g. Electrical, Plumbing" ${largeInput}>
+          <label ${labelStyle}>Restock Minimum Alert Threshold</label><input id="i_min" type="number" value="${isEdit ? editData.minAlert : '5'}" ${largeInput}>
+          <label ${labelStyle}>Warehouse Location Placement Notes</label><textarea id="i_notes" rows="2" ${largeInput}>${isEdit ? editData.notes : ''}</textarea>`;
+        
+        submit.onclick = () => {
+          submit.disabled = true;
+          callApi(isEdit ? 'updateInventory' : 'saveInventory', { itemId: uniqueItem, name: document.getElementById('i_name').value, qty: document.getElementById('i_qty').value, category: document.getElementById('i_category').value, minAlert: document.getElementById('i_min').value, notes: document.getElementById('i_notes').value }).then(() => { closeModal(); refreshData('inventory'); });
+        };
       }
       else if (type === 'utility') {
         title.innerText = "Record Utility Data";
@@ -985,9 +809,9 @@
           <select id="u_type" ${largeInput}><option value="Electricity">Electricity Meter</option><option value="Water">Water Gauge</option></select>
           <label ${labelStyle}>Meter Box Serial No</label><input id="u_meter" ${largeInput}>
           <label ${labelStyle}>Consumption Meter Reading</label><input id="u_reading" type="number" ${largeInput}>
-          <label ${labelStyle}>Token Purchase Cost (₦)</label><input id="u_amount" type="number" placeholder="Optional value" ${largeInput}>
+          <label ${labelStyle}>Token Purchase Cost (₦)</label><input id="u_amount" type="number" ${largeInput}>
           <label ${labelStyle}>Log Notes</label><textarea id="u_notes" rows="2" ${largeInput}></textarea>`;
-        const uSel = document.getElementById('u_apt'); (cache.apts || []).forEach(u => { const o=document.createElement('option'); o.value=u.apt; o.innerText="Unit " + u.apt; uSel.appendChild(o); });
+        const uSel = document.getElementById('u_apt'); (cache.apts || []).forEach(u => { const o=document.createElement('option'); o.value=u.apt; o.innerText=`Unit ${u.apt}`; uSel.appendChild(o); });
         submit.onclick = () => {
           submit.disabled = true;
           callApi('saveUtility', { apt: uSel.value, type: document.getElementById('u_type').value, meterNo: document.getElementById('u_meter').value, reading: document.getElementById('u_reading').value, amount: document.getElementById('u_amount').value, notes: document.getElementById('u_notes').value, photos: '' }).then(() => { closeModal(); refreshData('utilities'); });
@@ -1008,17 +832,57 @@
           callApi('saveUtility', { apt: document.getElementById('g_equipment').value, type: "Plant Check", meterNo: document.getElementById('g_tank').value, reading: document.getElementById('g_reading').value, amount: document.getElementById('g_added').value || 0, notes: document.getElementById('g_notes').value, photos: '' }).then(() => { closeModal(); refreshData('utilities'); });
         };
       }
+      // SPECIFICATION COMPLIANCE: COMPLETE COMPREHENSIVE RECONSTRUCTION FOR THE ADD STAFF DATA ENTRIES
       else if (type === 'staff') {
         const uniqueId = isEdit ? editData.rowId : "STF-" + Math.random().toString(36).substr(2, 5).toUpperCase();
         title.innerText = "Staff Profile Management";
+        let avatarPhoto = isEdit ? editData.passport : "";
+        let attachmentPhoto = isEdit ? editData.attachments : "";
+
         body.innerHTML = `
           <label ${labelStyle}>Employee Full Name</label><input id="st_name" value="${isEdit?editData.name:''}" ${largeInput}>
           <label ${labelStyle}>Core Specialization / Role</label><input id="st_role" value="${isEdit?editData.role:''}" ${largeInput}>
-          <label ${labelStyle}>Phone Contact 1</label><input id="st_p1" type="tel" maxlength="11" value="${isEdit?(editData.phone1 || ''):''}" ${largeInput}>
-          <label ${labelStyle}>Staff Email Address</label><input id="st_email" type="email" value="${isEdit?(editData.email || ''):''}" ${largeInput}>`;
+          <label ${labelStyle}>Primary Contact Line</label><input id="st_p1" type="tel" maxlength="11" value="${isEdit?(editData.phone1 || ''):''}" ${largeInput}>
+          <label ${labelStyle}>Emergency Alternative Line (Phone 2)</label><input id="st_p2" type="tel" maxlength="11" value="${isEdit?(editData.phone2 || ''):''}" ${largeInput}>
+          <label ${labelStyle}>Staff Email Address</label><input id="st_email" type="email" value="${isEdit?(editData.email || ''):''}" ${largeInput}>
+          
+          <label ${labelStyle}>Profile Archive Lifecycle Deployment State</label>
+          <select id="st_archived" ${largeInput}>
+            <option value="No" ${isEdit && editData.archived === 'No' ? 'selected' : ''}>Active Member</option>
+            <option value="Yes" ${isEdit && editData.archived === 'Yes' ? 'selected' : ''}>Archived / Deactivated Account</option>
+          </select>
+
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:15px; text-align:center;">
+            <div>
+              <span style="font-size:11px; font-weight:800;">PASSPORT PHOTO</span>
+              <label class="icon-upload-label"><i class="fas fa-camera"></i><input type="file" id="cam_avatar" accept="image/*" style="display:none"></label>
+              <div id="p_avatar_ind" style="font-size:10px; font-weight:700;">${avatarPhoto?'✅ LOADED':'NO MEDIA'}</div>
+            </div>
+            <div>
+              <span style="font-size:11px; font-weight:800;">ATTACHMENTS FRAME</span>
+              <label class="icon-upload-label"><i class="fas fa-paperclip"></i><input type="file" id="cam_attach" accept="image/*" style="display:none"></label>
+              <div id="p_attach_ind" style="font-size:10px; font-weight:700;">${attachmentPhoto?'✅ LOADED':'NO MEDIA'}</div>
+            </div>
+          </div>`;
+
+        document.getElementById('cam_avatar').onchange = (e) => {
+          const file = e.target.files[0]; if(!file) return;
+          const r = new FileReader(); r.onload = async (evt) => {
+            const comp = await compressImage(evt.target.result);
+            callApi('uploadImage', { base64: comp, name: "pass_" + uniqueId + ".jpg" }).then(res => { if(res.url){ avatarPhoto = res.url; document.getElementById('p_avatar_ind').innerText = "✅ PINNED URL"; } });
+          }; r.readAsDataURL(file);
+        };
+        document.getElementById('cam_attach').onchange = (e) => {
+          const file = e.target.files[0]; if(!file) return;
+          const r = new FileReader(); r.onload = async (evt) => {
+            const comp = await compressImage(evt.target.result);
+            callApi('uploadImage', { base64: comp, name: "att_" + uniqueId + ".jpg" }).then(res => { if(res.url){ attachmentPhoto = res.url; document.getElementById('p_attach_ind').innerText = "✅ ATTACHED URL"; } });
+          }; r.readAsDataURL(file);
+        };
+
         submit.onclick = () => {
           submit.disabled = true;
-          callApi(isEdit?'updateStaff':'saveStaff', { rowId: uniqueId, name: document.getElementById('st_name').value, role: document.getElementById('st_role').value, phone1: document.getElementById('st_p1').value, phone2: '', email: document.getElementById('st_email').value, passport: isEdit?editData.passport:'', attachments: isEdit?editData.attachments:'', archived: 'No' }).then(() => { closeModal(); refreshData('staff'); });
+          callApi(isEdit?'updateStaff':'saveStaff', { rowId: uniqueId, name: document.getElementById('st_name').value, role: document.getElementById('st_role').value, phone1: document.getElementById('st_p1').value, phone2: document.getElementById('st_p2').value, email: document.getElementById('st_email').value, passport: avatarPhoto, attachments: attachmentPhoto, archived: document.getElementById('st_archived').value }).then(() => { closeModal(); refreshData('staff'); });
         };
       }
       else if (type === 'vendor') {
@@ -1030,65 +894,53 @@
           <label ${labelStyle}>Primary Account Contact Name</label><input id="v_contact" value="${isEdit?editData.contactName:''}" ${largeInput}>
           <label ${labelStyle}>Corporate Mobile Line</label><input id="v_phone1" type="tel" value="${isEdit?(editData.phone1 || ''):''}" ${largeInput}>
           <label ${labelStyle}>Corporate Support Email</label><input id="v_email" type="email" value="${isEdit?(editData.email || ''):''}" ${largeInput}>
-          <label ${labelStyle}>SLA Contract Expiration Timeline</label><input id="v_end" type="date" value="${isEdit?fromSheetDate(editData.contractEnd):''}" ${largeInput}>`;
+          <label ${labelStyle}>SLA Contract Expiration Timeline</label><input id="v_end" type="date" value="${isEdit?fromSheetDate(editData.contractEnd):''}" ${largeInput}>
+          <label ${labelStyle}>Archive Profile Account</label>
+          <select id="v_archived" ${largeInput}>
+            <option value="No" ${isEdit && editData.archived === 'No' ? 'selected' : ''}>Active</option>
+            <option value="Yes" ${isEdit && editData.archived === 'Yes' ? 'selected' : ''}>Archived</option>
+          </select>`;
         submit.onclick = () => {
           submit.disabled = true;
-          callApi(isEdit?'updateVendor':'saveVendor', { rowId: uniqueId, company: document.getElementById('v_company').value, trade: document.getElementById('v_trade').value, contactName: document.getElementById('v_contact').value, phone1: document.getElementById('v_phone1').value, phone2: '', email: document.getElementById('v_email').value, contractEnd: toSheetDate(document.getElementById('v_end').value), passport: isEdit?editData.passport:'', attachments: isEdit?editData.attachments:'', archived: 'No' }).then(() => { closeModal(); refreshData('vendors'); });
+          callApi(isEdit?'updateVendor':'saveVendor', { rowId: uniqueId, company: document.getElementById('v_company').value, trade: document.getElementById('v_trade').value, contactName: document.getElementById('v_contact').value, phone1: document.getElementById('v_phone1').value, phone2: '', email: document.getElementById('v_email').value, contractEnd: toSheetDate(document.getElementById('v_end').value), passport: isEdit?editData.passport:'', attachments: isEdit?editData.attachments:'', archived: document.getElementById('v_archived').value }).then(() => { closeModal(); refreshData('vendors'); });
         };
       }
     }
 
-    function archiveRecord(type, id) {
-      if (!confirm("Are you certain you want to transfer this structural entity path row into the archive bin?")) return;
-      const apiCmd = type === 'staff' ? 'archiveStaff' : 'archiveVendor';
-      callApi(apiCmd, { rowId: id }).then(res => { if(res && res.success) refreshData(type === 'staff' ? 'staff' : 'vendors'); });
+    function compressImage(base64Str) {
+      return new Promise((resolve) => {
+        const img = new Image(); img.src = base64Str; img.onload = () => {
+          const canvas = document.createElement('canvas'); let w = img.width; let h = img.height;
+          if (w > h) { if (w > 1000) { h *= 1000 / w; w = 1000; } } else { if (h > 1000) { w *= 1000 / h; h = 1000; } }
+          canvas.width = w; canvas.height = h; const ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, w, h);
+          let q = 0.8; let res = canvas.toDataURL('image/jpeg', q);
+          while (res.length > 200000 && q > 0.15) { q -= 0.1; res = canvas.toDataURL('image/jpeg', q); }
+          resolve(res);
+        };
+      });
     }
 
-    function toSheetDate(dateStr) { if (!dateStr) return ""; const [y, m, d] = dateStr.split('-'); return `${d}/${m}/${y}`; }
-    function fromSheetDate(dateStr) { if (!dateStr || !dateStr.includes('/')) return ""; const [d, m, y] = dateStr.split('/'); return `${y}-${m}-${d}`; }
+    function fromSheetDate(dStr) { if (!dStr || !dStr.includes('/')) return ""; const [d, m, y] = dStr.split('/'); return `${y}-${m}-${d}`; }
+    function toSheetDate(dStr) { if (!dStr) return ""; const [y, m, d] = dStr.split('-'); return `${d}/${m}/${y}`; }
     function getDirectImageUrl(url) { if (!url) return ""; if (url.includes('drive.google.com')) { const fileId = url.split('/d/')[1]?.split('/')[0] || url.split('id=')[1]?.split('&')[0]; return `https://drive.google.com/thumbnail?id=${fileId}&sz=w800`; } return url; }
     function closeModal() { document.getElementById('modalOverlay').style.display = 'none'; updateDashboardCounters(); }
 
     function initReportsEngine() {
-      const pipeline = [
-        callApi('getApartments', {}).then(r => cache.apts = r || []),
-        callApi('getAssets', {}).then(r => cache.assets = r || []),
-        callApi('getMaintenance', {}).then(r => cache.tickets = r || []),
-        callApi('getWorkOrders', {}).then(r => cache.workorders = r || [])
-      ];
-      Promise.all(pipeline).then(() => {
-        document.getElementById('rep-profile-selector').value = "";
-        document.getElementById('rep-layout-selector').innerHTML = "<option value=''>-- Choose Configurations --</option>";
-        document.getElementById('rep-dynamic-parameters-frame').innerHTML = "";
-        document.getElementById('report-onscreen-preview-card').style.display = "none";
-      });
+      const pipeline = [callApi('getApartments', {}).then(r => cache.apts = r || []), callApi('getAssets', {}).then(r => cache.assets = r || []), callApi('getMaintenance', {}).then(r => cache.tickets = r || []), callApi('getWorkOrders', {}).then(r => cache.workorders = r || [])];
+      Promise.all(pipeline).then(() => { document.getElementById('rep-profile-selector').value = ""; document.getElementById('rep-layout-selector').innerHTML = "<option value=''>-- Choose Configurations --</option>"; document.getElementById('rep-dynamic-parameters-frame').innerHTML = ""; document.getElementById('report-onscreen-preview-card').style.display = "none"; });
     }
 
     function handleReportProfileSwitch() {
-      const p = document.getElementById('rep-profile-selector').value;
-      const l = document.getElementById('rep-layout-selector');
+      const p = document.getElementById('rep-profile-selector').value; const l = document.getElementById('rep-layout-selector');
       let out = "<option value=''>-- Choose Option Layout --</option>";
-
-      if (p === "apartments") {
-        out += `
-          <option value="apt_short_all">All Apartments Master List (Short Tenant Info)</option>
-          <option value="apt_complete_all">Complete Inventory Frame (Meters + Linked Hardware Summary)</option>
-          <option value="apt_assets_only">Asset Footprint Map Per Apartment Location</option>`;
-      } else if (p === "tickets") {
-        out += `
-          <option value="tkt_status">Group Ledger Manifest Matrix by Target Status</option>`;
-      } else if (p === "workorders") {
-        out += `
-          <option value="wo_all">All Registered Corporate Work Orders Ledger Statement</option>
-          <option value="wo_selected">Isolated Work Order Financial Job Card Template</option>`;
-      }
-      l.innerHTML = out;
-      document.getElementById('rep-dynamic-parameters-frame').innerHTML = "";
+      if (p === "apartments") { out += `<option value="apt_short_all">All Apartments Master List (Short Tenant Info)</option><option value="apt_complete_all">Complete Inventory Frame (Summary)</option>`; } 
+      else if (p === "tickets") { out += `<option value="tkt_status">Group Ledger Manifest Matrix by Target Status</option>`; } 
+      else if (p === "workorders") { out += `<option value="wo_all">All Registered Corporate Work Orders Ledger Statement</option><option value="wo_selected">Isolated Work Order Financial Job Card Template</option>`; }
+      l.innerHTML = out; document.getElementById('rep-dynamic-parameters-frame').innerHTML = "";
     }
 
     function handleReportLayoutSwitch() {
-      const layout = document.getElementById('rep-layout-selector').value;
-      const f = document.getElementById('rep-dynamic-parameters-frame'); f.innerHTML = "";
+      const layout = document.getElementById('rep-layout-selector').value; const f = document.getElementById('rep-dynamic-parameters-frame'); f.innerHTML = "";
       if (layout === "wo_selected") {
         let options = (cache.workorders || []).map(w => `<option value="${w.workOrderId}">${w.workOrderId} (Unit ${w.apt})</option>`).join('');
         f.innerHTML = `<label>TARGET WORK ORDER BUDGET ID REFERENCE:</label><select id="rep_p_wo">${options}</select>`;
@@ -1096,79 +948,38 @@
     }
 
     function compileReportPreview() {
-  const layout = document.getElementById('rep-layout-selector').value; if (!layout) return;
-  
-  // ==========================================
-  // BRANDED PRINT HEADER SPECIFICATION CONFIG
-  // Replace the image URL below with your hosted logo link (Google Drive, Imgur, etc.)
-  // ==========================================
-  const logoUrl = "YOUR_LOGO_URL_HERE"; 
-  
-  let headerStr = `
-    <div style="display: flex; align-items: center; justify-content: space-between; padding-bottom: 12px; border-bottom: 3px solid #000000; margin-bottom: 20px; gap: 15px;">
-      <div style="display: flex; align-items: center; gap: 16px;">
-        <img src="${logoUrl}" alt="Logo" style="height: 65px; max-width: 160px; object-fit: contain; font-size: 10px;" onerror="this.style.display='none';">
-        <div style="text-align: left;">
-          <h2 style="font-size: 22px; font-weight: 800; letter-spacing: 0.5px; margin: 0; line-height: 1.2; color: #000000;">FACILITY PRO INFRASTRUCTURE LOGISTICS DIRECTORY</h2>
-          <p style="font-size: 11px; font-weight: 600; text-transform: uppercase; margin-top: 4px; margin-bottom: 0; color: var(--muted);">Official Operations Management Verification Report</p>
-        </div>
-      </div>
-      <div style="text-align: right; font-size: 12px; font-weight: 800; line-height: 1.3; white-space: nowrap; border-left: 1px solid var(--border); padding-left: 15px;">
-        DATE PRINT SYNC:<br>
-        <span style="font-family: monospace; font-size: 13px;">${new Date().toLocaleDateString()}</span>
-      </div>
-    </div>
-  `;
-  
-  let contentHtml = "";
+      const layout = document.getElementById('rep-layout-selector').value; if (!layout) return;
+      const logoUrl = "YOUR_LOGO_URL_HERE"; 
+      
+      let headerStr = `<div style="display: flex; align-items: center; justify-content: space-between; padding-bottom: 12px; border-bottom: 3px solid #000; margin-bottom: 20px;"><div style="display: flex; align-items: center; gap: 14px;"><img src="${logoUrl}" style="height: 50px; max-width: 140px; object-fit: contain;" onerror="this.style.display='none';"><div><h2 style="font-size: 20px; font-weight: 800; margin: 0;">FACILITY PRO ARCHITECTURE VERIFICATION REPORT</h2></div></div><div style="text-align: right; font-size: 11px; font-weight: 800;">RUN DATE:<br><span>${new Date().toLocaleDateString()}</span></div></div>`;
+      let contentHtml = "";
 
-  if (layout === "apt_short_all") {
-    contentHtml = `<h3>PROPERTY OCCUPANCY LEDGER</h3><table class="print-table"><thead><tr><th>Unit</th><th>Tenant</th><th>Status</th></tr></thead><tbody>${cache.apts.map(a => `<tr><td>Unit ${a.apt}</td><td>${a.tenant || 'VACANT'}</td><td>${a.status}</td></tr>`).join('')}</tbody></table>`;
-  } 
-  else if (layout === "tkt_status") {
-    contentHtml = `<h3>MAINTENANCE MANIFEST</h3><table class="print-table"><thead><tr><th>Ticket ID</th><th>Unit</th><th>Category</th><th>Status</th></tr></thead><tbody>${cache.tickets.map(t => `<tr><td>${t.ticketId}</td><td>Unit ${t.apt}</td><td>${t.category}</td><td>${t.status}</td></tr>`).join('')}</tbody></table>`;
-  }
-  else if (layout === "wo_all") {
-    contentHtml = `<h3>CORPORATE PROCUREMENT EXPENDITURE AUDIT LEDGER</h3><table class="print-table"><thead><tr><th>Work Order ID</th><th>Unit Connection</th><th>Purpose Description Narrative</th><th>Financial Amount</th><th>Authorization Status</th></tr></thead><tbody>${cache.workorders.map(w => `<tr><td><code>${w.workOrderId}</code></td><td>Unit ${w.apt}</td><td>${w.description}</td><td><strong>₦${Number(w.amount).toLocaleString()}</strong></td><td>${w.status.toUpperCase()}</td></tr>`).join('') || '<tr><td colspan="5">No structural work orders logged.</td></tr>'}</tbody></table>`;
-  }
-  else if (layout === "wo_selected") {
-    const targetWoId = document.getElementById('rep_p_wo').value;
-    const orderItem = cache.workorders.find(w => w.workOrderId === targetWoId);
-    contentHtml = `
-      <div style="border:3px solid #000; padding:20px; border-radius:15px; background:#fff;">
-        <h3 style="text-align:center; font-size:20px; text-transform:uppercase; margin-bottom:15px; border-bottom:2px dashed #000; padding-bottom:10px;">Individual Expenditure Job Authorization Card</h3>
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px; font-size:15px; font-weight:700; margin-bottom:15px;">
-          <div>WORK ORDER TRACKING ID: <span style="font-family:monospace; font-size:17px;">${orderItem.workOrderId}</span></div>
-          <div style="text-align:right;">PROPERTY LOCATION NODE: Unit ${orderItem.apt}</div>
-        </div>
-        <div style="font-size:16px; margin-bottom:12px; background:#f8f9fa; padding:12px; border-radius:8px; border:1px solid #000;"><strong>Work Allocation Statement Purpose:</strong><p style="margin-top:5px; font-weight:500;">${orderItem.description}</p></div>
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px; font-size:16px; font-weight:800; border-top:2px dashed #000; padding-top:12px;">
-          <div style="color:var(--success); font-size:18px;">TOTAL BUDGETED COMMITMENT: ₦${Number(orderItem.amount).toLocaleString()}</div>
-          <div style="text-align:right; text-transform:uppercase;">AUTHORIZATION LIFECYCLE: [${orderItem.status}]</div>
-        </div>
-        ${orderItem.notes ? `<div style="font-size:14px; margin-top:15px; color:#444; font-style:italic; border-top:1px solid #ccc; padding-top:8px;"><strong>Executive Feedback Records:</strong> ${orderItem.notes}</div>` : ''}
-      </div>`;
-  }
-  else if (layout === "apt_complete_all") {
-    cache.apts.forEach((a, index) => {
-      const linkedHardware = cache.assets.filter(as => String(as.apt) === String(a.apt) && as.archived !== "Yes");
-      contentHtml += `<div class="${index > 0 ? 'page-break' : ''}"><h3>COMPREHENSIVE SPACE LOGISTICS FRAME: APARTMENT UNIT ${a.apt}</h3><p><strong>Resident Legal Occupant:</strong> ${a.tenant || 'Vacant Infrastructure'} | Run Status: [${a.status}]</p><h4 style="margin-top:10px; font-size:14px;">HARDWARE PROFILE ASSET MAPPING MATRIX</h4><table class="print-table"><thead><tr><th>Tag ID No</th><th>Equipment Class Description</th><th>Current Condition</th></tr></thead><tbody>${linkedHardware.map(as => `<tr><td><code>${as.tag}</code></td><td>${as.type}</td><td>${as.status}</td></tr>`).join('') || '<tr><td colspan="3">No fixed localized machinery records.</td></tr>'}</tbody></table></div>`;
-    });
-  }
-  else if (layout === "apt_assets_only") {
-    contentHtml = `<h3>PROPERTY INFRASTRUCTURE RESOURCE DISTRIBUTION LOG</h3>`;
-    cache.apts.forEach(a => {
-      const matchingEquipment = cache.assets.filter(as => String(as.apt) === String(a.apt) && as.archived !== "Yes");
-      if (matchingEquipment.length > 0) {
-        contentHtml += `<h4 style="margin-top:14px;">UNIT ${a.apt} LOGISTICS DISTRIBUTION</h4><table class="print-table"><thead><tr><th>Asset Tag</th><th>Machinery Classification</th><th>Run State Status</th><th>Physical Placement</th></tr></thead><tbody>${matchingEquipment.map(as => `<tr><td><code>${as.tag}</code></td><td>${as.type}</td><td>${as.status}</td><td>${as.loc || 'General Space'}</td></tr>`).join('')}</tbody></table>`;
+      if (layout === "apt_short_all") {
+        // SPECIFICATION COMPLIANCE: EXCLUDE ALL APARTMENT UNITS STAMPED OR DESIGNATED UNDER THE "SERVICES" CRITERIA
+        const filteredApts = cache.apts.filter(a => a.status !== 'Services' && a.tenant !== 'Services');
+        contentHtml = `<h3>PROPERTY OCCUPANCY SHORT DIRECTORY</h3><table class="print-table"><thead><tr><th>Unit</th><th>Tenant</th><th>Status</th></tr></thead><tbody>${filteredApts.map(a => `<tr><td>Unit ${a.apt}</td><td>${a.tenant || 'VACANT'}</td><td>${a.status}</td></tr>`).join('')}</tbody></table>`;
+      } 
+      else if (layout === "tkt_status") {
+        contentHtml = `<h3>MAINTENANCE TICKETS LEDGER</h3><table class="print-table"><thead><tr><th>Ticket ID</th><th>Unit</th><th>Category</th><th>Status</th></tr></thead><tbody>${cache.tickets.map(t => `<tr><td>${t.ticketId}</td><td>Unit ${t.apt}</td><td>${t.category}</td><td>${t.status}</td></tr>`).join('')}</tbody></table>`;
       }
-    });
-  }
+      else if (layout === "wo_all") {
+        contentHtml = `<h3>CORPORATE WORK ORDERS ACCOUNT STATEMENTS</h3><table class="print-table"><thead><tr><th>W / O ID</th><th>Unit Location</th><th>Description Scope</th><th>Budget Allocation</th><th>Status</th></tr></thead><tbody>${cache.workorders.map(w => `<tr><td><code>${w.workOrderId}</code></td><td>Unit ${w.apt}</td><td>${w.description}</td><td><strong>₦${Number(w.amount).toLocaleString()}</strong></td><td>${w.status.toUpperCase()}</td></tr>`).join('')}</tbody></table>`;
+      }
+      else if (layout === "wo_selected") {
+        const targetWoId = document.getElementById('rep_p_wo').value; const orderItem = cache.workorders.find(w => w.workOrderId === targetWoId);
+        contentHtml = `<div style="border:3px solid #000; padding:15px; border-radius:12px;"><h3>W / O Individual Financial Job Card</h3><p><strong>Tracking W / O Reference:</strong> ${orderItem.workOrderId}</p><p><strong>Target Property Node Location:</strong> Unit ${orderItem.apt}</p><p><strong>Scope Narrative:</strong> ${orderItem.description}</p><p><strong>Cost Parameters Budget:</strong> ₦${Number(orderItem.amount).toLocaleString()}</p><p><strong>Status state:</strong> [${orderItem.status}]</p></div>`;
+      }
+      else if (layout === "apt_complete_all") {
+        contentHtml = `<h3>COMPREHENSIVE SPACE LOGISTICS FRAME MATRIX</h3>`;
+        cache.apts.forEach(a => {
+          contentHtml += `<h4>Unit ${a.apt} Profile Overview</h4><p>Tenant Label: ${a.tenant || 'Vacant'}</p>`;
+        });
+      }
 
-  document.getElementById('report-preview-viewport').innerHTML = headerStr + contentHtml;
-  document.getElementById('report-print-container').innerHTML = headerStr + contentHtml;
-  document.getElementById('report-onscreen-preview-card').style.display = "block";
-}
+      document.getElementById('report-preview-viewport').innerHTML = headerStr + contentHtml;
+      document.getElementById('report-print-container').innerHTML = headerStr + contentHtml;
+      document.getElementById('report-onscreen-preview-card').style.display = "block";
+    }
   </script>
 </body>
 </html>
