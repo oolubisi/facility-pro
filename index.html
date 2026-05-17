@@ -789,7 +789,6 @@
           <select id="f_status" ${largeInput}>
             <option value="Occupied" ${editData.status==='Occupied'?'selected':''}>Occupied</option>
             <option value="Vacant" ${editData.status==='Vacant'?'selected':''}>Vacant</option>
-            <option value="Common Facility" ${editData.status==='Common Facility'?'selected':''}>Common Facility</option>
           </select>
           <label ${labelStyle}>Phone 1</label><input id="f_p1" type="tel" maxlength="11" value="${editData.phone1 || ''}" ${largeInput}>
           <label ${labelStyle}>Phone 2</label><input id="f_p2" type="tel" maxlength="11" value="${editData.phone2 || ''}" ${largeInput}>
