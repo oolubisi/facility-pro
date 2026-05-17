@@ -38,18 +38,18 @@
       min-height: 100vh; 
     }
 
-    /* AUTOFIT MOBILE DASHBOARD NAVIGATION GRID */
+    /* SPECIFICATION COMPLIANCE: 30% HEIGHT INCREASE & 50% FONT SIZE SIZING MAP */
     .nav-grid { 
       display: grid; 
       grid-template-columns: repeat(2, 1fr); 
-      gap: 10px; 
+      gap: 12px; 
       margin-bottom: 15px; 
     }
     .nav-card {
       background: var(--card); 
       border: 2px solid var(--border); 
-      border-radius: 20px; 
-      padding: 12px;
+      border-radius: 24px; 
+      padding: 16px;
       text-align: center; 
       display: flex; 
       flex-direction: column;
@@ -57,12 +57,12 @@
       align-items: center; 
       cursor: pointer; 
       box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-      min-height: 105px;
+      min-height: 145px; /* Boosted target button heights by 30% */
     }
     .nav-card:active { background: var(--card-light); transform: scale(0.98); }
-    .nav-card i { font-size: 24px; color: var(--primary); margin-bottom: 4px; }
-    .nav-card .count { font-size: 26px; font-weight: 900; color: var(--text); line-height: 1.1; }
-    .nav-card small { font-size: 11px; text-transform: uppercase; color: var(--text); font-weight: 800; margin-top: 2px; }
+    .nav-card i { font-size: 36px; color: var(--primary); margin-bottom: 6px; } /* Increased by 50% */
+    .nav-card .count { font-size: 38px; font-weight: 900; color: var(--text); line-height: 1.1; } /* Increased by 50% */
+    .nav-card small { font-size: 16px; text-transform: uppercase; color: var(--text); font-weight: 800; margin-top: 4px; } /* Increased by 50% */
 
     .page-header { 
       display: flex; 
@@ -122,7 +122,6 @@
       cursor: pointer;
     }
 
-    /* ICON-ONLY SHIELD CAPTURE BUTTON STYLING */
     .icon-upload-label {
       background: var(--card-light);
       border: 2px solid var(--text);
@@ -243,11 +242,11 @@
           <div class="nav-card" onclick="showPage('workorders')">
             <i class="fas fa-file-invoice-dollar"></i>
             <div id="s-wo" class="count">--</div>
-            <small>W / O</small>
+            <small>Work Order</small>
           </div>
           <div class="nav-card" onclick="showPage('reports');">
             <i class="fas fa-print"></i>
-            <div style="font-size:12px; font-weight:900; margin-top:2px;">PRINT</div>
+            <div style="font-size:16px; font-weight:900; margin-top:2px;">PRINT</div>
             <small>Reports</small>
           </div>
         </div>
@@ -316,7 +315,7 @@
         <div class="page-header">
           <div class="header-group">
             <button class="home-btn" onclick="showPage('dashboard')"><i class="fas fa-home"></i></button>
-            <h2>W / O</h2>
+            <h2>Work Orders</h2>
           </div>
           <button class="action-btn" style="width:auto; padding:10px 20px;" onclick="openModal('workorder')">Add</button>
         </div>
@@ -437,14 +436,21 @@
   </div>
 
   <script>
-    // System operational dataset models initialization arrays
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbz2Mgm-8O5yMivikqt1WwXf6msezVQcUNFMOoRjHpI4nDNHEevrucIfpNiKShcRG7_-/exec"; 
+                     
+    async function callApi(action, data = {}) {
+      try {
+        const response = await fetch(GAS_URL, { method: "POST", body: JSON.stringify({ action: action, data: data }) });
+        return await response.json();
+      } catch (err) { console.error("CRITICAL API DISCONNECT:", err); return null; }
+    }
+    
     let cache = { apts: [], assets: [], tickets: [], staff: [], vendors: [], utilities: [], workorders: [], inventory: [] };
 
     window.onload = () => { 
       bootstrapDataRegistriesPipeline(); 
     };
 
-    // Robust pre-fetching pipeline ensures all storage blocks are loaded globally to prevent unit population gaps
     function bootstrapDataRegistriesPipeline() {
       const actions = ['getApartments', 'getAssets', 'getMaintenance', 'getStaff', 'getVendors', 'getUtilities', 'getWorkOrders', 'getInventory'];
       const map = ['apts', 'assets', 'tickets', 'staff', 'vendors', 'utilities', 'workorders', 'inventory'];
@@ -464,12 +470,28 @@
       }
     }
 
+    // FIXED: Dashboard counter populates metric data parameters immediately from caching elements directly
     function updateDashboardCounters() {
+      const tenancyCount = cache.apts ? cache.apts.length : 0;
+      const assetCount = cache.assets ? cache.assets.filter(a => a.status !== 'Archived').length : 0;
+      const invCount = cache.inventory ? cache.inventory.length : 0;
+      const maintCount = cache.tickets ? cache.tickets.filter(t => t.status !== 'Resolved').length : 0;
+      const woCount = cache.workorders ? cache.workorders.length : 0;
+
+      if (document.getElementById('s-tenancy')) document.getElementById('s-tenancy').innerText = tenancyCount || '0';
+      if (document.getElementById('s-asset')) document.getElementById('s-asset').innerText = assetCount || '0';
+      if (document.getElementById('s-inv')) document.getElementById('s-inv').innerText = invCount || '0';
+      if (document.getElementById('count-maint')) document.getElementById('count-maint').innerText = maintCount || '0';
+      if (document.getElementById('s-wo')) document.getElementById('s-wo').innerText = woCount || '0';
+
       callApi('getStats', {}).then(stats => {
         if (!stats) return;
-        const ids = { 's-tenancy': stats.tenancy, 's-asset': stats.asset, 's-inv': stats.inventory, 'count-maint': stats.maint, 's-wo': stats.workorders };
-        for (let id in ids) { const el = document.getElementById(id); if (el) el.innerText = ids[id] !== undefined ? ids[id] : '--'; }
-      }).catch(err => console.error("Network dashboard sync error:", err));
+        if (document.getElementById('s-tenancy') && stats.tenancy !== undefined) document.getElementById('s-tenancy').innerText = stats.tenancy;
+        if (document.getElementById('s-asset') && stats.asset !== undefined) document.getElementById('s-asset').innerText = stats.asset;
+        if (document.getElementById('s-inv') && stats.inventory !== undefined) document.getElementById('s-inv').innerText = stats.inventory;
+        if (document.getElementById('count-maint') && stats.maint !== undefined) document.getElementById('count-maint').innerText = stats.maint;
+        if (document.getElementById('s-wo') && stats.workorders !== undefined) document.getElementById('s-wo').innerText = stats.workorders;
+      }).catch(err => console.log("Bypassing server badge override sync:", err));
     }
     
     function toggleMoreMenu(e) { e.stopPropagation(); document.getElementById('moreMenu').classList.toggle('show'); }
@@ -501,12 +523,7 @@
       const listEl = document.getElementById(idMap[p]); if (!listEl) return;
     
       let apiCmd = p === 'assets' ? 'getAssets' : p === 'maintenance' ? 'getMaintenance' : p === 'utilities' ? 'getUtilities' : p === 'staff' ? 'getStaff' : p === 'vendors' ? 'getVendors' : p === 'workorders' ? 'getWorkOrders' : p === 'inventory' ? 'getInventory' : 'getApartments';
-      
-      // Standalone collection loop logic optimized to render archived entities directly into the designated bin
-      if (p === 'archived') {
-        renderArchiveBinDashboardView(listEl);
-        return;
-      }
+      if (p === 'archived') { renderArchiveBinDashboardView(listEl); return; }
 
       callApi(apiCmd, {}).then(data => {
         let displayData = data || [];
@@ -541,7 +558,7 @@
                   <span style="padding:4px 10px; border:2px solid #000; border-radius:6px; font-size:12px; font-weight:900; background:${item.status === 'Resolved' ? 'var(--success)' : 'var(--danger)'}; color:#fff;">${item.status.toUpperCase()}</span>
                 </div>
                 <div style="font-size:16px; font-weight:800; color:var(--primary);">${item.category}</div>
-                <div style="font-size:15px; font-weight:600;">${item.description || ''}</div>
+                <div style="font-size:15px; color:#000; font-weight:600;">${item.description || ''}</div>
               </div>`;
           } 
           else if (p === 'workorders') {
@@ -552,7 +569,7 @@
                   <span style="padding:4px 10px; border:2px solid #000; border-radius:6px; font-size:12px; font-weight:900; background:${item.status === 'Approved' ? 'var(--success)' : item.status === 'Declined' ? 'var(--danger)' : '#ffc107'}; color:#fff;">${item.status.toUpperCase()}</span>
                 </div>
                 <div style="font-size:18px; font-weight:900; color:var(--success)">₦${Number(item.amount).toLocaleString()}</div>
-                <div style="font-size:15px; font-weight:600;">${item.description || ''}</div>
+                <div style="font-size:15px; font-weight:600; color:#000;">${item.description || ''}</div>
               </div>`;
           }
           else if (p === 'inventory') {
@@ -614,10 +631,8 @@
       });
     }
 
-    // ARCHIVE BIN EXTRACTION AGGREGATION LOOP
     function renderArchiveBinDashboardView(targetContainerElement) {
       let archiveBundleHTML = "";
-      
       const archivedAssets = cache.assets.filter(a => a.status === 'Archived');
       const archivedStaff = cache.staff.filter(s => s.archived === 'Yes');
       const archivedVendors = cache.vendors.filter(v => v.archived === 'Yes');
@@ -627,16 +642,9 @@
         return;
       }
 
-      archivedAssets.forEach(a => {
-        archiveBundleHTML += `<div class="card" style="border-left:5px solid var(--danger)"><strong>[ASSET LOG] ${a.type}</strong><br><small>Tag Ref ID: ${a.tag} | Location: Unit ${a.apt}</small></div>`;
-      });
-      archivedStaff.forEach(s => {
-        archiveBundleHTML += `<div class="card" style="border-left:5px solid var(--primary)"><strong>[STAFF PROFILE] ${s.name}</strong><br><small>Role Rank: ${s.role} | ID: ${s.rowId}</small></div>`;
-      });
-      archivedVendors.forEach(v => {
-        archiveBundleHTML += `<div class="card" style="border-left:5px solid var(--success)"><strong>[VENDOR ACCOUNT] ${v.company}</strong><br><small>Trade Field: ${v.trade} | ID: ${v.rowId}</small></div>`;
-      });
-
+      archivedAssets.forEach(a => { archiveBundleHTML += `<div class="card" style="border-left:5px solid var(--danger)"><strong>[ASSET ARCHIVE] ${a.type}</strong><br><small>Tag Ref ID: ${a.tag} | Location: Unit ${a.apt}</small></div>`; });
+      archivedStaff.forEach(s => { archiveBundleHTML += `<div class="card" style="border-left:5px solid var(--primary)"><strong>[STAFF ARCHIVE] ${s.name}</strong><br><small>Role Rank: ${s.role} | ID: ${s.rowId}</small></div>`; });
+      archivedVendors.forEach(v => { archiveBundleHTML += `<div class="card" style="border-left:5px solid var(--success)"><strong>[VENDOR ARCHIVE] ${v.company}</strong><br><small>Trade Field: ${v.trade} | ID: ${v.rowId}</small></div>`; });
       targetContainerElement.innerHTML = archiveBundleHTML;
     }
 
@@ -665,13 +673,13 @@
           <label ${labelStyle}>Lease End</label><input id="f_lease" type="date" value="${fromSheetDate(editData.leaseEnd)}" ${largeInput}>
           <label ${labelStyle}>Last Inspected</label><input id="f_inspected" type="date" value="${fromSheetDate(editData.inspected)}" ${largeInput}>
           <label ${labelStyle}>Notes</label><textarea id="f_notes" rows="2" ${largeInput}>${editData.notes || ''}</textarea>
-          <label class="icon-upload-label"><i class="fas fa-camera"></i><input type="file" id="cameraInput" accept="image/*" style="display:none"></label>
+          <label class="icon-upload-label"><i class="fas fa-camera"></i><input type="file" id="cameraInput" accept="image/*" capture="environment" style="display:none"></label>
           <div id="photoIndicator" style="text-align:center; font-size:11px; font-weight:800;">${photoQueue.length} Files Attached</div>`;
         
         document.getElementById('cameraInput').onchange = (e) => {
           const file = e.target.files[0]; if (!file) return;
           const r = new FileReader(); r.onload = async (evt) => {
-            const comp = await compressImage(evt.target.result);
+            const comp = await compressImageToTargetLimit(evt.target.result);
             callApi('uploadImage', { base64: comp, name: "apt_" + Date.now() + ".jpg" }).then(res => { if(res.url){ photoQueue.push(res.url); document.getElementById('photoIndicator').innerText = `${photoQueue.length} Files Attached`; } });
           }; r.readAsDataURL(file);
         };
@@ -682,7 +690,7 @@
       }
       else if (type === 'asset') {
         const uniqueTag = isEdit ? editData.tag : "AST-" + Math.random().toString(36).substr(2, 5).toUpperCase();
-        title.innerText = isEdit ? "Update Asset Asset" : "Register Facility Asset";
+        title.innerText = isEdit ? "Update Asset" : "Register Facility Asset";
         let photoQueue = isEdit && editData.photos ? editData.photos.split(',').filter(Boolean) : [];
         body.innerHTML = `
           <label ${labelStyle}>Unit Connection Location</label><select id="a_apt" ${largeInput}></select>
@@ -699,14 +707,14 @@
           <label ${labelStyle}>Last Serviced Date</label><input id="a_serviced" type="date" value="${isEdit ? fromSheetDate(editData.lastServiced) : ''}" ${largeInput}>
           <label ${labelStyle}>Last Inspected Date</label><input id="a_inspected" type="date" value="${isEdit ? fromSheetDate(editData.lastInspected) : ''}" ${largeInput}>
           <label ${labelStyle}>Notes</label><textarea id="a_notes" rows="2" ${largeInput}>${isEdit ? editData.notes : ''}</textarea>
-          <label class="icon-upload-label"><i class="fas fa-camera"></i><input type="file" id="assetCameraInput" accept="image/*" style="display:none"></label>
+          <label class="icon-upload-label"><i class="fas fa-camera"></i><input type="file" id="assetCameraInput" accept="image/*" capture="environment" style="display:none"></label>
           <div id="photoIndicator" style="text-align:center; font-size:11px; font-weight:800;">${photoQueue.length} Files Attached</div>`;
         
         const sel = document.getElementById('a_apt'); (cache.apts || []).forEach(u => { const o=document.createElement('option'); o.value=u.apt; o.innerText=`Unit ${u.apt}`; if(isEdit&&u.apt===editData.apt) o.selected=true; sel.appendChild(o); });
         document.getElementById('assetCameraInput').onchange = (e) => {
           const file = e.target.files[0]; if(!file) return;
           const r = new FileReader(); r.onload = async (evt) => {
-            const comp = await compressImage(evt.target.result);
+            const comp = await compressImageToTargetLimit(evt.target.result);
             callApi('uploadImage', { base64: comp, name: "asset_" + Date.now() + ".jpg" }).then(res => { if(res.url){ photoQueue.push(res.url); document.getElementById('photoIndicator').innerText = `${photoQueue.length} Files Attached`; } });
           }; r.readAsDataURL(file);
         };
@@ -736,7 +744,7 @@
           </select>
           <label ${labelStyle}>Assigned Responder Entity</label><select id="m_tech" ${largeInput}></select>
           <label ${labelStyle}>Problem Narrative Description</label><textarea id="m_desc" rows="3" ${largeInput}>${isEdit ? editData.description : ''}</textarea>
-          <label class="icon-upload-label"><i class="fas fa-camera"></i><input type="file" id="maintCameraInput" accept="image/*" style="display:none"></label>
+          <label class="icon-upload-label"><i class="fas fa-camera"></i><input type="file" id="maintCameraInput" accept="image/*" capture="environment" style="display:none"></label>
           <div id="photoIndicator" style="text-align:center; font-size:11px; font-weight:800;">${photoQueue.length} Files Attached</div>`;
 
         const aSel = document.getElementById('m_apt'); (cache.apts || []).forEach(u => { const o=document.createElement('option'); o.value=u.apt; o.innerText=`Unit ${u.apt}`; if(isEdit&&String(u.apt)===String(editData.apt)) o.selected=true; aSel.appendChild(o); });
@@ -747,7 +755,7 @@
         document.getElementById('maintCameraInput').onchange = (e) => {
           const file = e.target.files[0]; if(!file) return;
           const r = new FileReader(); r.onload = async (evt) => {
-            const comp = await compressImage(evt.target.result);
+            const comp = await compressImageToTargetLimit(evt.target.result);
             callApi('uploadImage', { base64: comp, name: "maint_" + Date.now() + ".jpg" }).then(res => { if(res.url){ photoQueue.push(res.url); document.getElementById('photoIndicator').innerText = `${photoQueue.length} Files Attached`; } });
           }; r.readAsDataURL(file);
         };
@@ -758,7 +766,7 @@
       }
       else if (type === 'workorder') {
         const uniqueWO = isEdit ? editData.workOrderId : "WO-" + Math.random().toString(36).substr(2, 5).toUpperCase();
-        title.innerText = isEdit ? "W / O Portfolio" : "Log W / O Expense";
+        title.innerText = isEdit ? "Work Order Portfolio" : "Log Work Order Expense";
         const isApproved = isEdit && editData.status === "Approved";
         
         body.innerHTML = `
@@ -784,15 +792,14 @@
           };
         }
       }
-      // SPECIFICATION COMPLIANCE: DEVELOP INVENTORY FULL TRANSACTION MANAGEMENT DATA FORM BLOCK
       else if (type === 'inventory') {
         const uniqueItem = isEdit ? editData.itemId : "INV-" + Math.random().toString(36).substr(2, 5).toUpperCase();
         title.innerText = isEdit ? "Edit Stock Ledger Item" : "Register New Inventory Item";
         body.innerHTML = `
           <label ${labelStyle}>Item Identity Code</label><input id="i_id" value="${uniqueItem}" disabled ${largeInput}>
-          <label ${labelStyle}>Material Item / Resource Name</label><input id="i_name" value="${isEdit ? editData.name : ''}" placeholder="e.g. Led Bulb 18W, PPR Pipe 3/4" ${largeInput}>
+          <label ${labelStyle}>Material Item / Resource Name</label><input id="i_name" value="${isEdit ? editData.name : ''}" placeholder="e.g. Led Bulb 18W" ${largeInput}>
           <label ${labelStyle}>Resource Stock Quantity</label><input id="i_qty" type="number" value="${isEdit ? editData.qty : '0'}" ${largeInput}>
-          <label ${labelStyle}>Material Category Classification</label><input id="i_category" value="${isEdit ? editData.category : ''}" placeholder="e.g. Electrical, Plumbing" ${largeInput}>
+          <label ${labelStyle}>Material Category Classification</label><input id="i_category" value="${isEdit ? editData.category : ''}" placeholder="e.g. Electrical" ${largeInput}>
           <label ${labelStyle}>Restock Minimum Alert Threshold</label><input id="i_min" type="number" value="${isEdit ? editData.minAlert : '5'}" ${largeInput}>
           <label ${labelStyle}>Warehouse Location Placement Notes</label><textarea id="i_notes" rows="2" ${largeInput}>${isEdit ? editData.notes : ''}</textarea>`;
         
@@ -832,7 +839,6 @@
           callApi('saveUtility', { apt: document.getElementById('g_equipment').value, type: "Plant Check", meterNo: document.getElementById('g_tank').value, reading: document.getElementById('g_reading').value, amount: document.getElementById('g_added').value || 0, notes: document.getElementById('g_notes').value, photos: '' }).then(() => { closeModal(); refreshData('utilities'); });
         };
       }
-      // SPECIFICATION COMPLIANCE: COMPLETE COMPREHENSIVE RECONSTRUCTION FOR THE ADD STAFF DATA ENTRIES
       else if (type === 'staff') {
         const uniqueId = isEdit ? editData.rowId : "STF-" + Math.random().toString(36).substr(2, 5).toUpperCase();
         title.innerText = "Staff Profile Management";
@@ -855,12 +861,12 @@
           <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:15px; text-align:center;">
             <div>
               <span style="font-size:11px; font-weight:800;">PASSPORT PHOTO</span>
-              <label class="icon-upload-label"><i class="fas fa-camera"></i><input type="file" id="cam_avatar" accept="image/*" style="display:none"></label>
+              <label class="icon-upload-label"><i class="fas fa-camera"></i><input type="file" id="cam_avatar" accept="image/*" capture="environment" style="display:none"></label>
               <div id="p_avatar_ind" style="font-size:10px; font-weight:700;">${avatarPhoto?'✅ LOADED':'NO MEDIA'}</div>
             </div>
             <div>
               <span style="font-size:11px; font-weight:800;">ATTACHMENTS FRAME</span>
-              <label class="icon-upload-label"><i class="fas fa-paperclip"></i><input type="file" id="cam_attach" accept="image/*" style="display:none"></label>
+              <label class="icon-upload-label"><i class="fas fa-paperclip"></i><input type="file" id="cam_attach" accept="image/*" capture="environment" style="display:none"></label>
               <div id="p_attach_ind" style="font-size:10px; font-weight:700;">${attachmentPhoto?'✅ LOADED':'NO MEDIA'}</div>
             </div>
           </div>`;
@@ -868,14 +874,14 @@
         document.getElementById('cam_avatar').onchange = (e) => {
           const file = e.target.files[0]; if(!file) return;
           const r = new FileReader(); r.onload = async (evt) => {
-            const comp = await compressImage(evt.target.result);
+            const comp = await compressImageToTargetLimit(evt.target.result);
             callApi('uploadImage', { base64: comp, name: "pass_" + uniqueId + ".jpg" }).then(res => { if(res.url){ avatarPhoto = res.url; document.getElementById('p_avatar_ind').innerText = "✅ PINNED URL"; } });
           }; r.readAsDataURL(file);
         };
         document.getElementById('cam_attach').onchange = (e) => {
           const file = e.target.files[0]; if(!file) return;
           const r = new FileReader(); r.onload = async (evt) => {
-            const comp = await compressImage(evt.target.result);
+            const comp = await compressImageToTargetLimit(evt.target.result);
             callApi('uploadImage', { base64: comp, name: "att_" + uniqueId + ".jpg" }).then(res => { if(res.url){ attachmentPhoto = res.url; document.getElementById('p_attach_ind').innerText = "✅ ATTACHED URL"; } });
           }; r.readAsDataURL(file);
         };
@@ -907,7 +913,7 @@
       }
     }
 
-    function compressImage(base64Str) {
+    function compressImageToTargetLimit(base64Str) {
       return new Promise((resolve) => {
         const img = new Image(); img.src = base64Str; img.onload = () => {
           const canvas = document.createElement('canvas'); let w = img.width; let h = img.height;
@@ -951,11 +957,10 @@
       const layout = document.getElementById('rep-layout-selector').value; if (!layout) return;
       const logoUrl = "YOUR_LOGO_URL_HERE"; 
       
-      let headerStr = `<div style="display: flex; align-items: center; justify-content: space-between; padding-bottom: 12px; border-bottom: 3px solid #000; margin-bottom: 20px;"><div style="display: flex; align-items: center; gap: 14px;"><img src="${logoUrl}" style="height: 50px; max-width: 140px; object-fit: contain;" onerror="this.style.display='none';"><div><h2 style="font-size: 20px; font-weight: 800; margin: 0;">FACILITY PRO ARCHITECTURE VERIFICATION REPORT</h2></div></div><div style="text-align: right; font-size: 11px; font-weight: 800;">RUN DATE:<br><span>${new Date().toLocaleDateString()}</span></div></div>`;
+      let headerStr = `<div style="display: flex; align-items: center; justify-content: space-between; padding-bottom: 12px; border-bottom: 3px solid #000; margin-bottom: 20px;"><div style="display: flex; align-items: center; gap: 14px;"><img src="${logoUrl}" style="height: 50px; max-width: 140px; object-fit: contain;" onerror="this.style.display='none';"><div><h2 style="font-size: 20px; font-weight: 800; margin: 0;">FACILITY PRO OPERATIONS MANAGEMENT VERIFICATION REPORT</h2></div></div><div style="text-align: right; font-size: 11px; font-weight: 800;">RUN DATE:<br><span>${new Date().toLocaleDateString()}</span></div></div>`;
       let contentHtml = "";
 
       if (layout === "apt_short_all") {
-        // SPECIFICATION COMPLIANCE: EXCLUDE ALL APARTMENT UNITS STAMPED OR DESIGNATED UNDER THE "SERVICES" CRITERIA
         const filteredApts = cache.apts.filter(a => a.status !== 'Services' && a.tenant !== 'Services');
         contentHtml = `<h3>PROPERTY OCCUPANCY SHORT DIRECTORY</h3><table class="print-table"><thead><tr><th>Unit</th><th>Tenant</th><th>Status</th></tr></thead><tbody>${filteredApts.map(a => `<tr><td>Unit ${a.apt}</td><td>${a.tenant || 'VACANT'}</td><td>${a.status}</td></tr>`).join('')}</tbody></table>`;
       } 
@@ -967,13 +972,11 @@
       }
       else if (layout === "wo_selected") {
         const targetWoId = document.getElementById('rep_p_wo').value; const orderItem = cache.workorders.find(w => w.workOrderId === targetWoId);
-        contentHtml = `<div style="border:3px solid #000; padding:15px; border-radius:12px;"><h3>W / O Individual Financial Job Card</h3><p><strong>Tracking W / O Reference:</strong> ${orderItem.workOrderId}</p><p><strong>Target Property Node Location:</strong> Unit ${orderItem.apt}</p><p><strong>Scope Narrative:</strong> ${orderItem.description}</p><p><strong>Cost Parameters Budget:</strong> ₦${Number(orderItem.amount).toLocaleString()}</p><p><strong>Status state:</strong> [${orderItem.status}]</p></div>`;
+        contentHtml = `<div style="border:3px solid #000; padding:15px; border-radius:12px;"><h3>Work Order Individual Financial Job Card</h3><p><strong>Tracking Work Order Reference:</strong> ${orderItem.workOrderId}</p><p><strong>Target Property Node Location:</strong> Unit ${orderItem.apt}</p><p><strong>Scope Narrative:</strong> ${orderItem.description}</p><p><strong>Cost Parameters Budget:</strong> ₦${Number(orderItem.amount).toLocaleString()}</p><p><strong>Status state:</strong> [${orderItem.status}]</p></div>`;
       }
       else if (layout === "apt_complete_all") {
         contentHtml = `<h3>COMPREHENSIVE SPACE LOGISTICS FRAME MATRIX</h3>`;
-        cache.apts.forEach(a => {
-          contentHtml += `<h4>Unit ${a.apt} Profile Overview</h4><p>Tenant Label: ${a.tenant || 'Vacant'}</p>`;
-        });
+        cache.apts.forEach(a => { contentHtml += `<h4>Unit ${a.apt} Profile Overview</h4><p>Tenant Label: ${a.tenant || 'Vacant'}</p>`; });
       }
 
       document.getElementById('report-preview-viewport').innerHTML = headerStr + contentHtml;
