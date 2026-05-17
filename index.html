@@ -138,7 +138,6 @@
     }
     .icon-upload-label:active { background: var(--border); }
 
-    /* PREVIEW THUMBNAIL LAYOUT ARCHITECTURE */
     .modal-preview-grid {
       display: flex;
       flex-wrap: wrap;
@@ -156,6 +155,22 @@
       object-fit: cover;
       border: 2px solid var(--text);
       border-radius: 6px;
+    }
+
+    /* SPECIFICATION COMPLIANCE: PASSPORT FRAME DOCK ARCHITECTURE STYLING */
+    .passport-frame-container {
+      position: relative; 
+      width: 110px; 
+      height: 110px; 
+      margin: 0 auto 12px auto; 
+      border: 3px solid var(--text); 
+      border-radius: 14px; 
+      background: #ffffff; 
+      overflow: hidden; 
+      display: flex; 
+      align-items: center; 
+      justify-content: center;
+      box-shadow: 0 3px 6px rgba(0,0,0,0.1);
     }
 
     .modal-overlay { 
@@ -614,7 +629,7 @@
               <div class="card" onclick="openRecordRow('staff', '${item.rowId}')">
                 <div style="display:flex; gap:12px; align-items:center;">
                   <img src="${getDirectImageUrl(item.passport) || 'https://via.placeholder.com/150'}" style="width:60px; height:60px; object-fit:cover; border-radius:50%; border:2px solid #000;">
-                  <div style="flex:1;"><strong style="font-size:18px;">${item.name}</strong><br><span style="font-weight:700; color:var(--primary); font-size:14px;">${item.role}</span></div>
+                  <div style="flex:1;"><strong style="font-size:18px;">${item.name}</strong><br><span style="font-weight:700; color:var(--muted); font-size:13px;">ID: ${item.rowId}</span><br><span style="font-weight:700; color:var(--primary); font-size:14px;">${item.role}</span></div>
                 </div>
               </div>`;
           }
@@ -622,7 +637,7 @@
             return `
               <div class="card" onclick="openRecordRow('vendor', '${item.rowId}')">
                 <div style="display:flex; gap:12px; align-items:center;">
-                  <div style="flex:1;"><strong style="font-size:18px;">${item.company}</strong><br><span style="font-weight:700; color:var(--success); font-size:14px;">${item.trade.toUpperCase()}</span></div>
+                  <div style="flex:1;"><strong style="font-size:18px;">${item.company}</strong><br><span style="font-weight:700; color:var(--muted); font-size:13px;">ID: ${item.rowId}</span><br><span style="font-weight:700; color:var(--success); font-size:14px;">${item.trade.toUpperCase()}</span></div>
                 </div>
               </div>`;
           }
@@ -649,7 +664,6 @@
       });
     }
 
-    // SPECIFICATION COMPLIANCE: INTEGRATED INVENTORY EXTRACTION FILTER LOOP INSIDE GENERAL ARCHIVE BIN DOCK
     function renderArchiveBinDashboardView(targetContainerElement) {
       let archiveBundleHTML = "";
       const archivedAssets = cache.assets.filter(a => a.status === 'Archived');
@@ -663,19 +677,55 @@
       }
 
       archivedAssets.forEach(a => { archiveBundleHTML += `<div class="card" style="border-left:5px solid var(--danger)"><strong>[ASSET ARCHIVE] ${a.type}</strong><br><small>Tag Ref ID: ${a.tag} | Location: Unit ${a.apt}</small></div>`; });
-      archivedStaff.forEach(s => { archiveBundleHTML += `<div class="card" style="border-left:5px solid var(--primary)"><strong>[STAFF ARCHIVE] ${s.name}</strong><br><small>Role: ${s.role} | ID: ${s.rowId}</small></div>`; });
-      archivedVendors.forEach(v => { archiveBundleHTML += `<div class="card" style="border-left:5px solid var(--success)"><strong>[VENDOR ARCHIVE] ${v.company}</strong><br><small>Trade Field: ${v.trade} | ID: ${v.rowId}</small></div>`; });
+      archivedStaff.forEach(s => { archiveBundleHTML += `<div class="card" style="border-left:5px solid var(--primary)"><strong>[STAFF ARCHIVE] ${s.name}</strong><br><small>Role: ${s.role} | Staff ID: ${s.rowId}</small></div>`; });
+      archivedVendors.forEach(v => { archiveBundleHTML += `<div class="card" style="border-left:5px solid var(--success)"><strong>[VENDOR ARCHIVE] ${v.company}</strong><br><small>Trade Field: ${v.trade} | Vendor ID: ${v.rowId}</small></div>`; });
       archivedInventory.forEach(i => { archiveBundleHTML += `<div class="card" style="border-left:5px solid #ffc107"><strong>[INVENTORY ARCHIVE] ${i.name}</strong><br><small>Category: ${i.category} | Qty Remaining: ${i.qty} | ID: ${i.itemId}</small></div>`; });
       targetContainerElement.innerHTML = archiveBundleHTML;
     }
 
-    // HELPER INLINE PREVIEW GENERATION SCRIPT ENGINE FOR IMAGE BUNDLES
+    // UPDATED PREVIEW SYSTEM CAPABLE OF GENERATING LIVE EXTENSION ICONS FOR RECOGNIZED PDFs
     function populateModalInlineImageGalleryPreviews(csvUrls, renderBoxId) {
       const box = document.getElementById(renderBoxId); if(!box) return;
       const parsedArray = csvUrls ? csvUrls.split(',').filter(Boolean) : [];
       if(parsedArray.length === 0) { box.innerHTML = ''; box.style.display = 'none'; return; }
       box.style.display = 'flex';
-      box.innerHTML = parsedArray.map(url => `<img src="${getDirectImageUrl(url)}" class="modal-preview-thumb">`).join('');
+      box.innerHTML = parsedArray.map(url => {
+        const isPdf = url.toLowerCase().includes('.pdf') || url.toLowerCase().includes('pdf_');
+        if (isPdf) {
+          return `<div style="width:55px; height:55px; border:2px solid var(--text); border-radius:6px; background:#fff; display:flex; align-items:center; justify-content:center;"><i class="fas fa-file-pdf" style="font-size:24px; color:var(--danger);"></i></div>`;
+        }
+        return `<img src="${getDirectImageUrl(url)}" class="modal-preview-thumb">`;
+      }).join('');
+    }
+
+    // MULTI-ATTACHMENT PROCESSOR ENFORCING BOUNDARIES (MAX 200KB FOR PHOTOS / MAX 500KB FOR PDFs)
+    function processIncomingMultiAttachments(filesList, trackingQueue, previewTargetId) {
+      if(!filesList || filesList.length === 0) return;
+      Array.from(filesList).forEach(file => {
+        const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+        const allowedMaxBytes = isPdf ? 500 * 1024 : 200 * 1024;
+        
+        if (file.size > allowedMaxBytes) {
+          alert(`Boundary Warning: "${file.name}" exceeds limits (${isPdf ? 'PDF limit is 500KB' : 'Photo limit is 200KB'}). File skipped.`);
+          return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = async (evt) => {
+          let base64StringData = evt.target.result;
+          if (!isPdf) {
+            base64StringData = await compressImageToTargetLimit(evt.target.result, 180000);
+          }
+          const generatedName = (isPdf ? "pdf_" : "img_") + Date.now() + "_" + file.name.replace(/[^a-zA-Z0-9.]/g, "_");
+          callApi('uploadImage', { base64: base64StringData, name: generatedName }).then(res => {
+            if(res && res.url) {
+              trackingQueue.push(res.url);
+              populateModalInlineImageGalleryPreviews(trackingQueue.join(','), previewTargetId);
+            }
+          });
+        };
+        reader.readAsDataURL(file);
+      });
     }
 
     function openModal(type, editData = null) {
@@ -712,7 +762,7 @@
         document.getElementById('cameraInput').onchange = (e) => {
           const file = e.target.files[0]; if (!file) return;
           const r = new FileReader(); r.onload = async (evt) => {
-            const comp = await compressImageToTargetLimit(evt.target.result);
+            const comp = await compressImageToTargetLimit(evt.target.result, 200000);
             callApi('uploadImage', { base64: comp, name: "apt_" + Date.now() + ".jpg" }).then(res => { if(res.url){ photoQueue.push(res.url); populateModalInlineImageGalleryPreviews(photoQueue.join(','), 'aptPreviews'); } });
           }; r.readAsDataURL(file);
         };
@@ -750,7 +800,7 @@
         document.getElementById('assetCameraInput').onchange = (e) => {
           const file = e.target.files[0]; if(!file) return;
           const r = new FileReader(); r.onload = async (evt) => {
-            const comp = await compressImageToTargetLimit(evt.target.result);
+            const comp = await compressImageToTargetLimit(evt.target.result, 200000);
             callApi('uploadImage', { base64: comp, name: "asset_" + Date.now() + ".jpg" }).then(res => { if(res.url){ photoQueue.push(res.url); populateModalInlineImageGalleryPreviews(photoQueue.join(','), 'assetPreviews'); } });
           }; r.readAsDataURL(file);
         };
@@ -793,7 +843,7 @@
         document.getElementById('maintCameraInput').onchange = (e) => {
           const file = e.target.files[0]; if(!file) return;
           const r = new FileReader(); r.onload = async (evt) => {
-            const comp = await compressImageToTargetLimit(evt.target.result);
+            const comp = await compressImageToTargetLimit(evt.target.result, 200000);
             callApi('uploadImage', { base64: comp, name: "maint_" + Date.now() + ".jpg" }).then(res => { if(res.url){ photoQueue.push(res.url); populateModalInlineImageGalleryPreviews(photoQueue.join(','), 'maintPreviews'); } });
           }; r.readAsDataURL(file);
         };
@@ -818,7 +868,6 @@
           </select>
           <label ${labelStyle}>Work Purpose Scope Narrative</label><textarea id="w_desc" rows="3" ${largeInput} ${isApproved ? 'disabled' : ''}>${isEdit ? editData.description : ''}</textarea>
           <label ${labelStyle}>Operational Internal Remarks</label><textarea id="w_notes" rows="2" ${largeInput} ${isApproved ? 'disabled' : ''}>${isEdit ? editData.notes : ''}</textarea>
-          
           ${isApproved ? `<button class="action-btn" style="background:var(--success); margin-top:15px;" onclick="printSingleWorkOrderDirect('${uniqueWO}')"><i class="fas fa-print"></i> Print Work Order</button>` : ''}`;
         
         const wSel = document.getElementById('w_apt'); 
@@ -885,84 +934,118 @@
           callApi('saveUtility', { apt: document.getElementById('g_equipment').value, type: "Plant Check", meterNo: document.getElementById('g_tank').value, reading: document.getElementById('g_reading').value, amount: document.getElementById('g_added').value || 0, notes: document.getElementById('g_notes').value, photos: '' }).then(() => { closeModal(); refreshData('utilities'); });
         };
       }
+      // SPECIFICATION COMPLIANCE: COMPLETE RE-ENGINEERING FOR STAFF OPERATIONS FIELD ENTRIES
       else if (type === 'staff') {
         const uniqueId = isEdit ? editData.rowId : "STF-" + Math.random().toString(36).substr(2, 5).toUpperCase();
         title.innerText = "Staff Profile Management";
         let avatarPhoto = isEdit ? editData.passport : "";
-        let attachmentPhoto = isEdit ? editData.attachments : "";
+        let attachmentPhotoQueue = isEdit && editData.attachments ? editData.attachments.split(',').filter(Boolean) : [];
 
         body.innerHTML = `
+          <div class="passport-frame-container">
+            <img id="passport_frame_view" src="${avatarPhoto ? getDirectImageUrl(avatarPhoto) : 'data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 width=%2260%22 height=%2260%22><path d=%22M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z%22 fill=%22%236c757d%22/></svg>'}" style="width:100%; height:100%; object-fit:cover;">
+            <label style="position:absolute; bottom:2px; right:2px; background:var(--primary); color:#fff; width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; border:2px solid #fff; cursor:pointer;">
+              <i class="fas fa-camera" style="font-size:12px;"></i>
+              <input type="file" id="st_pass_uploader" accept="image/*" capture="environment" style="display:none">
+            </label>
+          </div>
+
+          <label ${labelStyle}>Staff ID</label><input id="st_id" value="${uniqueId}" ${largeInput} ${isEdit?'disabled':''}>
           <label ${labelStyle}>Employee Full Name</label><input id="st_name" value="${isEdit?editData.name:''}" ${largeInput}>
           <label ${labelStyle}>Core Specialization / Role</label><input id="st_role" value="${isEdit?editData.role:''}" ${largeInput}>
-          <label ${labelStyle}>Primary Contact Line</label><input id="st_p1" type="tel" maxlength="11" value="${isEdit?(editData.phone1 || ''):''}" ${largeInput}>
-          <label ${labelStyle}>Emergency Alternative Line (Phone 2)</label><input id="st_p2" type="tel" maxlength="11" value="${isEdit?(editData.phone2 || ''):''}" ${largeInput}>
+          
+          <label ${labelStyle}>Phone 1</label><input id="st_p1" type="tel" maxlength="11" value="${isEdit?(editData.phone1 || ''):''}" ${largeInput}>
+          <label ${labelStyle}>Phone 2</label><input id="st_p2" type="tel" maxlength="11" value="${isEdit?(editData.phone2 || ''):''}" ${largeInput}>
           <label ${labelStyle}>Staff Email Address</label><input id="st_email" type="email" value="${isEdit?(editData.email || ''):''}" ${largeInput}>
           
-          <label ${labelStyle}>Profile Archive Lifecycle Deployment State</label>
+          <label ${labelStyle}>Deployment State Status</label>
           <select id="st_archived" ${largeInput}>
             <option value="No" ${isEdit && editData.archived === 'No' ? 'selected' : ''}>Active Member</option>
             <option value="Yes" ${isEdit && editData.archived === 'Yes' ? 'selected' : ''}>Archived / Deactivated Account</option>
           </select>
 
-          <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:15px; text-align:center;">
-            <div>
-              <span style="font-size:11px; font-weight:800;">PASSPORT PHOTO</span>
-              <div id="stAvatarPrev" class="modal-preview-grid" style="display:none; min-height:60px;"></div>
-              <label class="icon-upload-label"><i class="fas fa-camera"></i><input type="file" id="cam_avatar" accept="image/*" capture="environment" style="display:none"></label>
-            </div>
-            <div>
-              <span style="font-size:11px; font-weight:800;">ATTACHMENTS FRAME</span>
-              <div id="stAttachPrev" class="modal-preview-grid" style="display:none; min-height:60px;"></div>
-              <label class="icon-upload-label"><i class="fas fa-paperclip"></i><input type="file" id="cam_attach" accept="image/*" capture="environment" style="display:none"></label>
-            </div>
-          </div>`;
+          <label ${labelStyle}>Upload Multi-Attachments (Photos Max 200KB / PDF Max 500KB)</label>
+          <div id="stAttachmentsPreviews" class="modal-preview-grid" style="display:none;"></div>
+          <label class="icon-upload-label"><i class="fas fa-paperclip"></i><input type="file" id="st_multi_uploader" accept="image/*,application/pdf" multiple style="display:none"></label>`;
 
-        if(isEdit && editData.passport) populateModalInlineImageGalleryPreviews(editData.passport, 'stAvatarPrev');
-        if(isEdit && editData.attachments) populateModalInlineImageGalleryPreviews(editData.attachments, 'stAttachPrev');
+        if(isEdit && editData.attachments) populateModalInlineImageGalleryPreviews(editData.attachments, 'stAttachmentsPreviews');
 
-        document.getElementById('cam_avatar').onchange = (e) => {
+        document.getElementById('st_pass_uploader').onchange = (e) => {
           const file = e.target.files[0]; if(!file) return;
+          if (file.size > 200 * 1024) { alert("Passport photo parameters must be under 200KB boundary limit."); return; }
           const r = new FileReader(); r.onload = async (evt) => {
-            const comp = await compressImageToTargetLimit(evt.target.result);
-            callApi('uploadImage', { base64: comp, name: "pass_" + uniqueId + ".jpg" }).then(res => { if(res.url){ avatarPhoto = res.url; populateModalInlineImageGalleryPreviews(avatarPhoto, 'stAvatarPrev'); } });
+            const comp = await compressImageToTargetLimit(evt.target.result, 180000);
+            callApi('uploadImage', { base64: comp, name: "pass_" + uniqueId + ".jpg" }).then(res => { if(res.url){ avatarPhoto = res.url; document.getElementById('passport_frame_view').src = getDirectImageUrl(res.url); } });
           }; r.readAsDataURL(file);
         };
-        document.getElementById('cam_attach').onchange = (e) => {
-          const file = e.target.files[0]; if(!file) return;
-          const r = new FileReader(); r.onload = async (evt) => {
-            const comp = await compressImageToTargetLimit(evt.target.result);
-            callApi('uploadImage', { base64: comp, name: "att_" + uniqueId + ".jpg" }).then(res => { if(res.url){ attachmentPhoto = res.url; populateModalInlineImageGalleryPreviews(attachmentPhoto, 'stAttachPrev'); } });
-          }; r.readAsDataURL(file);
+
+        document.getElementById('st_multi_uploader').onchange = (e) => {
+          processIncomingMultiAttachments(e.target.files, attachmentPhotoQueue, 'stAttachmentsPreviews');
         };
 
         submit.onclick = () => {
           submit.disabled = true;
-          callApi(isEdit?'updateStaff':'saveStaff', { rowId: uniqueId, name: document.getElementById('st_name').value, role: document.getElementById('st_role').value, phone1: document.getElementById('st_p1').value, phone2: document.getElementById('st_p2').value, email: document.getElementById('st_email').value, passport: avatarPhoto, attachments: attachmentPhoto, archived: document.getElementById('st_archived').value }).then(() => { closeModal(); refreshData('staff'); });
+          callApi(isEdit?'updateStaff':'saveStaff', { rowId: document.getElementById('st_id').value, name: document.getElementById('st_name').value, role: document.getElementById('st_role').value, phone1: document.getElementById('st_p1').value, phone2: document.getElementById('st_p2').value, email: document.getElementById('st_email').value, passport: avatarPhoto, attachments: attachmentPhotoQueue.join(','), archived: document.getElementById('st_archived').value }).then(() => { closeModal(); refreshData('staff'); });
         };
       }
+      // SPECIFICATION COMPLIANCE: COMPLETE RE-ENGINEERING FOR VENDOR FIELD PARAMETERS
       else if (type === 'vendor') {
         const uniqueId = isEdit ? editData.rowId : "VND-" + Math.random().toString(36).substr(2, 5).toUpperCase();
         title.innerText = "Vendor SLA Registry Profile";
+        let avatarPhoto = isEdit ? editData.passport : "";
+        let attachmentPhotoQueue = isEdit && editData.attachments ? editData.attachments.split(',').filter(Boolean) : [];
+
         body.innerHTML = `
+          <div class="passport-frame-container">
+            <img id="vendor_frame_view" src="${avatarPhoto ? getDirectImageUrl(avatarPhoto) : 'data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 width=%2260%22 height=%2260%22><path d=%22M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z%22 fill=%22%236c757d%22/></svg>'}" style="width:100%; height:100%; object-fit:cover;">
+            <label style="position:absolute; bottom:2px; right:2px; background:var(--primary); color:#fff; width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; border:2px solid #fff; cursor:pointer;">
+              <i class="fas fa-camera" style="font-size:12px;"></i>
+              <input type="file" id="v_pass_uploader" accept="image/*" capture="environment" style="display:none">
+            </label>
+          </div>
+
+          <label ${labelStyle}>Vendor ID</label><input id="v_id" value="${uniqueId}" ${largeInput} ${isEdit?'disabled':''}>
           <label ${labelStyle}>Corporate Entity Name</label><input id="v_company" value="${isEdit?editData.company:''}" ${largeInput}>
           <label ${labelStyle}>Trade Domain Specialization</label><input id="v_trade" value="${isEdit?editData.trade:''}" ${largeInput}>
           <label ${labelStyle}>Primary Account Contact Name</label><input id="v_contact" value="${isEdit?editData.contactName:''}" ${largeInput}>
-          <label ${labelStyle}>Corporate Mobile Line</label><input id="v_phone1" type="tel" value="${isEdit?(editData.phone1 || ''):''}" ${largeInput}>
+          
+          <label ${labelStyle}>Phone 1</label><input id="v_phone1" type="tel" value="${isEdit?(editData.phone1 || ''):''}" ${largeInput}>
+          <label ${labelStyle}>Phone 2</label><input id="v_phone2" type="tel" value="${isEdit?(editData.phone2 || ''):''}" ${largeInput}>
           <label ${labelStyle}>Corporate Support Email</label><input id="v_email" type="email" value="${isEdit?(editData.email || ''):''}" ${largeInput}>
           <label ${labelStyle}>SLA Contract Expiration Timeline</label><input id="v_end" type="date" value="${isEdit?fromSheetDate(editData.contractEnd):''}" ${largeInput}>
+          
           <label ${labelStyle}>Archive Profile Account</label>
           <select id="v_archived" ${largeInput}>
-            <option value="No" ${isEdit && editData.archived === 'No' ? 'selected' : ''}>Active</option>
+            <option value="No" ${isEdit && editData.archived === 'No' ? 'selected' : ''}>Active Portfolio</option>
             <option value="Yes" ${isEdit && editData.archived === 'Yes' ? 'selected' : ''}>Archived</option>
-          </select>`;
+          </select>
+
+          <label ${labelStyle}>Upload Multi-Attachments (Photos Max 200KB / PDF Max 500KB)</label>
+          <div id="vAttachmentsPreviews" class="modal-preview-grid" style="display:none;"></div>
+          <label class="icon-upload-label"><i class="fas fa-paperclip"></i><input type="file" id="v_multi_uploader" accept="image/*,application/pdf" multiple style="display:none"></label>`;
+
+        if(isEdit && editData.attachments) populateModalInlineImageGalleryPreviews(editData.attachments, 'vAttachmentsPreviews');
+
+        document.getElementById('v_pass_uploader').onchange = (e) => {
+          const file = e.target.files[0]; if(!file) return;
+          if (file.size > 200 * 1024) { alert("Passport photo profiles must map strictly under 200KB."); return; }
+          const r = new FileReader(); r.onload = async (evt) => {
+            const comp = await compressImageToTargetLimit(evt.target.result, 180000);
+            callApi('uploadImage', { base64: comp, name: "vpass_" + uniqueId + ".jpg" }).then(res => { if(res.url){ avatarPhoto = res.url; document.getElementById('vendor_frame_view').src = getDirectImageUrl(res.url); } });
+          }; r.readAsDataURL(file);
+        };
+
+        document.getElementById('v_multi_uploader').onchange = (e) => {
+          processIncomingMultiAttachments(e.target.files, attachmentPhotoQueue, 'vAttachmentsPreviews');
+        };
+
         submit.onclick = () => {
           submit.disabled = true;
-          callApi(isEdit?'updateVendor':'saveVendor', { rowId: uniqueId, company: document.getElementById('v_company').value, trade: document.getElementById('v_trade').value, contactName: document.getElementById('v_contact').value, phone1: document.getElementById('v_phone1').value, phone2: '', email: document.getElementById('v_email').value, contractEnd: toSheetDate(document.getElementById('v_end').value), passport: isEdit?editData.passport:'', attachments: isEdit?editData.attachments:'', archived: document.getElementById('v_archived').value }).then(() => { closeModal(); refreshData('vendors'); });
+          callApi(isEdit?'updateVendor':'saveVendor', { rowId: document.getElementById('v_id').value, company: document.getElementById('v_company').value, trade: document.getElementById('v_trade').value, contactName: document.getElementById('v_contact').value, phone1: document.getElementById('v_phone1').value, phone2: document.getElementById('v_phone2').value, email: document.getElementById('v_email').value, contractEnd: toSheetDate(document.getElementById('v_end').value), passport: avatarPhoto, attachments: attachmentPhotoQueue.join(','), archived: document.getElementById('v_archived').value }).then(() => { closeModal(); refreshData('vendors'); });
         };
       }
     }
 
-    // SPECIFICATION COMPLIANCE: INSTANT DIRECT INLINE SINGLE ORDER PRINTING ROUTER HOOK
     function printSingleWorkOrderDirect(woId) {
       const orderItem = cache.workorders.find(w => w.workOrderId === woId); if(!orderItem) return;
       const logoUrl = "YOUR_LOGO_URL_HERE";
@@ -978,7 +1061,7 @@
           </div>
           <table class="print-table">
             <tr><th>Work Order Reference</th><td><code>${orderItem.workOrderId}</code></td></tr>
-            <tr><th>Assigned Node Node</th><td>Unit ${orderItem.apt}</td></tr>
+            <tr><th>Assigned Node Location</th><td>Unit ${orderItem.apt}</td></tr>
             <tr><th>Financial Budget Tariff</th><td><strong>₦${Number(orderItem.amount).toLocaleString()}</strong></td></tr>
             <tr><th>Lifecycle Auth Status</th><td>${orderItem.status.toUpperCase()}</td></tr>
             <tr><th>Scope Purpose Summary</th><td>${orderItem.description || 'No description provided.'}</td></tr>
@@ -994,14 +1077,14 @@
       window.print();
     }
 
-    function compressImageToTargetLimit(base64Str) {
+    function compressImageToTargetLimit(base64Str, targetMaxBytes) {
       return new Promise((resolve) => {
         const img = new Image(); img.src = base64Str; img.onload = () => {
           const canvas = document.createElement('canvas'); let w = img.width; let h = img.height;
           if (w > h) { if (w > 1000) { h *= 1000 / w; w = 1000; } } else { if (h > 1000) { w *= 1000 / h; h = 1000; } }
           canvas.width = w; canvas.height = h; const ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, w, h);
           let q = 0.8; let res = canvas.toDataURL('image/jpeg', q);
-          while (res.length > 200000 && q > 0.15) { q -= 0.1; res = canvas.toDataURL('image/jpeg', q); }
+          while (res.length > targetMaxBytes && q > 0.15) { q -= 0.1; res = canvas.toDataURL('image/jpeg', q); }
           resolve(res);
         };
       });
