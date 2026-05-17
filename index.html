@@ -157,7 +157,6 @@
       border-radius: 6px;
     }
 
-    /* SPECIFICATION COMPLIANCE: PASSPORT FRAME DOCK ARCHITECTURE STYLING */
     .passport-frame-container {
       position: relative; 
       width: 110px; 
@@ -552,17 +551,30 @@
     }
 
     function refreshData(p) {
-      const idMap = { 'apartments': 'apt-list', 'assets': 'asset-list', 'maintenance': 'maint-list', 'utilities': 'util-list', 'staff': 'staff-list', 'vendors': 'vendor-list', 'workorders': 'wo-list', 'inventory': 'inventory-list', 'archived': 'archived-list' };
+      const idMap = { 
+        'apartments': 'apt-list', 
+        'assets': 'asset-list', 
+        'maintenance': 'maint-list', 
+        'maint': 'maint-list', 
+        'utilities': 'util-list', 
+        'staff': 'staff-list', 
+        'vendors': 'vendor-list', 
+        'workorders': 'wo-list', 
+        'inventory': 'inventory-list', 
+        'archived': 'archived-list' 
+      };
       const listEl = document.getElementById(idMap[p]); if (!listEl) return;
     
-      let apiCmd = p === 'assets' ? 'getAssets' : p === 'maintenance' ? 'getMaintenance' : p === 'utilities' ? 'getUtilities' : p === 'staff' ? 'getStaff' : p === 'vendors' ? 'getVendors' : p === 'workorders' ? 'getWorkOrders' : p === 'inventory' ? 'getInventory' : 'getApartments';
+      // SPECIFICATION COMPLIANCE: ISMAINT FLAG INTERCEPT ROUTER TO ENSURE STABLE PIPELINE LOOPS ON SHORT CODES
+      const isMaint = (p === 'maintenance' || p === 'maint');
+      let apiCmd = p === 'assets' ? 'getAssets' : isMaint ? 'getMaintenance' : p === 'utilities' ? 'getUtilities' : p === 'staff' ? 'getStaff' : p === 'vendors' ? 'getVendors' : p === 'workorders' ? 'getWorkOrders' : p === 'inventory' ? 'getInventory' : 'getApartments';
       if (p === 'archived') { renderArchiveBinDashboardView(listEl); return; }
 
       callApi(apiCmd, {}).then(data => {
         let displayData = data || [];
         if (p === 'apartments') cache.apts = displayData;
         if (p === 'assets') { cache.assets = displayData; displayData = displayData.filter(item => item.status !== 'Archived'); }
-        if (p === 'maintenance') cache.tickets = displayData;
+        if (isMaint) cache.tickets = displayData;
         if (p === 'staff') { cache.staff = displayData; displayData = displayData.filter(item => item.archived !== 'Yes'); }
         if (p === 'vendors') { cache.vendors = displayData; displayData = displayData.filter(item => item.archived !== 'Yes'); }
         if (p === 'utilities') cache.utilities = displayData;
@@ -573,7 +585,7 @@
           const filter = document.getElementById('asset-unit-filter');
           if (filter && filter.value !== "ALL") displayData = displayData.filter(item => item.apt === filter.value);
         }
-        if (p === 'maintenance') {
+        if (isMaint) {
           const filter = document.getElementById('maint-status-filter');
           if (filter && filter.value !== "ALL") displayData = displayData.filter(item => item.status === filter.value);
         }
@@ -583,7 +595,7 @@
         }
     
         listEl.innerHTML = displayData.map(item => {
-          if (p === 'maintenance') {
+          if (isMaint) {
             return `
               <div class="card" onclick="openRecordRow('maintenance', '${item.ticketId}')">
                 <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:4px;">
@@ -683,7 +695,6 @@
       targetContainerElement.innerHTML = archiveBundleHTML;
     }
 
-    // UPDATED PREVIEW SYSTEM CAPABLE OF GENERATING LIVE EXTENSION ICONS FOR RECOGNIZED PDFs
     function populateModalInlineImageGalleryPreviews(csvUrls, renderBoxId) {
       const box = document.getElementById(renderBoxId); if(!box) return;
       const parsedArray = csvUrls ? csvUrls.split(',').filter(Boolean) : [];
@@ -698,7 +709,6 @@
       }).join('');
     }
 
-    // MULTI-ATTACHMENT PROCESSOR ENFORCING BOUNDARIES (MAX 200KB FOR PHOTOS / MAX 500KB FOR PDFs)
     function processIncomingMultiAttachments(filesList, trackingQueue, previewTargetId) {
       if(!filesList || filesList.length === 0) return;
       Array.from(filesList).forEach(file => {
@@ -934,7 +944,6 @@
           callApi('saveUtility', { apt: document.getElementById('g_equipment').value, type: "Plant Check", meterNo: document.getElementById('g_tank').value, reading: document.getElementById('g_reading').value, amount: document.getElementById('g_added').value || 0, notes: document.getElementById('g_notes').value, photos: '' }).then(() => { closeModal(); refreshData('utilities'); });
         };
       }
-      // SPECIFICATION COMPLIANCE: COMPLETE RE-ENGINEERING FOR STAFF OPERATIONS FIELD ENTRIES
       else if (type === 'staff') {
         const uniqueId = isEdit ? editData.rowId : "STF-" + Math.random().toString(36).substr(2, 5).toUpperCase();
         title.innerText = "Staff Profile Management";
@@ -953,12 +962,11 @@
           <label ${labelStyle}>Staff ID</label><input id="st_id" value="${uniqueId}" ${largeInput} ${isEdit?'disabled':''}>
           <label ${labelStyle}>Employee Full Name</label><input id="st_name" value="${isEdit?editData.name:''}" ${largeInput}>
           <label ${labelStyle}>Core Specialization / Role</label><input id="st_role" value="${isEdit?editData.role:''}" ${largeInput}>
-          
           <label ${labelStyle}>Phone 1</label><input id="st_p1" type="tel" maxlength="11" value="${isEdit?(editData.phone1 || ''):''}" ${largeInput}>
           <label ${labelStyle}>Phone 2</label><input id="st_p2" type="tel" maxlength="11" value="${isEdit?(editData.phone2 || ''):''}" ${largeInput}>
           <label ${labelStyle}>Staff Email Address</label><input id="st_email" type="email" value="${isEdit?(editData.email || ''):''}" ${largeInput}>
           
-          <label ${labelStyle}>Deployment State Status</label>
+          <label ${labelStyle}>Profile Archive Lifecycle Deployment State</label>
           <select id="st_archived" ${largeInput}>
             <option value="No" ${isEdit && editData.archived === 'No' ? 'selected' : ''}>Active Member</option>
             <option value="Yes" ${isEdit && editData.archived === 'Yes' ? 'selected' : ''}>Archived / Deactivated Account</option>
@@ -988,7 +996,6 @@
           callApi(isEdit?'updateStaff':'saveStaff', { rowId: document.getElementById('st_id').value, name: document.getElementById('st_name').value, role: document.getElementById('st_role').value, phone1: document.getElementById('st_p1').value, phone2: document.getElementById('st_p2').value, email: document.getElementById('st_email').value, passport: avatarPhoto, attachments: attachmentPhotoQueue.join(','), archived: document.getElementById('st_archived').value }).then(() => { closeModal(); refreshData('staff'); });
         };
       }
-      // SPECIFICATION COMPLIANCE: COMPLETE RE-ENGINEERING FOR VENDOR FIELD PARAMETERS
       else if (type === 'vendor') {
         const uniqueId = isEdit ? editData.rowId : "VND-" + Math.random().toString(36).substr(2, 5).toUpperCase();
         title.innerText = "Vendor SLA Registry Profile";
@@ -1008,7 +1015,6 @@
           <label ${labelStyle}>Corporate Entity Name</label><input id="v_company" value="${isEdit?editData.company:''}" ${largeInput}>
           <label ${labelStyle}>Trade Domain Specialization</label><input id="v_trade" value="${isEdit?editData.trade:''}" ${largeInput}>
           <label ${labelStyle}>Primary Account Contact Name</label><input id="v_contact" value="${isEdit?editData.contactName:''}" ${largeInput}>
-          
           <label ${labelStyle}>Phone 1</label><input id="v_phone1" type="tel" value="${isEdit?(editData.phone1 || ''):''}" ${largeInput}>
           <label ${labelStyle}>Phone 2</label><input id="v_phone2" type="tel" value="${isEdit?(editData.phone2 || ''):''}" ${largeInput}>
           <label ${labelStyle}>Corporate Support Email</label><input id="v_email" type="email" value="${isEdit?(editData.email || ''):''}" ${largeInput}>
@@ -1126,7 +1132,31 @@
 
       if (layout === "apt_short_all") {
         const filteredApts = cache.apts.filter(a => a.status !== 'Services' && a.tenant !== 'Services');
-        contentHtml = `<h3>PROPERTY OCCUPANCY SHORT DIRECTORY</h3><table class="print-table"><thead><tr><th>Unit</th><th>Tenant</th><th>Status</th></tr></thead><tbody>${filteredApts.map(a => `<tr><td>Unit ${a.apt}</td><td>${a.tenant || 'VACANT'}</td><td>${a.status}</td></tr>`).join('')}</tbody></table>`;
+        // SPECIFICATION COMPLIANCE: EXTENDED RE-ENGINEERED COMPREHENSIVE DIRECTORY HEADER COLUMNS
+        contentHtml = `
+          <h3>PROPERTY OCCUPANCY SHORT DIRECTORY</h3>
+          <table class="print-table">
+            <thead>
+              <tr>
+                <th>Unit</th>
+                <th>Type</th>
+                <th>Tenant Name</th>
+                <th>Status</th>
+                <th>Lease End Date</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${filteredApts.map(a => `
+                <tr>
+                  <td>Unit ${a.apt}</td>
+                  <td>${a.type || 'Standard'}</td>
+                  <td>${a.tenant || 'VACANT'}</td>
+                  <td>${a.status}</td>
+                  <td>${a.leaseEnd || 'N/A'}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>`;
       } 
       else if (layout === "tkt_status") {
         contentHtml = `<h3>MAINTENANCE TICKETS LEDGER</h3><table class="print-table"><thead><tr><th>Ticket ID</th><th>Unit</th><th>Category</th><th>Status</th></tr></thead><tbody>${cache.tickets.map(t => `<tr><td>${t.ticketId}</td><td>Unit ${t.apt}</td><td>${t.category}</td><td>${t.status}</td></tr>`).join('')}</tbody></table>`;
