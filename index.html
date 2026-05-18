@@ -678,7 +678,6 @@
       const woCount = cache.workorders ? cache.workorders.filter(w => String(w.archived || w.Archived || '') !== 'Yes').length : 0;
       const cashSum = cache.payments ? cache.payments.reduce((acc, p) => acc + (parseFloat(p.amount) || 0), 0) : 0;
 
-      // Compound Counter Loop Engine: Parses dates, appends targets <= 14 days
       const today = new Date(); today.setHours(0,0,0,0);
       const fourteenDaysLimit = new Date(); fourteenDaysLimit.setDate(today.getDate() + 14); fourteenDaysLimit.setHours(23,59,59,999);
       let pmCombinedSum = 0;
@@ -878,7 +877,7 @@
               <div class="card" onclick="openRecordRow('apartment', '${unitId}')">
                 <div style="display:flex; justify-content:space-between; align-items:center;">
                   <div><strong style="font-size:22px;">Unit ${unitId}</strong><br><span style="font-weight:600; color:var(--muted);">${item.tenant || item.Tenant || 'Vacant Infrastructure'}</span></div>
-                  <span style="padding:4px 10px; border:2px solid #000; border-radius:6px; font-size:12px; font-weight:900; background:${String(item.status || '') === 'Occupied' ? 'var(--success)' : String(item.status || '') === 'Common Area' ? 'var(--primary)' : 'var(--danger)'}; color:#fff;">${item.status || item.Status || 'Vacant'}</span>
+                  <span style="padding:4px 10px; border:2px solid #000; border-radius:6px; font-size:12px; font-weight:900; background:${String(item.status || '') === 'Occupied' ? 'var(--success)' : String(item.status || '') === 'Common Area' ? 'var(--primary)' : 'var(--danger)'}; color:#fff;">item.status || item.Status || 'Vacant'}</span>
                 </div>
               </div>`;
           }
@@ -1018,6 +1017,24 @@
         const uniqueTag = isEdit ? (editData.tag || editData.Tag) : "AST-" + Math.random().toString(36).substr(2, 5).toUpperCase();
         title.innerText = isEdit ? "Update Asset" : "Register Facility Asset";
         if (isEdit && (editData.photos || editData.Photos)) currentModalFiles = (editData.photos || editData.Photos).split(',').filter(Boolean);
+        
+        let defaultInterval = "30";
+        if (isEdit) {
+          var lastServicedRaw = editData.lastServiced || editData.LastServiced || '';
+          var nextServiceRaw = editData.nextService || editData.NextService || '';
+          if (lastServicedRaw.includes('/') && nextServiceRaw.includes('/')) {
+            var lsParts = lastServicedRaw.split('/');
+            var nsParts = nextServiceRaw.split('/');
+            var lsDate = new Date(lsParts[2], lsParts[1] - 1, lsParts[0]);
+            var nsDate = new Date(nsParts[2], nsParts[1] - 1, nsParts[0]);
+            var dTime = Math.abs(nsDate - lsDate);
+            var dDays = Math.ceil(dTime / (1000 * 60 * 60 * 24));
+            var optionsArr = [30, 60, 90, 120, 150, 180];
+            var closest = optionsArr.reduce((prev, curr) => Math.abs(curr - dDays) < Math.abs(prev - dDays) ? curr : prev);
+            defaultInterval = String(closest);
+          }
+        }
+
         body.innerHTML = `
           <label ${labelStyle}>Unit Connection Location</label><select id="a_apt" ${largeInput}></select>
           <label ${labelStyle}>Category Class Type</label><input id="a_type" value="${isEdit ? (editData.type || editData.Type) : ''}" ${largeInput}>
@@ -1032,7 +1049,17 @@
           <label ${labelStyle}>Internal Placement Area</label><input id="a_loc" value="${isEdit ? (editData.loc || editData.Loc) : ''}" ${largeInput}>
           <label ${labelStyle}>Last Serviced Date</label><input id="a_serviced" type="date" value="${isEdit ? fromSheetDate(editData.lastServiced || editData.LastServiced) : ''}" ${largeInput}>
           <label ${labelStyle}>Last Inspected Date</label><input id="a_inspected" type="date" value="${isEdit ? fromSheetDate(editData.lastInspected || editData.LastInspected) : ''}" ${largeInput}>
-          <label ${labelStyle}>Next Scheduled PM Check Due Date</label><input id="a_nextService" type="date" value="${isEdit ? fromSheetDate(editData.nextService || editData.NextService) : ''}" ${largeInput}>
+          
+          <label ${labelStyle}>Next Scheduled PM Due in</label>
+          <select id="a_nextServiceInterval" ${largeInput}>
+            <option value="30" ${defaultInterval==='30'?'selected':''}>30 days</option>
+            <option value="60" ${defaultInterval==='60'?'selected':''}>60 days</option>
+            <option value="90" ${defaultInterval==='90'?'selected':''}>90 days</option>
+            <option value="120" ${defaultInterval==='120'?'selected':''}>120 days</option>
+            <option value="150" ${defaultInterval==='150'?'selected':''}>150 days</option>
+            <option value="180" ${defaultInterval==='180'?'selected':''}>180 days</option>
+          </select>
+
           <label ${labelStyle}>Notes</label><textarea id="a_notes" rows="2" ${largeInput}>${isEdit ? (editData.notes || editData.Notes) : ''}</textarea>
           
           <label ${labelStyle}>Form Attachments</label>
@@ -1045,7 +1072,32 @@
 
         submit.onclick = () => {
           submit.disabled = true;
-          callApi(isEdit?'updateAsset':'saveAsset', { apt: document.getElementById('a_apt').value, tag: uniqueTag, type: document.getElementById('a_type').value, status: document.getElementById('a_status').value, specs: document.getElementById('a_specs').value, loc: document.getElementById('a_loc').value, lastServiced: toSheetDate(document.getElementById('a_serviced').value), lastInspected: toSheetDate(document.getElementById('a_inspected').value), nextService: toSheetDate(document.getElementById('a_nextService').value), notes: document.getElementById('a_notes').value, photos: currentModalFiles.join(','), archived: document.getElementById('a_status').value === "Archived" ? "Yes" : "No" }).then(() => { closeModal(); refreshData('assets'); });
+          const lastServicedVal = document.getElementById('a_serviced').value;
+          let calculatedNextServiceStr = "";
+          
+          if (lastServicedVal) {
+            const [y, m, d] = lastServicedVal.split('-');
+            const lastServicedDate = new Date(y, m - 1, d);
+            const daysToAdd = parseInt(document.getElementById('a_nextServiceInterval').value, 10) || 30;
+            lastServicedDate.setDate(lastServicedDate.getDate() + daysToAdd);
+            const pad = (num) => String(num).padStart(2, '0');
+            calculatedNextServiceStr = `${pad(lastServicedDate.getDate())}/${pad(lastServicedDate.getMonth() + 1)}/${lastServicedDate.getFullYear()}`;
+          }
+
+          callApi(isEdit?'updateAsset':'saveAsset', { 
+            apt: document.getElementById('a_apt').value, 
+            tag: uniqueTag, 
+            type: document.getElementById('a_type').value, 
+            status: document.getElementById('a_status').value, 
+            specs: document.getElementById('a_specs').value, 
+            loc: document.getElementById('a_loc').value, 
+            lastServiced: toSheetDate(lastServicedVal), 
+            lastInspected: toSheetDate(document.getElementById('a_inspected').value), 
+            nextService: calculatedNextServiceStr, 
+            notes: document.getElementById('a_notes').value, 
+            photos: currentModalFiles.join(','), 
+            archived: document.getElementById('a_status').value === "Archived" ? "Yes" : "No" 
+          }).then(() => { closeModal(); refreshData('assets'); });
         };
       }
       else if (type === 'maintenance') {
@@ -1417,7 +1469,7 @@
           var status = String(a.status || a.Status || '').toLowerCase();
           var tenant = String(a.tenant || a.Tenant || '').toLowerCase();
           var type = String(a.type || a.Type || '').toLowerCase();
-          return status !== 'services' && tenant !== 'services' && type !== 'services';
+          return status !== 'services' && status !== 'vacant' && tenant !== 'services' && type !== 'services';
         });
         contentHtml = `
           <h3>PROPERTY OCCUPANCY SHORT DIRECTORY</h3>
