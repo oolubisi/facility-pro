@@ -63,6 +63,21 @@
     .nav-card .count { font-size: 38px; font-weight: 900; color: var(--text); line-height: 1.1; } 
     .nav-card small { font-size: 16px; text-transform: uppercase; color: var(--text); font-weight: 800; margin-top: 4px; } 
 
+    .alert-banner {
+      background: #FFF3CD;
+      border: 2px solid #FFEBAA;
+      color: #856404;
+      padding: 14px;
+      border-radius: 16px;
+      margin-bottom: 15px;
+      font-weight: 700;
+      font-size: 15px;
+      display: none;
+      align-items: center;
+      gap: 10px;
+      cursor: pointer;
+    }
+
     .page-header { 
       display: flex; 
       align-items: center; 
@@ -253,6 +268,11 @@
           <img src="YOUR_LOGO_URL_HERE" alt="Logo" style="height: 45px; max-width: 130px; object-fit: contain;" onerror="this.style.display='none';">
           <h2 style="color:var(--primary); font-weight:800; margin: 0;">Facility Pro</h2>
         </div>
+
+        <div id="pms-alert-banner" class="alert-banner" onclick="showPage('assets')">
+          <i class="fas fa-exclamation-triangle"></i>
+          <span id="pms-alert-text">0 Heavy Assets Overdue for Scheduled PM Check</span>
+        </div>
         
         <div class="nav-grid">
           <div class="nav-card" onclick="showPage('apartments')">
@@ -280,19 +300,21 @@
             <div id="s-wo" class="count">--</div>
             <small>Work Orders</small>
           </div>
-          <div class="nav-card" onclick="showPage('reports');">
-            <i class="fas fa-print"></i>
-            <div style="font-size:16px; font-weight:900; margin-top:2px;">PRINT</div>
-            <small>Reports</small>
+          <div class="nav-card" onclick="showPage('assets')">
+            <i class="fas fa-clock"></i>
+            <div id="s-pm-due" class="count" style="color:var(--danger);">--</div>
+            <small>PM Due</small>
           </div>
         </div>
 
         <div class="more-container">
           <div id="moreMenu" class="more-menu">
             <div class="menu-item" onclick="showPage('utilities')"><i class="fas fa-bolt"></i> Utilities & Plant</div>
+            <div class="menu-item" onclick="showPage('payments')"><i class="fas fa-cash-register"></i> Inflow Ledger <span id="s-cash-total" style="margin-left:auto; font-size:13px; background:var(--success); color:white; padding:2px 8px; border-radius:6px; font-weight:900;">₦0</span></div>
             <div class="menu-item" onclick="showPage('staff')"><i class="fas fa-users"></i> Staff Directory</div>
             <div class="menu-item" onclick="showPage('vendors')"><i class="fas fa-truck"></i> Vendors</div>
             <div class="menu-item" onclick="showPage('archived')"><i class="fas fa-archive"></i> Archive Bin</div>
+            <div class="menu-item" onclick="showPage('reports');"><i class="fas fa-print"></i> Reports Console</div>
           </div>
           <button class="action-btn" style="background:var(--card-light); border:2px solid var(--border); color:#000;" onclick="toggleMoreMenu(event)">
             <i class="fas fa-ellipsis-h"></i> More Options
@@ -378,6 +400,17 @@
         <div id="inventory-list"></div>
       </div>
 
+      <div id="view-payments" class="page-view">
+        <div class="page-header">
+          <div class="header-group">
+            <button class="home-btn" onclick="showPage('dashboard')"><i class="fas fa-home"></i></button>
+            <h2>Inflow Revenue Ledger</h2>
+          </div>
+          <button class="action-btn" style="width:auto; padding:10px 20px;" onclick="openModal('payment')">Log Inflow</button>
+        </div>
+        <div id="payment-list"></div>
+      </div>
+
       <div id="view-utilities" class="page-view">
         <div class="page-header" style="flex-direction: column; align-items: flex-start; gap: 10px; border-bottom: 3px solid var(--text); padding-bottom:15px;">
           <div style="display:flex; width:100%; justify-content:space-between; align-items:center;">
@@ -391,6 +424,7 @@
             <button class="action-btn" style="flex:1; padding:12px; font-size:16px; background:var(--primary);" onclick="openModal('generator')"><i class="fas fa-charging-station"></i> Plant Log</button>
           </div>
         </div>
+        <div id="generator-efficiency-card" class="card" style="background:#E8F0FE; border-color:#B3D1FF; display:none; margin-bottom:15px;"></div>
         <div id="util-list" style="margin-top:15px;"></div>
       </div>
 
@@ -491,7 +525,7 @@
       } catch (err) { console.error("CRITICAL API DISCONNECT:", err); return null; }
     }
     
-    let cache = { apts: [], assets: [], tickets: [], staff: [], vendors: [], utilities: [], workorders: [], inventory: [] };
+    let cache = { apts: [], assets: [], tickets: [], staff: [], vendors: [], utilities: [], workorders: [], inventory: [], payments: [] };
     
     let currentModalFiles = [];
     let currentAvatarPhoto = "";
@@ -501,8 +535,8 @@
     };
 
     function bootstrapDataRegistriesPipeline() {
-      const actions = ['getApartments', 'getAssets', 'getMaintenance', 'getStaff', 'getVendors', 'getUtilities', 'getWorkOrders', 'getInventory'];
-      const map = ['apts', 'assets', 'tickets', 'staff', 'vendors', 'utilities', 'workorders', 'inventory'];
+      const actions = ['getApartments', 'getAssets', 'getMaintenance', 'getStaff', 'getVendors', 'getUtilities', 'getWorkOrders', 'getInventory', 'getPayments'];
+      const map = ['apts', 'assets', 'tickets', 'staff', 'vendors', 'utilities', 'workorders', 'inventory', 'payments'];
       
       Promise.all(actions.map(act => callApi(act, {}))).then(results => {
         results.forEach((res, i) => { 
@@ -510,11 +544,11 @@
         });
         if (cache.apts) sortApartmentsCacheList();
         updateDashboardCounters();
+        evalPreventiveMaintenanceAlerts();
         prepopulateStaticFilterSelectors();
       });
     }
 
-    // Resolves property coordinates matching structural variations
     function getUnitNumber(u) {
       if (!u) return '';
       if (u.apt !== undefined) return u.apt;
@@ -550,7 +584,6 @@
       }
     }
 
-    // Dynamic, Case-Insensitive Drops Builder (Addresses initial async loader latency checks)
     function populateUnitDropdown(selectElementId, currentlySelectedValue) {
       const selectElement = document.getElementById(selectElementId);
       if (!selectElement) return;
@@ -561,7 +594,7 @@
           const uNum = getUnitNumber(u);
           if (uNum !== undefined && uNum !== '') {
             const statusLabel = String(u.status || u.Status || '').toLowerCase();
-            if (statusLabel === 'services') return; // Enforce operational filters
+            if (statusLabel === 'services') return;
             
             const opt = document.createElement('option');
             opt.value = uNum;
@@ -587,6 +620,50 @@
       }
     }
 
+    function evalPreventiveMaintenanceAlerts() {
+      if (!cache.assets) return;
+      const today = new Date(); today.setHours(0,0,0,0);
+      let overdueCount = 0;
+      cache.assets.forEach(a => {
+        const nextDateStr = a.nextService || a.NextService || '';
+        if (nextDateStr && String(a.status || a.Status || '') !== 'Archived' && String(a.archived || a.Archived || '') !== 'Yes') {
+          const match = nextDateStr.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+          if (match) {
+            const nextServiceDate = new Date(match[3], match[2] - 1, match[1]);
+            if (nextServiceDate <= today) overdueCount++;
+          }
+        }
+      });
+      const banner = document.getElementById('pms-alert-banner');
+      const text = document.getElementById('pms-alert-text');
+      if (overdueCount > 0 && banner && text) {
+        text.innerText = `${overdueCount} Heavy Asset${overdueCount > 1 ? 's Are' : ' Is'} Overdue for Scheduled PM Check`;
+        banner.style.display = 'flex';
+      } else if (banner) {
+        banner.style.display = 'none';
+      }
+    }
+
+    function renderGeneratorEfficiencyLogs() {
+      const card = document.getElementById('generator-efficiency-card'); if (!card) return;
+      const plantLogs = (cache.utilities || []).filter(u => u.type === 'Plant Check' && String(getUnitNumber(u)).includes('GENERATOR')).sort((a,b) => parseFloat(b.reading || 0) - parseFloat(a.reading || 0));
+      if (plantLogs.length < 2) { card.style.display = 'none'; return; }
+      
+      const current = plantLogs[0];
+      const previous = plantLogs[1];
+      const deltaHours = parseFloat(current.reading || 0) - parseFloat(previous.reading || 0);
+      const litersAdded = parseFloat(current.amount || current.Amount || 0);
+      if (deltaHours > 0 && litersAdded > 0) {
+        const rate = (litersAdded / deltaHours).toFixed(2);
+        card.innerHTML = `<h4><i class="fas fa-chart-line"></i> Generator Burn Analytics</h4>
+                          <p style="font-size:14px; font-weight:600; margin-top:4px;">Last run logged <strong>${deltaHours} Hours</strong> with <strong>${litersAdded}L</strong> addition.</p>
+                          <div style="font-size:22px; font-weight:900; color:var(--primary); margin-top:5px;">${rate} L / Hr <span style="font-size:12px; color:var(--muted);">Consumption Rate</span></div>`;
+        card.style.display = 'block';
+      } else {
+        card.style.display = 'none';
+      }
+    }
+
     function updateDashboardCounters() {
       const tenancyCount = cache.apts ? cache.apts.filter(a => {
         var status = String(a.status || a.Status || '').toLowerCase();
@@ -599,12 +676,33 @@
       const invCount = cache.inventory ? cache.inventory.filter(i => String(i.archived || i.Archived || '') !== 'Yes').length : 0;
       const maintCount = cache.tickets ? cache.tickets.filter(t => String(t.status || t.Status || '') !== 'Resolved').length : 0;
       const woCount = cache.workorders ? cache.workorders.filter(w => String(w.archived || w.Archived || '') !== 'Yes').length : 0;
+      const cashSum = cache.payments ? cache.payments.reduce((acc, p) => acc + (parseFloat(p.amount) || 0), 0) : 0;
+
+      // Compound Counter Loop Engine: Parses dates, appends targets <= 14 days
+      const today = new Date(); today.setHours(0,0,0,0);
+      const fourteenDaysLimit = new Date(); fourteenDaysLimit.setDate(today.getDate() + 14); fourteenDaysLimit.setHours(23,59,59,999);
+      let pmCombinedSum = 0;
+      
+      if (cache.assets) {
+        cache.assets.forEach(a => {
+          const nextDateStr = a.nextService || a.NextService || '';
+          if (nextDateStr && String(a.status || a.Status || '') !== 'Archived' && String(a.archived || a.Archived || '') !== 'Yes') {
+            const match = nextDateStr.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+            if (match) {
+              const nextServiceDate = new Date(match[3], match[2] - 1, match[1]);
+              if (nextServiceDate <= fourteenDaysLimit) pmCombinedSum++;
+            }
+          }
+        });
+      }
 
       if (document.getElementById('s-tenancy')) document.getElementById('s-tenancy').innerText = tenancyCount || '0';
       if (document.getElementById('s-asset')) document.getElementById('s-asset').innerText = assetCount || '0';
       if (document.getElementById('s-inv')) document.getElementById('s-inv').innerText = invCount || '0';
       if (document.getElementById('count-maint')) document.getElementById('count-maint').innerText = maintCount || '0';
       if (document.getElementById('s-wo')) document.getElementById('s-wo').innerText = woCount || '0';
+      if (document.getElementById('s-pm-due')) document.getElementById('s-pm-due').innerText = pmCombinedSum || '0';
+      if (document.getElementById('s-cash-total')) document.getElementById('s-cash-total').innerText = '₦' + cashSum.toLocaleString();
 
       setTimeout(() => {
         callApi('getStats', {}).then(stats => {
@@ -614,7 +712,7 @@
           if (document.getElementById('s-inv') && stats.inventory !== undefined) document.getElementById('s-inv').innerText = stats.inventory;
           if (document.getElementById('count-maint') && stats.maint !== undefined) document.getElementById('count-maint').innerText = stats.maint;
           if (document.getElementById('s-wo') && stats.workorders !== undefined) document.getElementById('s-wo').innerText = stats.workorders;
-        }).catch(err => console.log("Bypassing server sync syncopation:", err));
+        }).catch(err => console.log("Bypassing server sync:", err));
       }, 2000);
     }
     
@@ -625,8 +723,9 @@
       document.querySelectorAll('.page-view').forEach(v => v.classList.remove('active-view'));
       const target = document.getElementById('view-' + p);
       if (target) { target.classList.add('active-view'); window.scrollTo(0,0); }
-      if (p === 'dashboard') updateDashboardCounters(); 
+      if (p === 'dashboard') { updateDashboardCounters(); evalPreventiveMaintenanceAlerts(); }
       else if (p === 'reports') initReportsEngine();
+      else if (p === 'utilities') { refreshData('utilities'); setTimeout(renderGeneratorEfficiencyLogs, 500); }
       else refreshData(p);
     }
 
@@ -639,6 +738,7 @@
       if (type === 'vendor') match = cache.vendors.find(i => String(i.rowId || i.RowId || i.ROWID) === String(lookupId));
       if (type === 'workorder') match = cache.workorders.find(i => String(i.workOrderId || i.WorkOrderId || i.WORKORDERID) === String(lookupId));
       if (type === 'inventory') match = cache.inventory.find(i => String(i.itemId || i.ItemId || i.ITEMID) === String(lookupId));
+      if (type === 'payment') match = cache.payments.find(i => String(i.paymentId || i.PaymentId) === String(lookupId));
       if (match) openModal(type, match);
     }
 
@@ -646,12 +746,12 @@
       const idMap = { 
         'apartments': 'apt-list', 'assets': 'asset-list', 'maintenance': 'maint-list', 
         'maint': 'maint-list', 'utilities': 'util-list', 'staff': 'staff-list', 
-        'vendors': 'vendor-list', 'workorders': 'wo-list', 'inventory': 'inventory-list', 'archived': 'archived-list' 
+        'vendors': 'vendor-list', 'workorders': 'wo-list', 'inventory': 'inventory-list', 'payments': 'payment-list', 'archived': 'archived-list' 
       };
       const listEl = document.getElementById(idMap[p]); if (!listEl) return;
     
       const isMaint = (p === 'maintenance' || p === 'maint');
-      let apiCmd = p === 'assets' ? 'getAssets' : p === 'vendors' ? 'getVendors' : isMaint ? 'getMaintenance' : p === 'utilities' ? 'getUtilities' : p === 'staff' ? 'getStaff' : p === 'workorders' ? 'getWorkOrders' : p === 'inventory' ? 'getInventory' : 'getApartments';
+      let apiCmd = p === 'assets' ? 'getAssets' : p === 'vendors' ? 'getVendors' : isMaint ? 'getMaintenance' : p === 'utilities' ? 'getUtilities' : p === 'staff' ? 'getStaff' : p === 'workorders' ? 'getWorkOrders' : p === 'inventory' ? 'getInventory' : p === 'payments' ? 'getPayments' : 'getApartments';
       if (p === 'archived') { renderArchiveBinDashboardView(listEl); return; }
 
       callApi(apiCmd, {}).then(data => {
@@ -663,6 +763,7 @@
         if (p === 'vendors') { cache.vendors = displayData; displayData = displayData.filter(item => item && String(item.archived || item.Archived || '') !== 'Yes'); }
         if (p === 'utilities') cache.utilities = displayData;
         if (p === 'workorders') cache.workorders = displayData;
+        if (p === 'payments') cache.payments = displayData;
         if (p === 'inventory') { cache.inventory = displayData; displayData = displayData.filter(item => item && String(item.archived || item.Archived || '') !== 'Yes'); }
     
         if (p === 'assets') {
@@ -704,6 +805,17 @@
                 <div style="font-size:15px; font-weight:600; color:#000;">${item.description || item.Description || ''}</div>
               </div>`;
           }
+          else if (p === 'payments') {
+            return `
+              <div class="card" onclick="openRecordRow('payment', '${item.paymentId || item.PaymentId}')">
+                <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:4px;">
+                  <div><strong style="font-size:20px;">Unit ${unitId}</strong><br><small style="color:var(--muted); font-weight:700;">ID: ${item.paymentId || item.PaymentId || ''}</small></div>
+                  <div style="text-align:right;"><span style="font-size:20px; font-weight:900; color:var(--success);">+₦${Number(item.amount || 0).toLocaleString()}</span><br><small style="font-size:11px; font-weight:700; color:var(--muted);">${item.date || ''}</small></div>
+                </div>
+                <div style="font-size:15px; font-weight:800; color:var(--primary);">${item.type || ''}</div>
+                ${item.reference ? `<div style="font-size:13px; font-weight:600; color:#000;">Ref: ${item.reference}</div>` : ''}
+              </div>`;
+          }
           else if (p === 'inventory') {
             return `
               <div class="card" onclick="openRecordRow('inventory', '${item.itemId || item.ItemId}')">
@@ -714,13 +826,20 @@
               </div>`;
           }
           else if (p === 'assets') {
+            const nextDateStr = item.nextService || item.NextService || '';
+            let isOverdue = false;
+            if (nextDateStr) {
+              const match = nextDateStr.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+              if (match) { isOverdue = new Date(match[3], match[2] - 1, match[1]) <= new Date().setHours(0,0,0,0); }
+            }
             return `
-              <div class="card" onclick="openRecordRow('asset', '${item.tag || item.Tag}')">
+              <div class="card" onclick="openRecordRow('asset', '${item.tag || item.Tag}')" style="${isOverdue ? 'border-left: 6px solid var(--danger);' : ''}">
                 <div style="display:flex; justify-content:space-between; align-items:start;">
                   <div><strong style="font-size:20px;">Unit ${unitId}</strong><br><span style="font-weight:800; color:var(--primary);">${item.type || item.Type || ''}</span></div>
                   <span style="padding:4px 10px; border:2px solid #000; border-radius:6px; font-size:12px; font-weight:900; background:#000; color:#fff;">${String(item.status || 'OPERATIONAL').toUpperCase()}</span>
                 </div>
                 <div style="font-size:14px; font-weight:700; margin-top:4px;">Tag Parameter: ${item.tag || item.Tag || ''}</div>
+                <div style="font-size:13px; font-weight:700; margin-top:2px; color:${isOverdue ? 'var(--danger)' : 'var(--muted)'};">Next PM Check: ${item.nextService || item.NextService || 'Not Tracked'}</div>
               </div>`;
           }
           else if (p === 'staff') {
@@ -913,20 +1032,20 @@
           <label ${labelStyle}>Internal Placement Area</label><input id="a_loc" value="${isEdit ? (editData.loc || editData.Loc) : ''}" ${largeInput}>
           <label ${labelStyle}>Last Serviced Date</label><input id="a_serviced" type="date" value="${isEdit ? fromSheetDate(editData.lastServiced || editData.LastServiced) : ''}" ${largeInput}>
           <label ${labelStyle}>Last Inspected Date</label><input id="a_inspected" type="date" value="${isEdit ? fromSheetDate(editData.lastInspected || editData.LastInspected) : ''}" ${largeInput}>
+          <label ${labelStyle}>Next Scheduled PM Check Due Date</label><input id="a_nextService" type="date" value="${isEdit ? fromSheetDate(editData.nextService || editData.NextService) : ''}" ${largeInput}>
           <label ${labelStyle}>Notes</label><textarea id="a_notes" rows="2" ${largeInput}>${isEdit ? (editData.notes || editData.Notes) : ''}</textarea>
           
           <label ${labelStyle}>Form Attachments</label>
           <div id="assetPreviews" class="modal-preview-grid" style="display:none;"></div>
           <label class="icon-upload-label"><i class="fas fa-paperclip"></i><input type="file" id="assetCameraInput" accept="image/*,application/pdf" style="display:none"></label>`;
         
-        // Hydrate unit element picker
         populateUnitDropdown('a_apt', isEdit ? getUnitNumber(editData) : '');
         if(isEdit && currentModalFiles.length > 0) populateModalInlineImageGalleryPreviews('assetPreviews');
         document.getElementById('assetCameraInput').onchange = (e) => { processIncomingMultiAttachments(e.target.files, 'assetPreviews'); };
 
         submit.onclick = () => {
           submit.disabled = true;
-          callApi(isEdit?'updateAsset':'saveAsset', { apt: document.getElementById('a_apt').value, tag: uniqueTag, type: document.getElementById('a_type').value, status: document.getElementById('a_status').value, specs: document.getElementById('a_specs').value, loc: document.getElementById('a_loc').value, lastServiced: toSheetDate(document.getElementById('a_serviced').value), lastInspected: toSheetDate(document.getElementById('a_inspected').value), notes: document.getElementById('a_notes').value, photos: currentModalFiles.join(','), archived: document.getElementById('a_status').value === "Archived" ? "Yes" : "No" }).then(() => { closeModal(); refreshData('assets'); });
+          callApi(isEdit?'updateAsset':'saveAsset', { apt: document.getElementById('a_apt').value, tag: uniqueTag, type: document.getElementById('a_type').value, status: document.getElementById('a_status').value, specs: document.getElementById('a_specs').value, loc: document.getElementById('a_loc').value, lastServiced: toSheetDate(document.getElementById('a_serviced').value), lastInspected: toSheetDate(document.getElementById('a_inspected').value), nextService: toSheetDate(document.getElementById('a_nextService').value), notes: document.getElementById('a_notes').value, photos: currentModalFiles.join(','), archived: document.getElementById('a_status').value === "Archived" ? "Yes" : "No" }).then(() => { closeModal(); refreshData('assets'); });
         };
       }
       else if (type === 'maintenance') {
@@ -1011,6 +1130,34 @@
             }).then(() => { closeModal(); refreshData('workorders'); });
           };
         }
+      }
+      else if (type === 'payment') {
+        const uniqueId = isEdit ? (editData.paymentId || editData.PaymentId) : "PAY-" + Math.random().toString(36).substr(2, 5).toUpperCase();
+        title.innerText = isEdit ? "Update Transaction Record" : "Log Inflow Revenue Ledger";
+        body.innerHTML = `
+          <label ${labelStyle}>Apartment Location Target</label><select id="p_apt" ${largeInput}></select>
+          <label ${labelStyle}>Payment Classification Type</label>
+          <select id="p_type" ${largeInput}>
+            <option value="Service Charge" ${isEdit && String(editData.type || editData.Type)==='Service Charge'?'selected':''}>Service Charge Inflow</option>
+            <option value="Rent Remittance" ${isEdit && String(editData.type || editData.Type)==='Rent Remittance'?'selected':''}>Rent Account Remittance</option>
+            <option value="Power Tokens" ${isEdit && String(editData.type || editData.Type)==='Power Tokens'?'selected':''}>Utility Token Purchase</option>
+          </select>
+          <label ${labelStyle}>Amount Settlement (₦)</label><input id="p_amount" type="number" value="${isEdit ? (editData.amount || editData.Amount || '') : ''}" ${largeInput}>
+          <label ${labelStyle}>Transaction Settlement Reference Note</label><input id="p_ref" value="${isEdit ? (editData.reference || editData.Reference || '') : ''}" placeholder="e.g. Bank Transfer Ref" ${largeInput}>
+          <label ${labelStyle}>Settlement Date</label><input id="p_date" type="date" value="${isEdit ? fromSheetDate(editData.date || editData.Date) : new Date().toISOString().split('T')[0]}" ${largeInput}>`;
+        
+        populateUnitDropdown('p_apt', isEdit ? getUnitNumber(editData) : '');
+        submit.onclick = () => {
+          submit.disabled = true;
+          callApi(isEdit ? 'updatePayment' : 'savePayment', {
+            paymentId: uniqueId,
+            apt: document.getElementById('p_apt').value,
+            type: document.getElementById('p_type').value,
+            amount: document.getElementById('p_amount').value,
+            reference: document.getElementById('p_ref').value,
+            date: toSheetDate(document.getElementById('p_date').value)
+          }).then(() => { closeModal(); refreshData('payments'); });
+        };
       }
       else if (type === 'inventory') {
         const uniqueItem = isEdit ? (editData.itemId || editData.ItemId) : "INV-" + Math.random().toString(36).substr(2, 5).toUpperCase();
@@ -1224,7 +1371,7 @@
     function fromSheetDate(dStr) { if (!dStr || !dStr.includes('/')) return ""; const [d, m, y] = dStr.split('/'); return `${y}-${m}-${d}`; }
     function toSheetDate(dStr) { if (!dStr) return ""; const [y, m, d] = dStr.split('-'); return `${d}/${m}/${y}`; }
     function getDirectImageUrl(url) { if (!url) return ""; if (url.includes('drive.google.com')) { const fileId = url.split('/d/')[1]?.split('/')[0] || url.split('id=')[1]?.split('&')[0]; return `https://drive.google.com/thumbnail?id=${fileId}&sz=w800`; } return url; }
-    function closeModal() { document.getElementById('modalOverlay').style.display = 'none'; updateDashboardCounters(); }
+    function closeModal() { document.getElementById('modalOverlay').style.display = 'none'; bootstrapDataRegistriesPipeline(); }
 
     function initReportsEngine() {
       const pipeline = [callApi('getApartments', {}).then(r => cache.apts = r || []), callApi('getAssets', {}).then(r => cache.assets = r || []), callApi('getMaintenance', {}).then(r => cache.tickets = r || []), callApi('getWorkOrders', {}).then(r => cache.workorders = r || [])];
