@@ -560,6 +560,61 @@
       return '';
     }
 
+    // Comprehensive Date Pipeline Engine
+    function fromSheetDate(dStr) {
+      if (!dStr) return "";
+      dStr = String(dStr).trim();
+      if (dStr.match(/^\d{4}-\d{2}-\d{2}/)) {
+        return dStr.substring(0, 10);
+      }
+      if (dStr.includes('/')) {
+        const clean = dStr.split(' ')[0];
+        const parts = clean.split('/');
+        if (parts.length === 3) {
+          return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+        }
+      }
+      const parsed = Date.parse(dStr);
+      if (!isNaN(parsed)) {
+        const dt = new Date(parsed);
+        const pad = (num) => String(num).padStart(2, '0');
+        return `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())}`;
+      }
+      return "";
+    }
+
+    function formatDateForDisplay(dStr) {
+      if (!dStr) return "Not Tracked";
+      dStr = String(dStr).trim();
+      if (dStr.match(/^\d{2}\/\d{2}\/\d{4}$/)) return dStr;
+      if (dStr.match(/^\d{4}-\d{2}-\d{2}/)) {
+        const parts = dStr.substring(0, 10).split('-');
+        return `${parts[2]}/${parts[1]}/${parts[0]}`;
+      }
+      if (dStr.includes('/')) {
+        const clean = dStr.split(' ')[0];
+        const parts = clean.split('/');
+        if (parts.length === 3) {
+          return `${parts[0].padStart(2, '0')}/${parts[1].padStart(2, '0')}/${parts[2]}`;
+        }
+      }
+      const parsed = Date.parse(dStr);
+      if (!isNaN(parsed)) {
+        const dt = new Date(parsed);
+        const pad = (num) => String(num).padStart(2, '0');
+        return `${pad(dt.getDate())}/${pad(dt.getMonth() + 1)}/${dt.getFullYear()}`;
+      }
+      return dStr;
+    }
+
+    function parseToLocalDateObject(dateStr) {
+      if (!dateStr) return null;
+      const normalized = fromSheetDate(dateStr);
+      if (!normalized) return null;
+      const [y, m, d] = normalized.split('-');
+      return new Date(parseInt(y, 10), parseInt(m, 10) - 1, parseInt(d, 10));
+    }
+
     function sortApartmentsCacheList() {
       if (!cache.apts || !Array.isArray(cache.apts)) return;
       cache.apts.sort((a, b) => {
@@ -625,13 +680,9 @@
       const today = new Date(); today.setHours(0,0,0,0);
       let overdueCount = 0;
       cache.assets.forEach(a => {
-        const nextDateStr = a.nextService || a.NextService || '';
-        if (nextDateStr && String(a.status || a.Status || '') !== 'Archived' && String(a.archived || a.Archived || '') !== 'Yes') {
-          const match = nextDateStr.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-          if (match) {
-            const nextServiceDate = new Date(match[3], match[2] - 1, match[1]);
-            if (nextServiceDate <= today) overdueCount++;
-          }
+        if (String(a.status || a.Status || '') !== 'Archived' && String(a.archived || a.Archived || '') !== 'Yes') {
+          const nextServiceDate = parseToLocalDateObject(a.nextService || a.NextService || '');
+          if (nextServiceDate && nextServiceDate <= today) overdueCount++;
         }
       });
       const banner = document.getElementById('pms-alert-banner');
@@ -684,13 +735,9 @@
       
       if (cache.assets) {
         cache.assets.forEach(a => {
-          const nextDateStr = a.nextService || a.NextService || '';
-          if (nextDateStr && String(a.status || a.Status || '') !== 'Archived' && String(a.archived || a.Archived || '') !== 'Yes') {
-            const match = nextDateStr.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-            if (match) {
-              const nextServiceDate = new Date(match[3], match[2] - 1, match[1]);
-              if (nextServiceDate <= fourteenDaysLimit) pmCombinedSum++;
-            }
+          if (String(a.status || a.Status || '') !== 'Archived' && String(a.archived || a.Archived || '') !== 'Yes') {
+            const nextServiceDate = parseToLocalDateObject(a.nextService || a.NextService || '');
+            if (nextServiceDate && nextServiceDate <= fourteenDaysLimit) pmCombinedSum++;
           }
         });
       }
@@ -809,7 +856,7 @@
               <div class="card" onclick="openRecordRow('payment', '${item.paymentId || item.PaymentId}')">
                 <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:4px;">
                   <div><strong style="font-size:20px;">Unit ${unitId}</strong><br><small style="color:var(--muted); font-weight:700;">ID: ${item.paymentId || item.PaymentId || ''}</small></div>
-                  <div style="text-align:right;"><span style="font-size:20px; font-weight:900; color:var(--success);">+₦${Number(item.amount || 0).toLocaleString()}</span><br><small style="font-size:11px; font-weight:700; color:var(--muted);">${item.date || ''}</small></div>
+                  <div style="text-align:right;"><span style="font-size:20px; font-weight:900; color:var(--success);">+₦${Number(item.amount || 0).toLocaleString()}</span><br><small style="font-size:11px; font-weight:700; color:var(--muted);">${formatDateForDisplay(item.date)}</small></div>
                 </div>
                 <div style="font-size:15px; font-weight:800; color:var(--primary);">${item.type || ''}</div>
                 ${item.reference ? `<div style="font-size:13px; font-weight:600; color:#000;">Ref: ${item.reference}</div>` : ''}
@@ -827,9 +874,9 @@
           else if (p === 'assets') {
             const nextDateStr = item.nextService || item.NextService || '';
             let isOverdue = false;
-            if (nextDateStr) {
-              const match = nextDateStr.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-              if (match) { isOverdue = new Date(match[3], match[2] - 1, match[1]) <= new Date().setHours(0,0,0,0); }
+            const nextServiceDate = parseToLocalDateObject(nextDateStr);
+            if (nextServiceDate) {
+              isOverdue = nextServiceDate <= new Date().setHours(0,0,0,0);
             }
             return `
               <div class="card" onclick="openRecordRow('asset', '${item.tag || item.Tag}')" style="${isOverdue ? 'border-left: 6px solid var(--danger);' : ''}">
@@ -838,7 +885,7 @@
                   <span style="padding:4px 10px; border:2px solid #000; border-radius:6px; font-size:12px; font-weight:900; background:#000; color:#fff;">${String(item.status || 'OPERATIONAL').toUpperCase()}</span>
                 </div>
                 <div style="font-size:14px; font-weight:700; margin-top:4px;">Tag Parameter: ${item.tag || item.Tag || ''}</div>
-                <div style="font-size:13px; font-weight:700; margin-top:2px; color:${isOverdue ? 'var(--danger)' : 'var(--muted)'};">Next PM Check: ${item.nextService || item.NextService || 'Not Tracked'}</div>
+                <div style="font-size:13px; font-weight:700; margin-top:2px; color:${isOverdue ? 'var(--danger)' : 'var(--muted)'};">Next PM Check: ${formatDateForDisplay(nextDateStr)}</div>
               </div>`;
           }
           else if (p === 'staff') {
@@ -877,7 +924,7 @@
               <div class="card" onclick="openRecordRow('apartment', '${unitId}')">
                 <div style="display:flex; justify-content:space-between; align-items:center;">
                   <div><strong style="font-size:22px;">Unit ${unitId}</strong><br><span style="font-weight:600; color:var(--muted);">${item.tenant || item.Tenant || 'Vacant Infrastructure'}</span></div>
-                  <span style="padding:4px 10px; border:2px solid #000; border-radius:6px; font-size:12px; font-weight:900; background:${String(item.status || '') === 'Occupied' ? 'var(--success)' : String(item.status || '') === 'Common Area' ? 'var(--primary)' : 'var(--danger)'}; color:#fff;">item.status || item.Status || 'Vacant'}</span>
+                  <span style="padding:4px 10px; border:2px solid #000; border-radius:6px; font-size:12px; font-weight:900; background:${String(item.status || '') === 'Occupied' ? 'var(--success)' : String(item.status || '') === 'Common Area' ? 'var(--primary)' : 'var(--danger)'}; color:#fff;">${item.status || item.Status || 'Vacant'}</span>
                 </div>
               </div>`;
           }
@@ -1020,17 +1067,15 @@
         
         let defaultInterval = "30";
         if (isEdit) {
-          var lastServicedRaw = editData.lastServiced || editData.LastServiced || '';
-          var nextServiceRaw = editData.nextService || editData.NextService || '';
-          if (lastServicedRaw.includes('/') && nextServiceRaw.includes('/')) {
-            var lsParts = lastServicedRaw.split('/');
-            var nsParts = nextServiceRaw.split('/');
-            var lsDate = new Date(lsParts[2], lsParts[1] - 1, lsParts[0]);
-            var nsDate = new Date(nsParts[2], nsParts[1] - 1, nsParts[0]);
-            var dTime = Math.abs(nsDate - lsDate);
-            var dDays = Math.ceil(dTime / (1000 * 60 * 60 * 24));
-            var optionsArr = [30, 60, 90, 120, 150, 180];
-            var closest = optionsArr.reduce((prev, curr) => Math.abs(curr - dDays) < Math.abs(prev - dDays) ? curr : prev);
+          const lsNormalized = fromSheetDate(editData.lastServiced || editData.LastServiced || '');
+          const nsNormalized = fromSheetDate(editData.nextService || editData.NextService || '');
+          if (lsNormalized && nsNormalized) {
+            const lsDate = new Date(lsNormalized);
+            const nsDate = new Date(nsNormalized);
+            const dTime = Math.abs(nsDate - lsDate);
+            const dDays = Math.ceil(dTime / (1000 * 60 * 60 * 24));
+            const optionsArr = [30, 60, 90, 120, 150, 180];
+            const closest = optionsArr.reduce((prev, curr) => Math.abs(curr - dDays) < Math.abs(prev - dDays) ? curr : prev);
             defaultInterval = String(closest);
           }
         }
@@ -1420,7 +1465,6 @@
       });
     }
 
-    function fromSheetDate(dStr) { if (!dStr || !dStr.includes('/')) return ""; const [d, m, y] = dStr.split('/'); return `${y}-${m}-${d}`; }
     function toSheetDate(dStr) { if (!dStr) return ""; const [y, m, d] = dStr.split('-'); return `${d}/${m}/${y}`; }
     function getDirectImageUrl(url) { if (!url) return ""; if (url.includes('drive.google.com')) { const fileId = url.split('/d/')[1]?.split('/')[0] || url.split('id=')[1]?.split('&')[0]; return `https://drive.google.com/thumbnail?id=${fileId}&sz=w800`; } return url; }
     function closeModal() { document.getElementById('modalOverlay').style.display = 'none'; bootstrapDataRegistriesPipeline(); }
@@ -1492,7 +1536,7 @@
                     <td>${a.type || a.Type || 'Standard'}</td>
                     <td>${a.tenant || a.Tenant || 'VACANT'}</td>
                     <td>${a.status || a.Status || ''}</td>
-                    <td>${a.leaseEnd || a.LeaseEnd || 'N/A'}</td>
+                    <td>${formatDateForDisplay(a.leaseEnd || a.LeaseEnd) || 'N/A'}</td>
                   </tr>
                 `;
               }).join('')}
