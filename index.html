@@ -560,7 +560,6 @@
       return '';
     }
 
-    // Comprehensive Date Pipeline Engine
     function fromSheetDate(dStr) {
       if (!dStr) return "";
       dStr = String(dStr).trim();
@@ -991,30 +990,46 @@
       if(document.getElementById('p_avatar_remove_btn')) document.getElementById('p_avatar_remove_btn').style.display = 'none';
     }
 
+    // Dynamic Multi-File Processor Engine with Automated Downscaling
     function processIncomingMultiAttachments(filesList, previewTargetId) {
       if(!filesList || filesList.length === 0) return;
       Array.from(filesList).forEach(file => {
         const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
-        const allowedMaxBytes = isPdf ? 500 * 1024 : 200 * 1024;
-        if (file.size > allowedMaxBytes) {
-          alert(`Boundary Warning: "${file.name}" exceeds limits (${isPdf ? 'PDF limit is 500KB' : 'Photo limit is 200KB'}). Skipped.`);
-          return;
-        }
-        const reader = new FileReader();
-        reader.onload = async (evt) => {
-          let base64StringData = evt.target.result;
-          if (!isPdf) {
-            base64StringData = await compressImageToTargetLimit(evt.target.result, 180000);
+        
+        if (isPdf) {
+          if (file.size > 500 * 1024) {
+            alert(`Boundary Warning: "${file.name}" exceeds limits (PDF limit is 500KB). Skipped.`);
+            return;
           }
-          const generatedName = (isPdf ? "pdf_" : "img_") + Date.now() + "_" + file.name.replace(/[^a-zA-Z0-9.]/g, "_");
-          callApi('uploadImage', { base64: base64StringData, name: generatedName }).then(res => {
-            if(res && res.url) {
-              currentModalFiles.push(res.url);
-              populateModalInlineImageGalleryPreviews(previewTargetId);
+          const reader = new FileReader();
+          reader.onload = (evt) => {
+            const generatedName = "pdf_" + Date.now() + "_" + file.name.replace(/[^a-zA-Z0-9.]/g, "_");
+            callApi('uploadImage', { base64: evt.target.result, name: generatedName }).then(res => {
+              if(res && res.url) {
+                currentModalFiles.push(res.url);
+                populateModalInlineImageGalleryPreviews(previewTargetId);
+              }
+            });
+          };
+          reader.readAsDataURL(file);
+        } else {
+          // Automatic Client-Side Compression Optimization Matrix for Images
+          const reader = new FileReader();
+          reader.onload = async (evt) => {
+            let base64StringData = evt.target.result;
+            if (file.size > 200 * 1024) {
+              base64StringData = await compressImageToTargetLimit(evt.target.result, 185000);
             }
-          });
-        };
-        reader.readAsDataURL(file);
+            const generatedName = "img_" + Date.now() + "_" + file.name.replace(/[^a-zA-Z0-9.]/g, "_");
+            callApi('uploadImage', { base64: base64StringData, name: generatedName }).then(res => {
+              if(res && res.url) {
+                currentModalFiles.push(res.url);
+                populateModalInlineImageGalleryPreviews(previewTargetId);
+              }
+            });
+          };
+          reader.readAsDataURL(file);
+        }
       });
     }
 
@@ -1348,7 +1363,10 @@
         document.getElementById('st_pass_uploader').onchange = (e) => {
           const file = e.target.files[0]; if(!file) return;
           const r = new FileReader(); r.onload = async (evt) => {
-            const comp = await compressImageToTargetLimit(evt.target.result, 195000);
+            let comp = evt.target.result;
+            if (file.size > 200 * 1024) {
+              comp = await compressImageToTargetLimit(evt.target.result, 185000);
+            }
             callApi('uploadImage', { base64: comp, name: "pass_" + uniqueId + ".jpg" }).then(res => { if(res.url){ currentAvatarPhoto = res.url; document.getElementById('passport_frame_view').src = getDirectImageUrl(res.url); document.getElementById('p_avatar_remove_btn').style.display='flex'; } });
           }; r.readAsDataURL(file);
         };
@@ -1402,7 +1420,10 @@
         document.getElementById('v_pass_uploader').onchange = (e) => {
           const file = e.target.files[0]; if(!file) return;
           const r = new FileReader(); r.onload = async (evt) => {
-            const comp = await compressImageToTargetLimit(evt.target.result, 195000);
+            let comp = evt.target.result;
+            if (file.size > 200 * 1024) {
+              comp = await compressImageToTargetLimit(evt.target.result, 185000);
+            }
             callApi('uploadImage', { base64: comp, name: "vpass_" + uniqueId + ".jpg" }).then(res => { if(res.url){ currentAvatarPhoto = res.url; document.getElementById('vendor_frame_view').src = getDirectImageUrl(res.url); document.getElementById('p_avatar_remove_btn').style.display='flex'; } });
           }; r.readAsDataURL(file);
         };
