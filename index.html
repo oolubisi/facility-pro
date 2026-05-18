@@ -505,9 +505,23 @@
       const map = ['apts', 'assets', 'tickets', 'staff', 'vendors', 'utilities', 'workorders', 'inventory'];
       
       Promise.all(actions.map(act => callApi(act, {}))).then(results => {
-        results.forEach((res, i) => { if(res) cache[map[i]] = res; });
+        results.forEach((res, i) => { 
+          if(res) cache[map[i]] = res; 
+        });
+        
+        // Ensure initial array loading processes alpha-numerical sorts naturally
+        if (cache.apts) sortApartmentsCacheList();
+        
         updateDashboardCounters();
         prepopulateStaticFilterSelectors();
+      });
+    }
+
+    function sortApartmentsCacheList() {
+      cache.apts.sort((a, b) => {
+        const aVal = parseInt(String(a.apt || a.Apt || '').replace(/[^0-9]/g, ''), 10) || 0;
+        const bVal = parseInt(String(b.apt || b.Apt || '').replace(/[^0-9]/g, ''), 10) || 0;
+        return aVal - bVal;
       });
     }
 
@@ -515,16 +529,28 @@
       const uFilter = document.getElementById('asset-unit-filter');
       if (uFilter && cache.apts.length > 0) {
         uFilter.innerHTML = '<option value="ALL">-- ALL ASSETS --</option>';
-        cache.apts.forEach(a => { const o = document.createElement('option'); o.value = a.apt; o.innerText = `Unit ${a.apt}`; uFilter.appendChild(o); });
+        cache.apts.forEach(a => {
+          const uNum = a.apt || a.Apt || a.APT;
+          if (uNum) {
+            const o = document.createElement('option'); o.value = uNum; o.innerText = `Unit ${uNum}`; uFilter.appendChild(o);
+          }
+        });
       }
     }
 
+    // FRONTEND STATS ENGINE: Applies explicit exclusions for hidden archived profiles and system service spaces
     function updateDashboardCounters() {
-      const tenancyCount = cache.apts ? cache.apts.length : 0;
-      const assetCount = cache.assets ? cache.assets.filter(a => a && a.status !== 'Archived').length : 0;
-      const invCount = cache.inventory ? cache.inventory.filter(i => i && i.archived !== 'Yes').length : 0;
-      const maintCount = cache.tickets ? cache.tickets.filter(t => t && t.status !== 'Resolved').length : 0;
-      const woCount = cache.workorders ? cache.workorders.length : 0;
+      const tenancyCount = cache.apts ? cache.apts.filter(a => {
+        var status = String(a.status || a.Status || '').toLowerCase();
+        var tenant = String(a.tenant || a.Tenant || '').toLowerCase();
+        var type = String(a.type || a.Type || '').toLowerCase();
+        return status !== 'services' && tenant !== 'services' && type !== 'services';
+      }).length : 0;
+      
+      const assetCount = cache.assets ? cache.assets.filter(a => String(a.status || a.Status || '') !== 'Archived' && String(a.archived || a.Archived || '') !== 'Yes').length : 0;
+      const invCount = cache.inventory ? cache.inventory.filter(i => String(i.archived || i.Archived || '') !== 'Yes').length : 0;
+      const maintCount = cache.tickets ? cache.tickets.filter(t => String(t.status || t.Status || '') !== 'Resolved').length : 0;
+      const woCount = cache.workorders ? cache.workorders.filter(w => String(w.archived || w.Archived || '') !== 'Yes').length : 0;
 
       if (document.getElementById('s-tenancy')) document.getElementById('s-tenancy').innerText = tenancyCount || '0';
       if (document.getElementById('s-asset')) document.getElementById('s-asset').innerText = assetCount || '0';
@@ -537,7 +563,7 @@
           if (!stats) return;
           if (document.getElementById('s-tenancy') && stats.tenancy !== undefined) document.getElementById('s-tenancy').innerText = stats.tenancy;
           if (document.getElementById('s-asset') && stats.asset !== undefined) document.getElementById('s-asset').innerText = stats.asset;
-          if (document.getElementById('s-inv') && stats.inventory !== undefined) document.getElementById('s-inv').innerText = cache.inventory.filter(i => i && i.archived !== 'Yes').length;
+          if (document.getElementById('s-inv') && stats.inventory !== undefined) document.getElementById('s-inv').innerText = stats.inventory;
           if (document.getElementById('count-maint') && stats.maint !== undefined) document.getElementById('count-maint').innerText = stats.maint;
           if (document.getElementById('s-wo') && stats.workorders !== undefined) document.getElementById('s-wo').innerText = stats.workorders;
         }).catch(err => console.log("Bypassing server sync syncopation:", err));
@@ -558,28 +584,21 @@
 
     function openRecordRow(type, lookupId) {
       let match = null;
-      if (type === 'apartment') match = cache.apts.find(i => String(i.apt) === String(lookupId));
-      if (type === 'asset') match = cache.assets.find(i => String(i.tag) === String(lookupId));
-      if (type === 'maintenance') match = cache.tickets.find(i => String(i.ticketId) === String(lookupId));
-      if (type === 'staff') match = cache.staff.find(i => String(i.rowId) === String(lookupId));
-      if (type === 'vendor') match = cache.vendors.find(i => String(i.rowId) === String(lookupId));
-      if (type === 'workorder') match = cache.workorders.find(i => String(i.workOrderId) === String(lookupId));
-      if (type === 'inventory') match = cache.inventory.find(i => String(i.itemId) === String(lookupId));
+      if (type === 'apartment') match = cache.apts.find(i => String(i.apt || i.Apt || i.APT) === String(lookupId));
+      if (type === 'asset') match = cache.assets.find(i => String(i.tag || i.Tag || i.TAG) === String(lookupId));
+      if (type === 'maintenance') match = cache.tickets.find(i => String(i.ticketId || i.TicketId || i.TICKETID) === String(lookupId));
+      if (type === 'staff') match = cache.staff.find(i => String(i.rowId || i.RowId || i.ROWID) === String(lookupId));
+      if (type === 'vendor') match = cache.vendors.find(i => String(i.rowId || i.RowId || i.ROWID) === String(lookupId));
+      if (type === 'workorder') match = cache.workorders.find(i => String(i.workOrderId || i.WorkOrderId || i.WORKORDERID) === String(lookupId));
+      if (type === 'inventory') match = cache.inventory.find(i => String(i.itemId || i.ItemId || i.ITEMID) === String(lookupId));
       if (match) openModal(type, match);
     }
 
     function refreshData(p) {
       const idMap = { 
-        'apartments': 'apt-list', 
-        'assets': 'asset-list', 
-        'maintenance': 'maint-list', 
-        'maint': 'maint-list', 
-        'utilities': 'util-list', 
-        'staff': 'staff-list', 
-        'vendors': 'vendor-list', 
-        'workorders': 'wo-list', 
-        'inventory': 'inventory-list', 
-        'archived': 'archived-list' 
+        'apartments': 'apt-list', 'assets': 'asset-list', 'maintenance': 'maint-list', 
+        'maint': 'maint-list', 'utilities': 'util-list', 'staff': 'staff-list', 
+        'vendors': 'vendor-list', 'workorders': 'wo-list', 'inventory': 'inventory-list', 'archived': 'archived-list' 
       };
       const listEl = document.getElementById(idMap[p]); if (!listEl) return;
     
@@ -589,109 +608,110 @@
 
       callApi(apiCmd, {}).then(data => {
         let displayData = data || [];
-        if (p === 'apartments') cache.apts = displayData;
-        if (p === 'assets') { cache.assets = displayData; displayData = displayData.filter(item => item && item.status !== 'Archived'); }
+        if (p === 'apartments') { cache.apts = displayData; sortApartmentsCacheList(); displayData = cache.apts; }
+        if (p === 'assets') { cache.assets = displayData; displayData = displayData.filter(item => item && String(item.status || item.Status || '') !== 'Archived' && String(item.archived || item.Archived || '') !== 'Yes'); }
         if (isMaint) cache.tickets = displayData;
-        if (p === 'staff') { cache.staff = displayData; displayData = displayData.filter(item => item && item.archived !== 'Yes'); }
-        if (p === 'vendors') { cache.vendors = displayData; displayData = displayData.filter(item => item && item.archived !== 'Yes'); }
+        if (p === 'staff') { cache.staff = displayData; displayData = displayData.filter(item => item && String(item.archived || item.Archived || '') !== 'Yes'); }
+        if (p === 'vendors') { cache.vendors = displayData; displayData = displayData.filter(item => item && String(item.archived || item.Archived || '') !== 'Yes'); }
         if (p === 'utilities') cache.utilities = displayData;
         if (p === 'workorders') cache.workorders = displayData;
-        if (p === 'inventory') { cache.inventory = displayData; displayData = displayData.filter(item => item && item.archived !== 'Yes'); }
+        if (p === 'inventory') { cache.inventory = displayData; displayData = displayData.filter(item => item && String(item.archived || item.Archived || '') !== 'Yes'); }
     
         if (p === 'assets') {
           const filter = document.getElementById('asset-unit-filter');
-          if (filter && filter.value !== "ALL") displayData = displayData.filter(item => item.apt === filter.value);
+          if (filter && filter.value !== "ALL") displayData = displayData.filter(item => String(item.apt || item.Apt || item.APT) === filter.value);
         }
         if (isMaint) {
           const filter = document.getElementById('maint-status-filter');
-          if (filter && filter.value !== "ALL") displayData = displayData.filter(item => item.status === filter.value);
+          if (filter && filter.value !== "ALL") displayData = displayData.filter(item => String(item.status || item.Status || '') === filter.value);
         }
         if (p === 'workorders') {
           const filter = document.getElementById('wo-status-filter');
-          if (filter && filter.value !== "ALL") displayData = displayData.filter(item => item.status === filter.value);
+          if (filter && filter.value !== "ALL") displayData = displayData.filter(item => String(item.status || item.Status || '') === filter.value);
         }
     
         listEl.innerHTML = displayData.map(item => {
           if (!item) return '';
+          var unitId = item.apt || item.Apt || item.APT || '';
           if (isMaint) {
             return `
-              <div class="card" onclick="openRecordRow('maintenance', '${item.ticketId}')">
+              <div class="card" onclick="openRecordRow('maintenance', '${item.ticketId || item.TicketId}')">
                 <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:4px;">
-                  <div><strong style="font-size:20px;">Unit ${item.apt}</strong><br><small style="color:var(--muted); font-weight:700;">${item.ticketId}</small></div>
-                  <span style="padding:4px 10px; border:2px solid #000; border-radius:6px; font-size:12px; font-weight:900; background:${item.status === 'Resolved' ? 'var(--success)' : 'var(--danger)'}; color:#fff;">${item.status ? item.status.toUpperCase() : 'OPEN'}</span>
+                  <div><strong style="font-size:20px;">Unit ${unitId}</strong><br><small style="color:var(--muted); font-weight:700;">${item.ticketId || item.TicketId}</small></div>
+                  <span style="padding:4px 10px; border:2px solid #000; border-radius:6px; font-size:12px; font-weight:900; background:${String(item.status || '').toLowerCase() === 'resolved' ? 'var(--success)' : 'var(--danger)'}; color:#fff;">${String(item.status || 'OPEN').toUpperCase()}</span>
                 </div>
-                <div style="font-size:16px; font-weight:800; color:var(--primary);">${item.category || ''}</div>
-                <div style="font-size:15px; color:#000; font-weight:600;">${item.description || ''}</div>
+                <div style="font-size:16px; font-weight:800; color:var(--primary);">${item.category || item.Category || ''}</div>
+                <div style="font-size:15px; color:#000; font-weight:600;">${item.description || item.Description || ''}</div>
               </div>`;
           } 
           else if (p === 'workorders') {
             return `
-              <div class="card" onclick="openRecordRow('workorder', '${item.workOrderId}')">
+              <div class="card" onclick="openRecordRow('workorder', '${item.workOrderId || item.WorkOrderId}')">
                 <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:4px;">
-                  <div><strong style="font-size:20px;">Unit ${item.apt}</strong><br><small style="color:var(--muted); font-weight:700;">${item.workOrderId}</small></div>
-                  <span style="padding:4px 10px; border:2px solid #000; border-radius:6px; font-size:12px; font-weight:900; background:${item.status === 'Approved' ? 'var(--success)' : item.status === 'Declined' ? 'var(--danger)' : '#ffc107'}; color:#fff;">${item.status ? item.status.toUpperCase() : 'PENDING'}</span>
+                  <div><strong style="font-size:20px;">Unit ${unitId}</strong><br><small style="color:var(--muted); font-weight:700;">${item.workOrderId || item.WorkOrderId}</small></div>
+                  <span style="padding:4px 10px; border:2px solid #000; border-radius:6px; font-size:12px; font-weight:900; background:${String(item.status || '') === 'Approved' ? 'var(--success)' : String(item.status || '') === 'Declined' ? 'var(--danger)' : '#ffc107'}; color:#fff;">${String(item.status || 'PENDING').toUpperCase()}</span>
                 </div>
                 <div style="font-size:18px; font-weight:900; color:var(--success)">₦${Number(item.amount || 0).toLocaleString()}</div>
                 ${item.assigned ? `<div style="font-size:14px; font-weight:700; color:var(--muted); margin-bottom:4px;"><i class="fas fa-user-check"></i> ${item.assigned} ${item.duration ? `• ${item.duration}` : ''}</div>` : ''}
-                <div style="font-size:15px; font-weight:600; color:#000;">${item.description || ''}</div>
+                <div style="font-size:15px; font-weight:600; color:#000;">${item.description || item.Description || ''}</div>
               </div>`;
           }
           else if (p === 'inventory') {
             return `
-              <div class="card" onclick="openRecordRow('inventory', '${item.itemId}')">
+              <div class="card" onclick="openRecordRow('inventory', '${item.itemId || item.ItemId}')">
                 <div style="display:flex; justify-content:space-between; align-items:center;">
-                  <div><strong style="font-size:20px; color:#000;">${item.name || 'Unnamed Item'}</strong><br><small style="color:var(--muted); font-weight:700;">ID: ${item.itemId || ''} [${item.category || 'General'}]</small></div>
-                  <div style="text-align:right;"><span style="font-size:22px; font-weight:900; color:var(--primary);">${item.qty || 0}</span><br><small style="font-weight:800; font-size:10px; color:var(--muted)">UNITS</small></div>
+                  <div><strong style="font-size:20px; color:#000;">${item.name || item.Name || 'Unnamed Item'}</strong><br><small style="color:var(--muted); font-weight:700;">ID: ${item.itemId || item.ItemId || ''} [${item.category || item.Category || 'General'}]</small></div>
+                  <div style="text-align:right;"><span style="font-size:22px; font-weight:900; color:var(--primary);">${item.qty || item.Qty || 0}</span><br><small style="font-weight:800; font-size:10px; color:var(--muted)">UNITS</small></div>
                 </div>
               </div>`;
           }
           else if (p === 'assets') {
             return `
-              <div class="card" onclick="openRecordRow('asset', '${item.tag}')">
+              <div class="card" onclick="openRecordRow('asset', '${item.tag || item.Tag}')">
                 <div style="display:flex; justify-content:space-between; align-items:start;">
-                  <div><strong style="font-size:20px;">Unit ${item.apt}</strong><br><span style="font-weight:800; color:var(--primary);">${item.type || ''}</span></div>
-                  <span style="padding:4px 10px; border:2px solid #000; border-radius:6px; font-size:12px; font-weight:900; background:#000; color:#fff;">${item.status ? item.status.toUpperCase() : 'OPERATIONAL'}</span>
+                  <div><strong style="font-size:20px;">Unit ${unitId}</strong><br><span style="font-weight:800; color:var(--primary);">${item.type || item.Type || ''}</span></div>
+                  <span style="padding:4px 10px; border:2px solid #000; border-radius:6px; font-size:12px; font-weight:900; background:#000; color:#fff;">${String(item.status || 'OPERATIONAL').toUpperCase()}</span>
                 </div>
-                <div style="font-size:14px; font-weight:700; margin-top:4px;">Tag Parameter: ${item.tag || ''}</div>
+                <div style="font-size:14px; font-weight:700; margin-top:4px;">Tag Parameter: ${item.tag || item.Tag || ''}</div>
               </div>`;
           }
           else if (p === 'staff') {
             return `
-              <div class="card" onclick="openRecordRow('staff', '${item.rowId}')">
+              <div class="card" onclick="openRecordRow('staff', '${item.rowId || item.RowId}')">
                 <div style="display:flex; gap:12px; align-items:center;">
-                  <img src="${getDirectImageUrl(item.passport) || 'data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 width=%2240%22 height=%2240%22><path d=%22M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z%22 fill=%22%23ccc%22/></svg>'}" style="width:60px; height:60px; object-fit:cover; border-radius:50%; border:2px solid #000;">
-                  <div style="flex:1;"><strong style="font-size:18px;">${item.name || ''}</strong><br><span style="font-weight:700; color:var(--muted); font-size:13px;">ID: ${item.rowId || ''}</span><br><span style="font-weight:700; color:var(--primary); font-size:14px;">${item.role || ''}</span></div>
+                  <img src="${getDirectImageUrl(item.passport || item.Passport) || 'data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 width=%2240%22 height=%2240%22><path d=%22M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z%22 fill=%22%23ccc%22/></svg>'}" style="width:60px; height:60px; object-fit:cover; border-radius:50%; border:2px solid #000;">
+                  <div style="flex:1;"><strong style="font-size:18px;">${item.name || item.Name || ''}</strong><br><span style="font-weight:700; color:var(--muted); font-size:13px;">ID: ${item.rowId || item.RowId || ''}</span><br><span style="font-weight:700; color:var(--primary); font-size:14px;">${item.role || item.Role || ''}</span></div>
                 </div>
               </div>`;
           }
           else if (p === 'vendors') {
             return `
-              <div class="card" onclick="openRecordRow('vendor', '${item.rowId || ''}')">
+              <div class="card" onclick="openRecordRow('vendor', '${item.rowId || item.RowId || ''}')">
                 <div style="display:flex; gap:12px; align-items:center;">
                   <div style="flex:1;">
-                    <strong style="font-size:18px;">${item.company || 'Unnamed Corporate Vendor'}</strong><br>
-                    <span style="font-weight:700; color:var(--muted); font-size:13px;">ID: ${item.rowId || ''}</span><br>
-                    <span style="font-weight:700; color:var(--success); font-size:14px;">${String(item.trade || '').toUpperCase()}</span>
+                    <strong style="font-size:18px;">${item.company || item.Company || 'Unnamed Corporate Vendor'}</strong><br>
+                    <span style="font-weight:700; color:var(--muted); font-size:13px;">ID: ${item.rowId || item.RowId || ''}</span><br>
+                    <span style="font-weight:700; color:var(--success); font-size:14px;">${String(item.trade || item.Trade || '').toUpperCase()}</span>
                   </div>
                 </div>
               </div>`;
           }
           else if (p === 'utilities') {
-            const isPlant = item.type === 'Plant Check' || String(item.apt || '').includes('GENERATOR') || item.apt === 'DIESEL-TANK';
+            const isPlant = item.type === 'Plant Check' || String(unitId).includes('GENERATOR') || unitId === 'DIESEL-TANK';
             return `
               <div class="card" style="border-left: 6px solid ${isPlant ? '#fd7e14' : 'var(--primary)'};">
                 <div style="display:flex; justify-content:space-between; align-items:start;">
-                  <div><strong>${item.apt || ''}</strong><br><span style="font-size:12px; font-weight:800; color:var(--muted);">${String(item.type || '').toUpperCase()}</span></div>
-                  <span style="padding:4px 10px; font-weight:900; background:#000; color:#fff; border-radius:6px; font-size:14px;">${item.reading || 0}</span>
+                  <div><strong>${unitId}</strong><br><span style="font-size:12px; font-weight:800; color:var(--muted);">${String(item.type || '').toUpperCase()}</span></div>
+                  <span style="padding:4px 10px; font-weight:900; background:#000; color:#fff; border-radius:6px; font-size:14px;">${item.reading || item.Reading || 0}</span>
                 </div>
               </div>`;
           }
           else {
             return `
-              <div class="card" onclick="openRecordRow('apartment', '${item.apt}')">
+              <div class="card" onclick="openRecordRow('apartment', '${unitId}')">
                 <div style="display:flex; justify-content:space-between; align-items:center;">
-                  <div><strong style="font-size:22px;">Unit ${item.apt}</strong><br><span style="font-weight:600; color:var(--muted);">${item.tenant || 'Vacant Infrastructure'}</span></div>
-                  <span style="padding:4px 10px; border:2px solid #000; border-radius:6px; font-size:12px; font-weight:900; background:${item.status === 'Occupied' ? 'var(--success)' : item.status === 'Common Area' ? 'var(--primary)' : 'var(--danger)'}; color:#fff;">${item.status || 'Vacant'}</span>
+                  <div><strong style="font-size:22px;">Unit ${unitId}</strong><br><span style="font-weight:600; color:var(--muted);">${item.tenant || item.Tenant || 'Vacant Infrastructure'}</span></div>
+                  <span style="padding:4px 10px; border:2px solid #000; border-radius:6px; font-size:12px; font-weight:900; background:${String(item.status || '') === 'Occupied' ? 'var(--success)' : String(item.status || '') === 'Common Area' ? 'var(--primary)' : 'var(--danger)'}; color:#fff;">${item.status || item.Status || 'Vacant'}</span>
                 </div>
               </div>`;
           }
@@ -703,29 +723,28 @@
       let archiveBundleHTML = "";
       const selectedFilterSegment = document.getElementById('archive-segment-filter') ? document.getElementById('archive-segment-filter').value : 'ALL';
       
-      const archivedAssets = cache.assets.filter(a => a && a.status === 'Archived');
-      const archivedStaff = cache.staff.filter(s => s && s.archived === 'Yes');
-      const archivedVendors = cache.vendors.filter(v => v && v.archived === 'Yes');
-      const archivedInventory = cache.inventory.filter(i => i && i.archived === 'Yes');
+      const archivedAssets = cache.assets.filter(a => a && (String(a.status || a.Status || '') === 'Archived' || String(a.archived || a.Archived || '') === 'Yes'));
+      const archivedStaff = cache.staff.filter(s => s && String(s.archived || s.Archived || '') === 'Yes');
+      const archivedVendors = cache.vendors.filter(v => v && String(v.archived || v.Archived || '') === 'Yes');
+      const archivedInventory = cache.inventory.filter(i => i && String(i.archived || i.Archived || '') === 'Yes');
 
       if (selectedFilterSegment === 'ALL' || selectedFilterSegment === 'assets') {
-        archivedAssets.forEach(a => { archiveBundleHTML += `<div class="card" style="border-left:5px solid var(--danger)"><strong>[ASSET ARCHIVE] ${a.type || 'Asset'}</strong><br><small>Tag Ref ID: ${a.tag} | Location: Unit ${a.apt}</small></div>`; });
+        archivedAssets.forEach(a => { archiveBundleHTML += `<div class="card" style="border-left:5px solid var(--danger)"><strong>[ASSET ARCHIVE] ${a.type || 'Asset'}</strong><br><small>Tag Ref ID: ${a.tag || a.Tag} | Location: Unit ${a.apt || a.Apt}</small></div>`; });
       }
       if (selectedFilterSegment === 'ALL' || selectedFilterSegment === 'inventory') {
-        archivedInventory.forEach(i => { archiveBundleHTML += `<div class="card" style="border-left:5px solid #ffc107"><strong>[INVENTORY ARCHIVE] ${i.name || ''}</strong><br><small>Category: ${i.category} | Qty: ${i.qty} | ID: ${i.itemId}</small></div>`; });
+        archivedInventory.forEach(i => { archiveBundleHTML += `<div class="card" style="border-left:5px solid #ffc107"><strong>[INVENTORY ARCHIVE] ${i.name || i.Name || ''}</strong><br><small>Category: ${i.category || i.Category} | Qty: ${i.qty || i.Qty} | ID: ${i.itemId || i.ItemId}</small></div>`; });
       }
       if (selectedFilterSegment === 'ALL' || selectedFilterSegment === 'staff') {
-        archivedStaff.forEach(s => { archiveBundleHTML += `<div class="card" style="border-left:5px solid var(--primary)"><strong>[STAFF ARCHIVE] ${s.name || ''}</strong><br><small>Role: ${s.role} | Staff ID: ${s.rowId}</small></div>`; });
+        archivedStaff.forEach(s => { archiveBundleHTML += `<div class="card" style="border-left:5px solid var(--primary)"><strong>[STAFF ARCHIVE] ${s.name || s.Name || ''}</strong><br><small>Role: ${s.role || s.Role} | Staff ID: ${s.rowId || s.RowId}</small></div>`; });
       }
       if (selectedFilterSegment === 'ALL' || selectedFilterSegment === 'vendors') {
-        archivedVendors.forEach(v => { archiveBundleHTML += `<div class="card" style="border-left:5px solid var(--success)"><strong>[VENDOR ARCHIVE] ${v.company || ''}</strong><br><small>Trade Field: ${v.trade} | Vendor ID: ${v.rowId}</small></div>`; });
+        archivedVendors.forEach(v => { archiveBundleHTML += `<div class="card" style="border-left:5px solid var(--success)"><strong>[VENDOR ARCHIVE] ${v.company || v.Company || ''}</strong><br><small>Trade Field: ${v.trade || v.Trade} | Vendor ID: ${v.rowId || v.RowId}</small></div>`; });
       }
 
       if(!archiveBundleHTML) {
         targetContainerElement.innerHTML = `<p style="text-align:center; padding:30px; font-weight:700; color:var(--muted)">No archived items match this selection profile.</p>`;
         return;
       }
-
       targetContainerElement.innerHTML = archiveBundleHTML;
     }
 
@@ -764,12 +783,10 @@
       Array.from(filesList).forEach(file => {
         const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
         const allowedMaxBytes = isPdf ? 500 * 1024 : 200 * 1024;
-        
         if (file.size > allowedMaxBytes) {
           alert(`Boundary Warning: "${file.name}" exceeds limits (${isPdf ? 'PDF limit is 500KB' : 'Photo limit is 200KB'}). Skipped.`);
           return;
         }
-
         const reader = new FileReader();
         reader.onload = async (evt) => {
           let base64StringData = evt.target.result;
@@ -801,21 +818,22 @@
       currentAvatarPhoto = "";
     
       if (type === 'apartment') {
-        title.innerText = "Unit Profile: " + (editData.apt || '');
-        if (isEdit && editData.photos) currentModalFiles = editData.photos.split(',').filter(Boolean);
+        var currentUnit = editData.apt || editData.Apt || editData.APT || '';
+        title.innerText = "Unit Profile: " + currentUnit;
+        if (isEdit && (editData.photos || editData.Photos)) currentModalFiles = (editData.photos || editData.Photos).split(',').filter(Boolean);
         body.innerHTML = `
-          <label ${labelStyle}>Tenant Name</label><input id="f_tenant" value="${editData.tenant || ''}" ${largeInput}>
+          <label ${labelStyle}>Tenant Name</label><input id="f_tenant" value="${editData.tenant || editData.Tenant || ''}" ${largeInput}>
           <label ${labelStyle}>Status State</label>
           <select id="f_status" ${largeInput}>
-            <option value="Occupied" ${editData.status=='Occupied'?'selected':''}>Occupied</option>
-            <option value="Vacant" ${editData.status=='Vacant'?'selected':''}>Vacant</option>
-            <option value="Common Area" ${editData.status=='Common Area'?'selected':''}>Common Area</option>
+            <option value="Occupied" ${String(editData.status || editData.Status)==='Occupied'?'selected':''}>Occupied</option>
+            <option value="Vacant" ${String(editData.status || editData.Status)==='Vacant'?'selected':''}>Vacant</option>
+            <option value="Common Area" ${String(editData.status || editData.Status)==='Common Area'?'selected':''}>Common Area</option>
           </select>
-          <label ${labelStyle}>Phone 1</label><input id="f_p1" type="tel" maxlength="11" oninput="this.value=this.value.replace(/[^0-9]/g,'')" value="${editData.phone1 || ''}" ${largeInput}>
-          <label ${labelStyle}>Phone 2</label><input id="f_p2" type="tel" maxlength="11" oninput="this.value=this.value.replace(/[^0-9]/g,'')" value="${editData.phone2 || ''}" ${largeInput}>
-          <label ${labelStyle}>Lease End</label><input id="f_lease" type="date" value="${fromSheetDate(editData.leaseEnd)}" ${largeInput}>
-          <label ${labelStyle}>Last Inspected</label><input id="f_inspected" type="date" value="${fromSheetDate(editData.inspected)}" ${largeInput}>
-          <label ${labelStyle}>Notes</label><textarea id="f_notes" rows="2" ${largeInput}>${editData.notes || ''}</textarea>
+          <label ${labelStyle}>Phone 1</label><input id="f_p1" type="tel" maxlength="11" oninput="this.value=this.value.replace(/[^0-9]/g,'')" value="${editData.phone1 || editData.Phone1 || ''}" ${largeInput}>
+          <label ${labelStyle}>Phone 2</label><input id="f_p2" type="tel" maxlength="11" oninput="this.value=this.value.replace(/[^0-9]/g,'')" value="${editData.phone2 || editData.Phone2 || ''}" ${largeInput}>
+          <label ${labelStyle}>Lease End</label><input id="f_lease" type="date" value="${fromSheetDate(editData.leaseEnd || editData.LeaseEnd)}" ${largeInput}>
+          <label ${labelStyle}>Last Inspected</label><input id="f_inspected" type="date" value="${fromSheetDate(editData.inspected || editData.Inspected)}" ${largeInput}>
+          <label ${labelStyle}>Notes</label><textarea id="f_notes" rows="2" ${largeInput}>${editData.notes || editData.Notes || ''}</textarea>
           
           <label ${labelStyle}>Form Attachments</label>
           <div id="aptPreviews" class="modal-preview-grid" style="display:none;"></div>
@@ -826,34 +844,42 @@
 
         submit.onclick = () => {
           submit.disabled = true;
-          callApi('updateApartment', { apt: editData.apt, tenant: document.getElementById('f_tenant').value, status: document.getElementById('f_status').value, phone1: String(document.getElementById('f_p1').value), phone2: String(document.getElementById('f_p2').value), leaseEnd: toSheetDate(document.getElementById('f_lease').value), inspected: toSheetDate(document.getElementById('f_inspected').value), notes: document.getElementById('f_notes').value, photos: currentModalFiles.join(','), type: editData.type, oldApt: editData.apt }).then(() => { closeModal(); refreshData('apartments'); });
+          callApi('updateApartment', { apt: currentUnit, tenant: document.getElementById('f_tenant').value, status: document.getElementById('f_status').value, phone1: String(document.getElementById('f_p1').value), phone2: String(document.getElementById('f_p2').value), leaseEnd: toSheetDate(document.getElementById('f_lease').value), inspected: toSheetDate(document.getElementById('f_inspected').value), notes: document.getElementById('f_notes').value, photos: currentModalFiles.join(','), type: editData.type || editData.Type || '', oldApt: currentUnit }).then(() => { closeModal(); refreshData('apartments'); });
         };
       }
       else if (type === 'asset') {
-        const uniqueTag = isEdit ? editData.tag : "AST-" + Math.random().toString(36).substr(2, 5).toUpperCase();
+        const uniqueTag = isEdit ? (editData.tag || editData.Tag) : "AST-" + Math.random().toString(36).substr(2, 5).toUpperCase();
         title.innerText = isEdit ? "Update Asset" : "Register Facility Asset";
-        if (isEdit && editData.photos) currentModalFiles = editData.photos.split(',').filter(Boolean);
+        if (isEdit && (editData.photos || editData.Photos)) currentModalFiles = (editData.photos || editData.Photos).split(',').filter(Boolean);
         body.innerHTML = `
           <label ${labelStyle}>Unit Connection Location</label><select id="a_apt" ${largeInput}></select>
-          <label ${labelStyle}>Category Class Type</label><input id="a_type" value="${isEdit ? editData.type : ''}" ${largeInput}>
+          <label ${labelStyle}>Category Class Type</label><input id="a_type" value="${isEdit ? (editData.type || editData.Type) : ''}" ${largeInput}>
           <label ${labelStyle}>Asset Functional Status</label>
           <select id="a_status" ${largeInput}>
-            <option value="Operational" ${isEdit&&editData.status==='Operational'?'selected':''}>Operational</option>
-            <option value="Faulty" ${isEdit&&editData.status==='Faulty'?'selected':''}>Faulty</option>
-            <option value="Under Repair" ${isEdit&&editData.status==='Under Repair'?'selected':''}>Under Repair</option>
-            <option value="Archived" ${isEdit&&editData.status==='Archived'?'selected':''}>Archived</option>
+            <option value="Operational" ${isEdit&&String(editData.status || editData.Status)==='Operational'?'selected':''}>Operational</option>
+            <option value="Faulty" ${isEdit&&String(editData.status || editData.Status)==='Faulty'?'selected':''}>Faulty</option>
+            <option value="Under Repair" ${isEdit&&String(editData.status || editData.Status)==='Under Repair'?'selected':''}>Under Repair</option>
+            <option value="Archived" ${isEdit&&String(editData.status || editData.Status)==='Archived'?'selected':''}>Archived</option>
           </select>
-          <label ${labelStyle}>Specs Configuration Profile</label><input id="a_specs" value="${isEdit ? editData.specs : ''}" ${largeInput}>
-          <label ${labelStyle}>Internal Placement Area</label><input id="a_loc" value="${isEdit ? editData.loc : ''}" ${largeInput}>
-          <label ${labelStyle}>Last Serviced Date</label><input id="a_serviced" type="date" value="${isEdit ? fromSheetDate(editData.lastServiced) : ''}" ${largeInput}>
-          <label ${labelStyle}>Last Inspected Date</label><input id="a_inspected" type="date" value="${isEdit ? fromSheetDate(editData.lastInspected) : ''}" ${largeInput}>
-          <label ${labelStyle}>Notes</label><textarea id="a_notes" rows="2" ${largeInput}>${isEdit ? editData.notes : ''}</textarea>
+          <label ${labelStyle}>Specs Configuration Profile</label><input id="a_specs" value="${isEdit ? (editData.specs || editData.Specs) : ''}" ${largeInput}>
+          <label ${labelStyle}>Internal Placement Area</label><input id="a_loc" value="${isEdit ? (editData.loc || editData.Loc) : ''}" ${largeInput}>
+          <label ${labelStyle}>Last Serviced Date</label><input id="a_serviced" type="date" value="${isEdit ? fromSheetDate(editData.lastServiced || editData.LastServiced) : ''}" ${largeInput}>
+          <label ${labelStyle}>Last Inspected Date</label><input id="a_inspected" type="date" value="${isEdit ? fromSheetDate(editData.lastInspected || editData.LastInspected) : ''}" ${largeInput}>
+          <label ${labelStyle}>Notes</label><textarea id="a_notes" rows="2" ${largeInput}>${isEdit ? (editData.notes || editData.Notes) : ''}</textarea>
           
           <label ${labelStyle}>Form Attachments</label>
           <div id="assetPreviews" class="modal-preview-grid" style="display:none;"></div>
           <label class="icon-upload-label"><i class="fas fa-paperclip"></i><input type="file" id="assetCameraInput" accept="image/*,application/pdf" style="display:none"></label>`;
         
-        const sel = document.getElementById('a_apt'); (cache.apts || []).forEach(u => { const o=document.createElement('option'); o.value=u.apt; o.innerText='Unit ' + u.apt; if(isEdit&&u.apt===editData.apt) o.selected=true; sel.appendChild(o); });
+        const sel = document.getElementById('a_apt'); 
+        (cache.apts || []).forEach(u => {
+          const uNum = u.apt || u.Apt || u.APT;
+          if (uNum) {
+            const o=document.createElement('option'); o.value=uNum; o.innerText='Unit ' + uNum; 
+            if(isEdit && String(uNum)===String(editData.apt || editData.Apt)) o.selected=true; 
+            sel.appendChild(o);
+          }
+        });
         if(isEdit && currentModalFiles.length > 0) populateModalInlineImageGalleryPreviews('assetPreviews');
         document.getElementById('assetCameraInput').onchange = (e) => { processIncomingMultiAttachments(e.target.files, 'assetPreviews'); };
 
@@ -863,35 +889,43 @@
         };
       }
       else if (type === 'maintenance') {
-        const uniqueTicket = isEdit ? editData.ticketId : "TKT-" + Math.random().toString(36).substr(2, 5).toUpperCase();
+        const uniqueTicket = isEdit ? (editData.ticketId || editData.TicketId) : "TKT-" + Math.random().toString(36).substr(2, 5).toUpperCase();
         title.innerText = isEdit ? "Update Ticket" : "Log Maintenance Issue";
-        if (isEdit && editData.photos) currentModalFiles = editData.photos.split(',').filter(Boolean);
+        if (isEdit && (editData.photos || editData.Photos)) currentModalFiles = (editData.photos || editData.Photos).split(',').filter(Boolean);
         body.innerHTML = `
           <label ${labelStyle}>Property Target Unit Coordinate</label><select id="m_apt" ${largeInput}></select>
-          <label ${labelStyle}>Issue Category</label><input id="m_category" value="${isEdit ? editData.category : ''}" ${largeInput}>
+          <label ${labelStyle}>Issue Category</label><input id="m_category" value="${isEdit ? (editData.category || editData.Category) : ''}" ${largeInput}>
           <label ${labelStyle}>Priority Level</label>
           <select id="m_priority" ${largeInput}>
-            <option value="Low" ${isEdit&&editData.priority==='Low'?'selected':''}>Low</option>
-            <option value="Medium" ${isEdit&&editData.priority==='Medium'?'selected':''}>Medium</option>
-            <option value="High" ${isEdit&&editData.priority==='High'?'selected':''}>High</option>
+            <option value="Low" ${isEdit&&String(editData.priority || editData.Priority)==='Low'?'selected':''}>Low</option>
+            <option value="Medium" ${isEdit&&String(editData.priority || editData.Priority)==='Medium'?'selected':''}>Medium</option>
+            <option value="High" ${isEdit&&String(editData.priority || editData.Priority)==='High'?'selected':''}>High</option>
           </select>
           <label ${labelStyle}>Ticket Lifecycle Status</label>
           <select id="m_status" ${largeInput}>
-            <option value="Open" ${isEdit&&editData.status==='Open'?'selected':''}>Open</option>
-            <option value="In Progress" ${isEdit&&editData.status==='In Progress'?'selected':''}>In Progress</option>
-            <option value="Resolved" ${isEdit&&editData.status==='Resolved'?'selected':''}>Resolved</option>
+            <option value="Open" ${isEdit&&String(editData.status || editData.Status)==='Open'?'selected':''}>Open</option>
+            <option value="In Progress" ${isEdit&&String(editData.status || editData.Status)==='In Progress'?'selected':''}>In Progress</option>
+            <option value="Resolved" ${isEdit&&String(editData.status || editData.Status)==='Resolved'?'selected':''}>Resolved</option>
           </select>
           <label ${labelStyle}>Assigned Responder Entity</label><select id="m_tech" ${largeInput}></select>
-          <label ${labelStyle}>Problem Narrative Description</label><textarea id="m_desc" rows="3" ${largeInput}>${isEdit ? editData.description : ''}</textarea>
+          <label ${labelStyle}>Problem Narrative Description</label><textarea id="m_desc" rows="3" ${largeInput}>${isEdit ? (editData.description || editData.Description) : ''}</textarea>
           
           <label ${labelStyle}>Form Attachments</label>
           <div id="maintPreviews" class="modal-preview-grid" style="display:none;"></div>
           <label class="icon-upload-label"><i class="fas fa-paperclip"></i><input type="file" id="maintCameraInput" accept="image/*,application/pdf" style="display:none"></label>`;
 
-        const aSel = document.getElementById('m_apt'); (cache.apts || []).forEach(u => { const o=document.createElement('option'); o.value=u.apt; o.innerText='Unit ' + u.apt; if(isEdit&&String(u.apt)===String(editData.apt)) o.selected=true; aSel.appendChild(o); });
+        const aSel = document.getElementById('m_apt'); 
+        (cache.apts || []).forEach(u => { 
+          const uNum = u.apt || u.Apt || u.APT;
+          if (uNum) {
+            const o=document.createElement('option'); o.value=uNum; o.innerText='Unit ' + uNum; 
+            if(isEdit && String(uNum)===String(editData.apt || editData.Apt)) o.selected=true; 
+            aSel.appendChild(o); 
+          }
+        });
         const tSel = document.getElementById('m_tech'); tSel.innerHTML = '<option value="">-- Unassigned Responder --</option>';
-        (cache.staff || []).forEach(s => { const o=document.createElement('option'); o.value=`${s.name} (${s.role})`; o.innerText=`${s.name} [Staff]`; if(isEdit&&editData.tech===o.value) o.selected=true; tSel.appendChild(o); });
-        (cache.vendors || []).forEach(v => { const o=document.createElement('option'); o.value=`${v.company} (${v.trade})`; o.innerText=`${v.company} [Vendor]`; if(isEdit&&editData.tech===o.value) o.selected=true; tSel.appendChild(o); });
+        (cache.staff || []).forEach(s => { const o=document.createElement('option'); o.value=`${s.name || s.Name} (${s.role || s.Role})`; o.innerText=`${s.name || s.Name} [Staff]`; if(isEdit&&(editData.tech || editData.Tech)===o.value) o.selected=true; tSel.appendChild(o); });
+        (cache.vendors || []).forEach(v => { const o=document.createElement('option'); o.value=`${v.company || v.Company} (${v.trade || v.Trade})`; o.innerText=`${v.company || v.Company} [Vendor]`; if(isEdit&&(editData.tech || editData.Tech)===o.value) o.selected=true; tSel.appendChild(o); });
         
         if(isEdit && currentModalFiles.length > 0) populateModalInlineImageGalleryPreviews('maintPreviews');
         document.getElementById('maintCameraInput').onchange = (e) => { processIncomingMultiAttachments(e.target.files, 'maintPreviews'); };
@@ -902,32 +936,41 @@
         };
       }
       else if (type === 'workorder') {
-        const uniqueWO = isEdit ? editData.workOrderId : "WO-" + Math.random().toString(36).substr(2, 5).toUpperCase();
+        const uniqueWO = isEdit ? (editData.workOrderId || editData.WorkOrderId) : "WO-" + Math.random().toString(36).substr(2, 5).toUpperCase();
         title.innerText = isEdit ? "Work Order Portfolio" : "Log Work Order Expense";
-        const isApproved = isEdit && editData.status === "Approved";
+        const isApproved = isEdit && String(editData.status || editData.Status) === "Approved";
         
         body.innerHTML = `
           <label ${labelStyle}>Unit</label><select id="w_apt" ${largeInput} ${isApproved ? 'disabled' : ''}></select>
           <label ${labelStyle}>Assigned</label><select id="w_assigned" ${largeInput} ${isApproved ? 'disabled' : ''}></select>
-          <label ${labelStyle}>Duration</label><input id="w_duration" type="text" value="${isEdit ? (editData.duration || '') : ''}" placeholder="e.g. 3 Days, 1 Week" ${largeInput} ${isApproved ? 'disabled' : ''}>
-          <label ${labelStyle}>Budget (₦)</label><input id="w_amount" type="number" value="${isEdit ? editData.amount : ''}" placeholder="Cost allocation entry" ${largeInput} ${isApproved ? 'disabled' : ''}>
+          <label ${labelStyle}>Duration</label><input id="w_duration" type="text" value="${isEdit ? (editData.duration || editData.Duration || '') : ''}" placeholder="e.g. 3 Days, 1 Week" ${largeInput} ${isApproved ? 'disabled' : ''}>
+          <label ${labelStyle}>Budget (₦)</label><input id="w_amount" type="number" value="${isEdit ? (editData.amount || editData.Amount) : ''}" placeholder="Cost allocation entry" ${largeInput} ${isApproved ? 'disabled' : ''}>
           <label ${labelStyle}>Authorization Status</label>
           <select id="w_status" ${largeInput} ${isApproved ? 'disabled' : ''}>
-            <option value="Pending Approval" ${isEdit && editData.status==='Pending Approval'?'selected':''}>Pending Approval</option>
-            <option value="Approved" ${isEdit && editData.status==='Approved'?'selected':''}>Approved</option>
-            <option value="Declined" ${isEdit && editData.status==='Declined'?'selected':''}>Declined</option>
+            <option value="Pending Approval" ${isEdit && String(editData.status || editData.Status)==='Pending Approval'?'selected':''}>Pending Approval</option>
+            <option value="Approved" ${isEdit && String(editData.status || editData.Status)==='Approved'?'selected':''}>Approved</option>
+            <option value="Declined" ${isEdit && String(editData.status || editData.Status)==='Declined'?'selected':''}>Declined</option>
           </select>
-          <label ${labelStyle}>Scope / Narrative</label><textarea id="w_desc" rows="3" ${largeInput} ${isApproved ? 'disabled' : ''}>${isEdit ? editData.description : ''}</textarea>
-          <label ${labelStyle}>Operational Remarks</label><textarea id="w_notes" rows="2" ${largeInput} ${isApproved ? 'disabled' : ''}>${isEdit ? editData.notes : ''}</textarea>
+          <label ${labelStyle}>Scope / Narrative</label><textarea id="w_desc" rows="3" ${largeInput} ${isApproved ? 'disabled' : ''}>${isEdit ? (editData.description || editData.Description) : ''}</textarea>
+          <label ${labelStyle}>Operational Remarks</label><textarea id="w_notes" rows="2" ${largeInput} ${isApproved ? 'disabled' : ''}>${isEdit ? (editData.notes || editData.Notes) : ''}</textarea>
           ${isApproved ? `<button class="action-btn" style="background:var(--success); margin-top:15px;" onclick="printSingleWorkOrderDirect('${uniqueWO}')"><i class="fas fa-print"></i> Print Work Order</button>` : ''}`;
         
+        // CASE INSENSITIVE FALLBACK DROP-DOWN BUILDER: Fixes the 'undefined' selection label error
         const wSel = document.getElementById('w_apt'); 
-        (cache.apts || []).forEach(u => { const o=document.createElement('option'); o.value=u.apt; o.innerText='Unit ' + u.apt; if(isEdit && String(u.apt)===String(editData.apt)) o.selected=true; wSel.appendChild(o); });
+        wSel.innerHTML = '<option value="">-- Choose Unit Reference --</option>';
+        (cache.apts || []).forEach(u => { 
+          const uNum = u.apt || u.Apt || u.APT;
+          if (uNum) {
+            const o=document.createElement('option'); o.value=uNum; o.innerText='Unit ' + uNum; 
+            if(isEdit && String(uNum)===String(editData.apt || editData.Apt)) o.selected=true; 
+            wSel.appendChild(o); 
+          }
+        });
         
         const asSel = document.getElementById('w_assigned');
         asSel.innerHTML = '<option value="">-- Choose Participant --</option>';
-        (cache.staff || []).forEach(s => { const o=document.createElement('option'); o.value=`${s.name} (${s.role})`; o.innerText=`${s.name} [Staff]`; if(isEdit && editData.assigned===o.value) o.selected=true; asSel.appendChild(o); });
-        (cache.vendors || []).forEach(v => { const o=document.createElement('option'); o.value=`${v.company} (${v.trade})`; o.innerText=`${v.company} [Vendor]`; if(isEdit && editData.assigned===o.value) o.selected=true; asSel.appendChild(o); });
+        (cache.staff || []).forEach(s => { const o=document.createElement('option'); o.value=`${s.name || s.Name} (${s.role || s.Role})`; o.innerText=`${s.name || s.Name} [Staff]`; if(isEdit && (editData.assigned || editData.Assigned)===o.value) o.selected=true; asSel.appendChild(o); });
+        (cache.vendors || []).forEach(v => { const o=document.createElement('option'); o.value=`${v.company || v.Company} (${v.trade || v.Trade})`; o.innerText=`${v.company || v.Company} [Vendor]`; if(isEdit && (editData.assigned || editData.Assigned)===o.value) o.selected=true; asSel.appendChild(o); });
 
         if (isApproved) { submit.style.display = "none"; }
         else {
@@ -947,20 +990,20 @@
         }
       }
       else if (type === 'inventory') {
-        const uniqueItem = isEdit ? editData.itemId : "INV-" + Math.random().toString(36).substr(2, 5).toUpperCase();
+        const uniqueItem = isEdit ? (editData.itemId || editData.ItemId) : "INV-" + Math.random().toString(36).substr(2, 5).toUpperCase();
         title.innerText = isEdit ? "Edit Stock Ledger Item" : "Register New Inventory Item";
         body.innerHTML = `
           <label ${labelStyle}>Item Identity Code</label><input id="i_id" value="${uniqueItem}" disabled ${largeInput}>
-          <label ${labelStyle}>Material Item / Resource Name</label><input id="i_name" value="${isEdit ? editData.name : ''}" placeholder="e.g. Led Bulb 18W" ${largeInput}>
-          <label ${labelStyle}>Resource Stock Quantity</label><input id="i_qty" type="number" value="${isEdit ? editData.qty : '0'}" ${largeInput}>
-          <label ${labelStyle}>Material Category Classification</label><input id="i_category" value="${isEdit ? editData.category : ''}" placeholder="e.g. Electrical" ${largeInput}>
-          <label ${labelStyle}>Restock Minimum Alert Threshold</label><input id="i_min" type="number" value="${isEdit ? editData.minAlert : '5'}" ${largeInput}>
-          <label ${labelStyle}>Warehouse Location Placement Notes</label><textarea id="i_notes" rows="2" ${largeInput}>${isEdit ? editData.notes : ''}</textarea>
+          <label ${labelStyle}>Material Item / Resource Name</label><input id="i_name" value="${isEdit ? (editData.name || editData.Name) : ''}" placeholder="e.g. Led Bulb 18W" ${largeInput}>
+          <label ${labelStyle}>Resource Stock Quantity</label><input id="i_qty" type="number" value="${isEdit ? (editData.qty || editData.Qty) : '0'}" ${largeInput}>
+          <label ${labelStyle}>Material Category Classification</label><input id="i_category" value="${isEdit ? (editData.category || editData.Category) : ''}" placeholder="e.g. Electrical" ${largeInput}>
+          <label ${labelStyle}>Restock Minimum Alert Threshold</label><input id="i_min" type="number" value="${isEdit ? (editData.minAlert || editData.MinAlert) : '5'}" ${largeInput}>
+          <label ${labelStyle}>Warehouse Location Placement Notes</label><textarea id="i_notes" rows="2" ${largeInput}>${isEdit ? (editData.notes || editData.Notes) : ''}</textarea>
           
           <label ${labelStyle}>Archive Profile State</label>
           <select id="i_archived" ${largeInput}>
-            <option value="No" ${isEdit && editData.archived === 'Yes' ? '' : 'selected'}>Active Asset Track</option>
-            <option value="Yes" ${isEdit && editData.archived === 'Yes' ? 'selected' : ''}>Archived / Pinned Out</option>
+            <option value="No" ${isEdit && String(editData.archived || editData.Archived) === 'Yes' ? '' : 'selected'}>Active Asset Track</option>
+            <option value="Yes" ${isEdit && String(editData.archived || editData.Archived) === 'Yes' ? 'selected' : ''}>Archived / Pinned Out</option>
           </select>`;
         
         submit.onclick = () => {
@@ -978,7 +1021,13 @@
           <label ${labelStyle}>Consumption Meter Reading</label><input id="u_reading" type="number" ${largeInput}>
           <label ${labelStyle}>Token Purchase Cost (₦)</label><input id="u_amount" type="number" ${largeInput}>
           <label ${labelStyle}>Log Notes</label><textarea id="u_notes" rows="2" ${largeInput}></textarea>`;
-        const uSel = document.getElementById('u_apt'); (cache.apts || []).forEach(u => { const o=document.createElement('option'); o.value=u.apt; o.innerText='Unit ' + u.apt; uSel.appendChild(o); });
+        const uSel = document.getElementById('u_apt'); 
+        (cache.apts || []).forEach(u => { 
+          const uNum = u.apt || u.Apt || u.APT;
+          if (uNum) {
+            const o=document.createElement('option'); o.value=uNum; o.innerText='Unit ' + uNum; uSel.appendChild(o); 
+          }
+        });
         submit.onclick = () => {
           submit.disabled = true;
           callApi('saveUtility', { apt: uSel.value, type: document.getElementById('u_type').value, meterNo: document.getElementById('u_meter').value, reading: document.getElementById('u_reading').value, amount: document.getElementById('u_amount').value, notes: document.getElementById('u_notes').value, photos: '' }).then(() => { closeModal(); refreshData('utilities'); });
@@ -1000,10 +1049,10 @@
         };
       }
       else if (type === 'staff') {
-        const uniqueId = isEdit ? editData.rowId : "STF-" + Math.random().toString(36).substr(2, 5).toUpperCase();
+        const uniqueId = isEdit ? (editData.rowId || editData.RowId) : "STF-" + Math.random().toString(36).substr(2, 5).toUpperCase();
         title.innerText = "Staff Profile Management";
-        currentAvatarPhoto = isEdit ? editData.passport : "";
-        if (isEdit && editData.attachments) currentModalFiles = editData.attachments.split(',').filter(Boolean);
+        currentAvatarPhoto = isEdit ? (editData.passport || editData.Passport) : "";
+        if (isEdit && (editData.attachments || editData.Attachments)) currentModalFiles = (editData.attachments || editData.Attachments).split(',').filter(Boolean);
 
         body.innerHTML = `
           <div class="passport-frame-container" style="position:relative;">
@@ -1016,16 +1065,16 @@
           </div>
 
           <label ${labelStyle}>Staff ID</label><input id="st_id" value="${uniqueId}" ${largeInput} ${isEdit?'disabled':''}>
-          <label ${labelStyle}>Employee Full Name</label><input id="st_name" value="${isEdit?editData.name:''}" ${largeInput}>
-          <label ${labelStyle}>Core Specialization / Role</label><input id="st_role" value="${isEdit?editData.role:''}" ${largeInput}>
-          <label ${labelStyle}>Phone 1</label><input id="st_p1" type="tel" maxlength="11" inputmode="numeric" oninput="this.value=this.value.replace(/[^0-9]/g,'')" value="${isEdit?(editData.phone1 || ''):''}" ${largeInput}>
-          <label ${labelStyle}>Phone 2</label><input id="st_p2" type="tel" maxlength="11" inputmode="numeric" oninput="this.value=this.value.replace(/[^0-9]/g,'')" value="${isEdit?(editData.phone2 || ''):''}" ${largeInput}>
-          <label ${labelStyle}>Staff Email Address</label><input id="st_email" type="email" value="${isEdit?(editData.email || ''):''}" ${largeInput}>
+          <label ${labelStyle}>Employee Full Name</label><input id="st_name" value="${isEdit ? (editData.name || editData.Name) : ''}" ${largeInput}>
+          <label ${labelStyle}>Core Specialization / Role</label><input id="st_role" value="${isEdit ? (editData.role || editData.Role) : ''}" ${largeInput}>
+          <label ${labelStyle}>Phone 1</label><input id="st_p1" type="tel" maxlength="11" inputmode="numeric" oninput="this.value=this.value.replace(/[^0-9]/g,'')" value="${isEdit?(editData.phone1 || editData.Phone1 || ''):''}" ${largeInput}>
+          <label ${labelStyle}>Phone 2</label><input id="st_p2" type="tel" maxlength="11" inputmode="numeric" oninput="this.value=this.value.replace(/[^0-9]/g,'')" value="${isEdit?(editData.phone2 || editData.Phone2 || ''):''}" ${largeInput}>
+          <label ${labelStyle}>Staff Email Address</label><input id="st_email" type="email" value="${isEdit?(editData.email || editData.Email || ''):''}" ${largeInput}>
           
           <label ${labelStyle}>Profile Archive Lifecycle Deployment State</label>
           <select id="st_archived" ${largeInput}>
-            <option value="No" ${isEdit && editData.archived === 'No' ? 'selected' : ''}>Active Member</option>
-            <option value="Yes" ${isEdit && editData.archived === 'Yes' ? 'selected' : ''}>Archived / Deactivated Account</option>
+            <option value="No" ${isEdit && String(editData.archived || editData.Archived) === 'No' ? 'selected' : ''}>Active Member</option>
+            <option value="Yes" ${isEdit && String(editData.archived || editData.Archived) === 'Yes' ? 'selected' : ''}>Archived / Deactivated Account</option>
           </select>
 
           <label ${labelStyle}>Form Attachments</label>
@@ -1044,20 +1093,18 @@
         document.getElementById('st_multi_uploader').onchange = (e) => { processIncomingMultiAttachments(e.target.files, 'stAttachmentsPreviews'); };
 
         submit.onclick = () => {
-          const p1 = document.getElementById('st_p1').value;
-          const p2 = document.getElementById('st_p2').value;
+          const p1 = document.getElementById('st_p1').value; const p2 = document.getElementById('st_p2').value;
           if(!p1 || p1.length !== 11) { alert("Phone 1 must be exactly 11 numeric digits."); return; }
           if(!p2 || p2.length !== 11) { alert("Phone 2 must be exactly 11 numeric digits."); return; }
-          
           submit.disabled = true;
           callApi(isEdit?'updateStaff':'saveStaff', { rowId: document.getElementById('st_id').value, name: document.getElementById('st_name').value, role: document.getElementById('st_role').value, phone1: String(p1), phone2: String(p2), email: document.getElementById('st_email').value, passport: currentAvatarPhoto, attachments: currentModalFiles.join(','), archived: document.getElementById('st_archived').value }).then(() => { closeModal(); refreshData('staff'); });
         };
       }
       else if (type === 'vendor') {
-        const uniqueId = isEdit ? editData.rowId : "VND-" + Math.random().toString(36).substr(2, 5).toUpperCase();
+        const uniqueId = isEdit ? (editData.rowId || editData.RowId) : "VND-" + Math.random().toString(36).substr(2, 5).toUpperCase();
         title.innerText = "Vendor SLA Registry Profile";
-        currentAvatarPhoto = isEdit ? editData.passport : "";
-        if (isEdit && editData.attachments) currentModalFiles = editData.attachments.split(',').filter(Boolean);
+        currentAvatarPhoto = isEdit ? (editData.passport || editData.Passport) : "";
+        if (isEdit && (editData.attachments || editData.Attachments)) currentModalFiles = (editData.attachments || editData.Attachments).split(',').filter(Boolean);
 
         body.innerHTML = `
           <div class="passport-frame-container" style="position:relative;">
@@ -1070,18 +1117,18 @@
           </div>
 
           <label ${labelStyle}>Vendor ID</label><input id="v_id" value="${uniqueId}" ${largeInput} ${isEdit?'disabled':''}>
-          <label ${labelStyle}>Corporate Entity Name</label><input id="v_company" value="${isEdit?editData.company:''}" ${largeInput}>
-          <label ${labelStyle}>Trade Domain Specialization</label><input id="v_trade" value="${isEdit?editData.trade:''}" ${largeInput}>
-          <label ${labelStyle}>Primary Account Contact Name</label><input id="v_contact" value="${isEdit?editData.contactName:''}" ${largeInput}>
-          <label ${labelStyle}>Phone 1</label><input id="v_phone1" type="tel" maxlength="11" inputmode="numeric" oninput="this.value=this.value.replace(/[^0-9]/g,'')" value="${isEdit?(editData.phone1 || ''):''}" ${largeInput}>
-          <label ${labelStyle}>Phone 2</label><input id="v_phone2" type="tel" maxlength="11" inputmode="numeric" oninput="this.value=this.value.replace(/[^0-9]/g,'')" value="${isEdit?(editData.phone2 || ''):''}" ${largeInput}>
-          <label ${labelStyle}>Corporate Support Email</label><input id="v_email" type="email" value="${isEdit?(editData.email || ''):''}" ${largeInput}>
-          <label ${labelStyle}>SLA Contract Expiration Timeline</label><input id="v_end" type="date" value="${isEdit?fromSheetDate(editData.contractEnd):''}" ${largeInput}>
+          <label ${labelStyle}>Corporate Entity Name</label><input id="v_company" value="${isEdit ? (editData.company || editData.Company) : ''}" ${largeInput}>
+          <label ${labelStyle}>Trade Domain Specialization</label><input id="v_trade" value="${isEdit ? (editData.trade || editData.Trade) : ''}" ${largeInput}>
+          <label ${labelStyle}>Primary Account Contact Name</label><input id="v_contact" value="${isEdit ? (editData.contactName || editData.ContactName) : ''}" ${largeInput}>
+          <label ${labelStyle}>Phone 1</label><input id="v_phone1" type="tel" maxlength="11" inputmode="numeric" oninput="this.value=this.value.replace(/[^0-9]/g,'')" value="${isEdit?(editData.phone1 || editData.Phone1 || ''):''}" ${largeInput}>
+          <label ${labelStyle}>Phone 2</label><input id="v_phone2" type="tel" maxlength="11" inputmode="numeric" oninput="this.value=this.value.replace(/[^0-9]/g,'')" value="${isEdit?(editData.phone2 || editData.Phone2 || ''):''}" ${largeInput}>
+          <label ${labelStyle}>Corporate Support Email</label><input id="v_email" type="email" value="${isEdit?(editData.email || editData.Email || ''):''}" ${largeInput}>
+          <label ${labelStyle}>SLA Contract Expiration Timeline</label><input id="v_end" type="date" value="${isEdit?fromSheetDate(editData.contractEnd || editData.ContractEnd):''}" ${largeInput}>
           
           <label ${labelStyle}>Archive Profile Account</label>
           <select id="v_archived" ${largeInput}>
-            <option value="No" ${isEdit && editData.archived === 'No' ? 'selected' : ''}>Active Portfolio</option>
-            <option value="Yes" ${isEdit && editData.archived === 'Yes' ? 'selected' : ''}>Archived</option>
+            <option value="No" ${isEdit && String(editData.archived || editData.Archived) === 'No' ? 'selected' : ''}>Active Portfolio</option>
+            <option value="Yes" ${isEdit && String(editData.archived || editData.Archived) === 'Yes' ? 'selected' : ''}>Archived</option>
           </select>
 
           <label ${labelStyle}>Form Attachments</label>
@@ -1100,11 +1147,9 @@
         document.getElementById('v_multi_uploader').onchange = (e) => { processIncomingMultiAttachments(e.target.files, 'vAttachmentsPreviews'); };
 
         submit.onclick = () => {
-          const p1 = document.getElementById('v_phone1').value;
-          const p2 = document.getElementById('v_phone2').value;
+          const p1 = document.getElementById('v_phone1').value; const p2 = document.getElementById('v_phone2').value;
           if(!p1 || p1.length !== 11) { alert("Phone 1 must be exactly 11 numeric digits."); return; }
           if(!p2 || p2.length !== 11) { alert("Phone 2 must be exactly 11 numeric digits."); return; }
-
           submit.disabled = true;
           callApi(isEdit?'updateVendor':'saveVendor', { rowId: document.getElementById('v_id').value, company: document.getElementById('v_company').value, trade: document.getElementById('v_trade').value, contactName: document.getElementById('v_contact').value, phone1: String(p1), phone2: String(p2), email: document.getElementById('v_email').value, contractEnd: toSheetDate(document.getElementById('v_end').value), passport: currentAvatarPhoto, attachments: currentModalFiles.join(','), archived: document.getElementById('v_archived').value }).then(() => { closeModal(); refreshData('vendors'); });
         };
@@ -1112,8 +1157,9 @@
     }
 
     function printSingleWorkOrderDirect(woId) {
-      const orderItem = cache.workorders.find(w => w.workOrderId === woId); if(!orderItem) return;
+      const orderItem = cache.workorders.find(w => String(w.workOrderId || w.WorkOrderId) === woId); if(!orderItem) return;
       const logoUrl = "YOUR_LOGO_URL_HERE";
+      var unitId = orderItem.apt || orderItem.Apt || orderItem.APT || '';
       
       let invoiceLayoutHtml = `
         <div style="padding: 20px; font-family:'Inter', sans-serif; color:#000;">
@@ -1125,14 +1171,14 @@
             <div style="text-align:right; font-size:12px; font-weight:800;">PRINT DATE:<br>${new Date().toLocaleDateString()}</div>
           </div>
           <table class="print-table">
-            <tr><th>Work Order Reference</th><td><code>${orderItem.workOrderId}</code></td></tr>
-            <tr><th>Assigned Node Location</th><td>Unit ${orderItem.apt}</td></tr>
-            <tr><th>Assigned Participant</th><td>${orderItem.assigned || 'Unassigned'}</td></tr>
-            <tr><th>Project Duration</th><td>${orderItem.duration || 'Not Specified'}</td></tr>
-            <tr><th>Financial Budget Tariff</th><td><strong>₦${Number(orderItem.amount).toLocaleString()}</strong></td></tr>
-            <tr><th>Lifecycle Auth Status</th><td>${orderItem.status.toUpperCase()}</td></tr>
-            <tr><th>Scope / Narrative</th><td>${orderItem.description || 'No description provided.'}</td></tr>
-            <tr><th>Operational Remarks</th><td>${orderItem.notes || 'No operational feedback logged.'}</td></tr>
+            <tr><th>Work Order Reference</th><td><code>${orderItem.workOrderId || orderItem.WorkOrderId}</code></td></tr>
+            <tr><th>Assigned Node Location</th><td>Unit ${unitId}</td></tr>
+            <tr><th>Assigned Participant</th><td>${orderItem.assigned || orderItem.Assigned || 'Unassigned'}</td></tr>
+            <tr><th>Project Duration</th><td>${orderItem.duration || orderItem.Duration || 'Not Specified'}</td></tr>
+            <tr><th>Financial Budget Tariff</th><td><strong>₦${Number(orderItem.amount || orderItem.Amount || 0).toLocaleString()}</strong></td></tr>
+            <tr><th>Lifecycle Auth Status</th><td>${String(orderItem.status || orderItem.Status || 'PENDING').toUpperCase()}</td></tr>
+            <tr><th>Scope / Narrative</th><td>${orderItem.description || orderItem.Description || 'No description provided.'}</td></tr>
+            <tr><th>Operational Remarks</th><td>${orderItem.notes || orderItem.Notes || 'No operational feedback logged.'}</td></tr>
           </table>
           <div style="margin-top:50px; display:grid; grid-template-columns:1fr 1fr; gap:40px; text-align:center; font-size:12px; font-weight:800;">
             <div><div style="border-bottom:1px solid #000; margin-bottom:5px; height:30px;"></div>FIELD DISPATCH SIGNATURE</div>
@@ -1164,7 +1210,13 @@
 
     function initReportsEngine() {
       const pipeline = [callApi('getApartments', {}).then(r => cache.apts = r || []), callApi('getAssets', {}).then(r => cache.assets = r || []), callApi('getMaintenance', {}).then(r => cache.tickets = r || []), callApi('getWorkOrders', {}).then(r => cache.workorders = r || [])];
-      Promise.all(pipeline).then(() => { document.getElementById('rep-profile-selector').value = ""; document.getElementById('rep-layout-selector').innerHTML = "<option value=''>-- Choose Configurations --</option>"; document.getElementById('rep-dynamic-parameters-frame').innerHTML = ""; document.getElementById('report-onscreen-preview-card').style.display = "none"; });
+      Promise.all(pipeline).then(() => { 
+        if(cache.apts) sortApartmentsCacheList();
+        document.getElementById('rep-profile-selector').value = ""; 
+        document.getElementById('rep-layout-selector').innerHTML = "<option value=''>-- Choose Configurations --</option>"; 
+        document.getElementById('rep-dynamic-parameters-frame').innerHTML = ""; 
+        document.getElementById('report-onscreen-preview-card').style.display = "none"; 
+      });
     }
 
     function handleReportProfileSwitch() {
@@ -1179,7 +1231,7 @@
     function handleReportLayoutSwitch() {
       const layout = document.getElementById('rep-layout-selector').value; const f = document.getElementById('rep-dynamic-parameters-frame'); f.innerHTML = "";
       if (layout === "wo_selected") {
-        let options = (cache.workorders || []).map(w => `<option value="${w.workOrderId}">${w.workOrderId} (Unit ${w.apt})</option>`).join('');
+        let options = (cache.workorders || []).map(w => `<option value="${w.workOrderId || w.WorkOrderId}">${w.workOrderId || w.WorkOrderId} (Unit ${w.apt || w.Apt || ''})</option>`).join('');
         f.innerHTML = `<label>TARGET WORK ORDER ID REFERENCE:</label><select id="rep_p_wo">${options}</select>`;
       }
     }
@@ -1192,7 +1244,12 @@
       let contentHtml = "";
 
       if (layout === "apt_short_all") {
-        const filteredApts = cache.apts.filter(a => a && a.status !== 'Services' && a.tenant !== 'Services' && a.type !== 'Services');
+        const filteredApts = cache.apts.filter(a => {
+          var status = String(a.status || a.Status || '').toLowerCase();
+          var tenant = String(a.tenant || a.Tenant || '').toLowerCase();
+          var type = String(a.type || a.Type || '').toLowerCase();
+          return status !== 'services' && tenant !== 'services' && type !== 'services';
+        });
         contentHtml = `
           <h3>PROPERTY OCCUPANCY SHORT DIRECTORY</h3>
           <table class="print-table">
@@ -1206,15 +1263,18 @@
               </tr>
             </thead>
             <tbody>
-              ${filteredApts.map(a => `
-                <tr>
-                  <td>Unit ${a.apt || ''}</td>
-                  <td>${a.type || 'Standard'}</td>
-                  <td>${a.tenant || 'VACANT'}</td>
-                  <td>${a.status || ''}</td>
-                  <td>${a.leaseEnd || 'N/A'}</td>
-                </tr>
-              `).join('')}
+              ${filteredApts.map(a => {
+                var uNum = a.apt || a.Apt || a.APT || '';
+                return `
+                  <tr>
+                    <td>Unit ${uNum}</td>
+                    <td>${a.type || a.Type || 'Standard'}</td>
+                    <td>${a.tenant || a.Tenant || 'VACANT'}</td>
+                    <td>${a.status || a.Status || ''}</td>
+                    <td>${a.leaseEnd || a.LeaseEnd || 'N/A'}</td>
+                  </tr>
+                `;
+              }).join('')}
             </tbody>
           </table>`;
       } 
@@ -1223,7 +1283,7 @@
           <h3>MAINTENANCE TICKETS LEDGER</h3>
           <table class="print-table">
             <thead><tr><th>Ticket ID</th><th>Unit</th><th>Category</th><th>Status</th></tr></thead>
-            <tbody>${cache.tickets.map(t => `<tr><td>${t.ticketId}</td><td>Unit ${t.apt}</td><td>${t.category}</td><td>${t.status}</td></tr>`).join('')}</tbody>
+            <tbody>${cache.tickets.map(t => `<tr><td>${t.ticketId || t.TicketId}</td><td>Unit ${t.apt || t.Apt || ''}</td><td>${t.category || t.Category || ''}</td><td>${t.status || t.Status || ''}</td></tr>`).join('')}</tbody>
           </table>`;
       }
       else if (layout === "wo_all") {
@@ -1231,27 +1291,36 @@
           <h3>CORPORATE WORK ORDERS ACCOUNT STATEMENTS</h3>
           <table class="print-table">
             <thead><tr><th>Work Order ID</th><th>Unit Location</th><th>Description Scope</th><th>Budget Allocation</th><th>Status</th></tr></thead>
-            <tbody>${cache.workorders.map(w => `<tr><td><code>${w.workOrderId}</code></td><td>Unit ${w.apt}</td><td>${w.description}</td><td><strong>₦${Number(w.amount).toLocaleString()}</strong></td><td>${w.status.toUpperCase()}</td></tr>`).join('')}</tbody>
+            <tbody>${cache.workorders.map(w => `<tr><td><code>${w.workOrderId || w.WorkOrderId}</code></td><td>Unit ${w.apt || w.Apt || ''}</td><td>${w.description || w.Description || ''}</td><td><strong>₦${Number(w.amount || w.Amount || 0).toLocaleString()}</strong></td><td>${String(w.status || w.Status || '').toUpperCase()}</td></tr>`).join('')}</tbody>
           </table>`;
       }
       else if (layout === "wo_selected") {
-        const targetWoId = document.getElementById('rep_p_wo').value; const orderItem = cache.workorders.find(w => w.workOrderId === targetWoId);
+        const targetWoId = document.getElementById('rep_p_wo').value; 
+        const orderItem = cache.workorders.find(w => String(w.workOrderId || w.WorkOrderId) === targetWoId);
         contentHtml = `
           <div style="border:3px solid #000; padding:15px; border-radius:12px; text-align: left;">
             <h3>Work Order Individual Financial Job Card</h3>
-            <p style="margin-top: 6px;"><strong>Tracking Work Order Reference:</strong> ${orderItem.workOrderId}</p>
-            <p><strong>Target Property Node Location:</strong> Unit ${orderItem.apt}</p>
-            <p><strong>Assigned Resource:</strong> ${orderItem.assigned || 'Unassigned'}</p>
-            <p><strong>Timeline Duration:</strong> ${orderItem.duration || 'Unspecified'}</p>
-            <p><strong>Scope / Narrative:</strong> ${orderItem.description}</p>
-            <p><strong>Cost Parameters Budget:</strong> ₦${Number(orderItem.amount).toLocaleString()}</p>
-            <p><strong>Status state:</strong> [${orderItem.status}]</p>
+            <p style="margin-top: 6px;"><strong>Tracking Work Order Reference:</strong> ${orderItem.workOrderId || orderItem.WorkOrderId}</p>
+            <p><strong>Target Property Node Location:</strong> Unit ${orderItem.apt || orderItem.Apt || ''}</p>
+            <p><strong>Assigned Resource:</strong> ${orderItem.assigned || orderItem.Assigned || 'Unassigned'}</p>
+            <p><strong>Timeline Duration:</strong> ${orderItem.duration || orderItem.Duration || 'Unspecified'}</p>
+            <p><strong>Scope / Narrative:</strong> ${orderItem.description || orderItem.Description || ''}</p>
+            <p><strong>Cost Parameters Budget:</strong> ₦${Number(orderItem.amount || orderItem.Amount || 0).toLocaleString()}</p>
+            <p><strong>Status state:</strong> [${orderItem.status || orderItem.Status || ''}]</p>
           </div>`;
       }
       else if (layout === "apt_complete_all") {
-        const filteredApts = cache.apts.filter(a => a && a.status !== 'Services' && a.tenant !== 'Services' && a.type !== 'Services');
+        const filteredApts = cache.apts.filter(a => {
+          var status = String(a.status || a.Status || '').toLowerCase();
+          var tenant = String(a.tenant || a.Tenant || '').toLowerCase();
+          var type = String(a.type || a.Type || '').toLowerCase();
+          return status !== 'services' && tenant !== 'services' && type !== 'services';
+        });
         contentHtml = `<h3 style="margin-bottom: 12px;">COMPREHENSIVE SPACE LOGISTICS FRAME MATRIX</h3>`;
-        filteredApts.forEach(a => { contentHtml += `<div style="text-align: left; margin-bottom: 8px; padding-bottom: 4px; border-bottom: 1px dashed #ccc;"><h4>Unit ${a.apt} Profile Overview</h4><p>Tenant Label: ${a.tenant || 'Vacant'}</p></div>`; });
+        filteredApts.forEach(a => { 
+          var uNum = a.apt || a.Apt || a.APT || '';
+          contentHtml += `<div style="text-align: left; margin-bottom: 8px; padding-bottom: 4px; border-bottom: 1px dashed #ccc;"><h4>Unit ${uNum} Profile Overview</h4><p>Tenant Label: ${a.tenant || a.Tenant || 'Vacant'}</p></div>`; 
+        });
       }
 
       const rawCompiledOutput = headerStr + contentHtml;
