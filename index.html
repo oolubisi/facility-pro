@@ -207,7 +207,7 @@
       border: 3px solid var(--text); 
       border-radius: 16px; 
       z-index: 1000; 
-      box-shadow: 0 8px 24 rgba(0,0,0,0.2); 
+      box-shadow: 0 8px 24px rgba(0,0,0,0.2); 
       overflow: hidden;
     }
     .more-menu.show { display: block; animation: menuPop 0.12s ease-out; }
@@ -493,7 +493,6 @@
     
     let cache = { apts: [], assets: [], tickets: [], staff: [], vendors: [], utilities: [], workorders: [], inventory: [] };
     
-    // ATTACHMENT DELETION STATE MANAGEMENT CACHES
     let currentModalFiles = [];
     let currentAvatarPhoto = "";
 
@@ -633,6 +632,7 @@
                   <span style="padding:4px 10px; border:2px solid #000; border-radius:6px; font-size:12px; font-weight:900; background:${item.status === 'Approved' ? 'var(--success)' : item.status === 'Declined' ? 'var(--danger)' : '#ffc107'}; color:#fff;">${item.status ? item.status.toUpperCase() : 'PENDING'}</span>
                 </div>
                 <div style="font-size:18px; font-weight:900; color:var(--success)">₦${Number(item.amount || 0).toLocaleString()}</div>
+                ${item.assigned ? `<div style="font-size:14px; font-weight:700; color:var(--muted); margin-bottom:4px;"><i class="fas fa-user-check"></i> ${item.assigned} ${item.duration ? `• ${item.duration}` : ''}</div>` : ''}
                 <div style="font-size:15px; font-weight:600; color:#000;">${item.description || ''}</div>
               </div>`;
           }
@@ -729,7 +729,6 @@
       targetContainerElement.innerHTML = archiveBundleHTML;
     }
 
-    // REFRACTORED INLINE MULTI-FILE REMOVAL GENERATOR INTERFACE ENGINE
     function populateModalInlineImageGalleryPreviews(renderBoxId) {
       const box = document.getElementById(renderBoxId); if(!box) return;
       if(currentModalFiles.length === 0) { box.innerHTML = ''; box.style.display = 'none'; return; }
@@ -798,7 +797,6 @@
       const largeInput = 'style="font-size: 19px; padding: 12px; margin-bottom: 6px;"';
       const labelStyle = 'style="font-size: 15px; color: var(--text); font-weight:800; display: block; margin-top: 8px; margin-bottom: 2px;"';
       
-      // RESET ATTACHMENT DRIVER CONTEXTS
       currentModalFiles = [];
       currentAvatarPhoto = "";
     
@@ -910,6 +908,8 @@
         
         body.innerHTML = `
           <label ${labelStyle}>Unit</label><select id="w_apt" ${largeInput} ${isApproved ? 'disabled' : ''}></select>
+          <label ${labelStyle}>Assigned</label><select id="w_assigned" ${largeInput} ${isApproved ? 'disabled' : ''}></select>
+          <label ${labelStyle}>Duration</label><input id="w_duration" type="text" value="${isEdit ? (editData.duration || '') : ''}" placeholder="e.g. 3 Days, 1 Week" ${largeInput} ${isApproved ? 'disabled' : ''}>
           <label ${labelStyle}>Budget (₦)</label><input id="w_amount" type="number" value="${isEdit ? editData.amount : ''}" placeholder="Cost allocation entry" ${largeInput} ${isApproved ? 'disabled' : ''}>
           <label ${labelStyle}>Authorization Status</label>
           <select id="w_status" ${largeInput} ${isApproved ? 'disabled' : ''}>
@@ -917,18 +917,32 @@
             <option value="Approved" ${isEdit && editData.status==='Approved'?'selected':''}>Approved</option>
             <option value="Declined" ${isEdit && editData.status==='Declined'?'selected':''}>Declined</option>
           </select>
-          <label ${labelStyle}>Work Purpose Scope Narrative</label><textarea id="w_desc" rows="3" ${largeInput} ${isApproved ? 'disabled' : ''}>${isEdit ? editData.description : ''}</textarea>
-          <label ${labelStyle}>Operational Internal Remarks</label><textarea id="w_notes" rows="2" ${largeInput} ${isApproved ? 'disabled' : ''}>${isEdit ? editData.notes : ''}</textarea>
+          <label ${labelStyle}>Scope / Narrative</label><textarea id="w_desc" rows="3" ${largeInput} ${isApproved ? 'disabled' : ''}>${isEdit ? editData.description : ''}</textarea>
+          <label ${labelStyle}>Operational Remarks</label><textarea id="w_notes" rows="2" ${largeInput} ${isApproved ? 'disabled' : ''}>${isEdit ? editData.notes : ''}</textarea>
           ${isApproved ? `<button class="action-btn" style="background:var(--success); margin-top:15px;" onclick="printSingleWorkOrderDirect('${uniqueWO}')"><i class="fas fa-print"></i> Print Work Order</button>` : ''}`;
         
         const wSel = document.getElementById('w_apt'); 
         (cache.apts || []).forEach(u => { const o=document.createElement('option'); o.value=u.apt; o.innerText='Unit ' + u.apt; if(isEdit && String(u.apt)===String(editData.apt)) o.selected=true; wSel.appendChild(o); });
         
+        const asSel = document.getElementById('w_assigned');
+        asSel.innerHTML = '<option value="">-- Choose Participant --</option>';
+        (cache.staff || []).forEach(s => { const o=document.createElement('option'); o.value=`${s.name} (${s.role})`; o.innerText=`${s.name} [Staff]`; if(isEdit && editData.assigned===o.value) o.selected=true; asSel.appendChild(o); });
+        (cache.vendors || []).forEach(v => { const o=document.createElement('option'); o.value=`${v.company} (${v.trade})`; o.innerText=`${v.company} [Vendor]`; if(isEdit && editData.assigned===o.value) o.selected=true; asSel.appendChild(o); });
+
         if (isApproved) { submit.style.display = "none"; }
         else {
           submit.onclick = () => {
             submit.disabled = true;
-            callApi(isEdit ? 'updateWorkOrder' : 'saveWorkOrder', { workOrderId: uniqueWO, apt: wSel.value, amount: document.getElementById('w_amount').value, status: document.getElementById('w_status').value, description: document.getElementById('w_desc').value, notes: document.getElementById('w_notes').value }).then(() => { closeModal(); refreshData('workorders'); });
+            callApi(isEdit ? 'updateWorkOrder' : 'saveWorkOrder', { 
+              workOrderId: uniqueWO, 
+              apt: wSel.value, 
+              assigned: asSel.value,
+              duration: document.getElementById('w_duration').value,
+              amount: document.getElementById('w_amount').value, 
+              status: document.getElementById('w_status').value, 
+              description: document.getElementById('w_desc').value, 
+              notes: document.getElementById('w_notes').value 
+            }).then(() => { closeModal(); refreshData('workorders'); });
           };
         }
       }
@@ -1113,10 +1127,12 @@
           <table class="print-table">
             <tr><th>Work Order Reference</th><td><code>${orderItem.workOrderId}</code></td></tr>
             <tr><th>Assigned Node Location</th><td>Unit ${orderItem.apt}</td></tr>
+            <tr><th>Assigned Participant</th><td>${orderItem.assigned || 'Unassigned'}</td></tr>
+            <tr><th>Project Duration</th><td>${orderItem.duration || 'Not Specified'}</td></tr>
             <tr><th>Financial Budget Tariff</th><td><strong>₦${Number(orderItem.amount).toLocaleString()}</strong></td></tr>
             <tr><th>Lifecycle Auth Status</th><td>${orderItem.status.toUpperCase()}</td></tr>
-            <tr><th>Scope Purpose Summary</th><td>${orderItem.description || 'No description provided.'}</td></tr>
-            <tr><th>Management Remarks</th><td>${orderItem.notes || 'No operational feedback logged.'}</td></tr>
+            <tr><th>Scope / Narrative</th><td>${orderItem.description || 'No description provided.'}</td></tr>
+            <tr><th>Operational Remarks</th><td>${orderItem.notes || 'No operational feedback logged.'}</td></tr>
           </table>
           <div style="margin-top:50px; display:grid; grid-template-columns:1fr 1fr; gap:40px; text-align:center; font-size:12px; font-weight:800;">
             <div><div style="border-bottom:1px solid #000; margin-bottom:5px; height:30px;"></div>FIELD DISPATCH SIGNATURE</div>
@@ -1225,7 +1241,9 @@
             <h3>Work Order Individual Financial Job Card</h3>
             <p style="margin-top: 6px;"><strong>Tracking Work Order Reference:</strong> ${orderItem.workOrderId}</p>
             <p><strong>Target Property Node Location:</strong> Unit ${orderItem.apt}</p>
-            <p><strong>Scope Narrative:</strong> ${orderItem.description}</p>
+            <p><strong>Assigned Resource:</strong> ${orderItem.assigned || 'Unassigned'}</p>
+            <p><strong>Timeline Duration:</strong> ${orderItem.duration || 'Unspecified'}</p>
+            <p><strong>Scope / Narrative:</strong> ${orderItem.description}</p>
             <p><strong>Cost Parameters Budget:</strong> ₦${Number(orderItem.amount).toLocaleString()}</p>
             <p><strong>Status state:</strong> [${orderItem.status}]</p>
           </div>`;
