@@ -508,19 +508,31 @@
         results.forEach((res, i) => { 
           if(res) cache[map[i]] = res; 
         });
-        
-        // Ensure initial array loading processes alpha-numerical sorts naturally
         if (cache.apts) sortApartmentsCacheList();
-        
         updateDashboardCounters();
         prepopulateStaticFilterSelectors();
       });
     }
 
+    // Resolves property coordinates matching structural variations
+    function getUnitNumber(u) {
+      if (!u) return '';
+      if (u.apt !== undefined) return u.apt;
+      if (u.Apt !== undefined) return u.Apt;
+      if (u.APT !== undefined) return u.APT;
+      for (var key in u) {
+        if (key.toLowerCase().trim() === 'apt') return u[key];
+      }
+      return '';
+    }
+
     function sortApartmentsCacheList() {
+      if (!cache.apts || !Array.isArray(cache.apts)) return;
       cache.apts.sort((a, b) => {
-        const aVal = parseInt(String(a.apt || a.Apt || '').replace(/[^0-9]/g, ''), 10) || 0;
-        const bVal = parseInt(String(b.apt || b.Apt || '').replace(/[^0-9]/g, ''), 10) || 0;
+        const aNum = String(getUnitNumber(a)).replace(/[^0-9]/g, '');
+        const bNum = String(getUnitNumber(b)).replace(/[^0-9]/g, '');
+        const aVal = parseInt(aNum, 10) || 0;
+        const bVal = parseInt(bNum, 10) || 0;
         return aVal - bVal;
       });
     }
@@ -530,15 +542,51 @@
       if (uFilter && cache.apts.length > 0) {
         uFilter.innerHTML = '<option value="ALL">-- ALL ASSETS --</option>';
         cache.apts.forEach(a => {
-          const uNum = a.apt || a.Apt || a.APT;
-          if (uNum) {
+          const uNum = getUnitNumber(a);
+          if (uNum !== undefined && uNum !== '') {
             const o = document.createElement('option'); o.value = uNum; o.innerText = `Unit ${uNum}`; uFilter.appendChild(o);
           }
         });
       }
     }
 
-    // FRONTEND STATS ENGINE: Applies explicit exclusions for hidden archived profiles and system service spaces
+    // Dynamic, Case-Insensitive Drops Builder (Addresses initial async loader latency checks)
+    function populateUnitDropdown(selectElementId, currentlySelectedValue) {
+      const selectElement = document.getElementById(selectElementId);
+      if (!selectElement) return;
+      selectElement.innerHTML = '<option value="">-- Choose Unit Reference --</option>';
+      
+      function renderPickerOptions() {
+        (cache.apts || []).forEach(u => {
+          const uNum = getUnitNumber(u);
+          if (uNum !== undefined && uNum !== '') {
+            const statusLabel = String(u.status || u.Status || '').toLowerCase();
+            if (statusLabel === 'services') return; // Enforce operational filters
+            
+            const opt = document.createElement('option');
+            opt.value = uNum;
+            opt.innerText = 'Unit ' + uNum;
+            if (currentlySelectedValue && String(uNum) === String(currentlySelectedValue)) {
+              opt.selected = true;
+            }
+            selectElement.appendChild(opt);
+          }
+        });
+      }
+
+      if (!cache.apts || cache.apts.length === 0) {
+        callApi('getApartments', {}).then(res => {
+          if (res) {
+            cache.apts = res;
+            sortApartmentsCacheList();
+            renderPickerOptions();
+          }
+        });
+      } else {
+        renderPickerOptions();
+      }
+    }
+
     function updateDashboardCounters() {
       const tenancyCount = cache.apts ? cache.apts.filter(a => {
         var status = String(a.status || a.Status || '').toLowerCase();
@@ -584,7 +632,7 @@
 
     function openRecordRow(type, lookupId) {
       let match = null;
-      if (type === 'apartment') match = cache.apts.find(i => String(i.apt || i.Apt || i.APT) === String(lookupId));
+      if (type === 'apartment') match = cache.apts.find(i => String(getUnitNumber(i)) === String(lookupId));
       if (type === 'asset') match = cache.assets.find(i => String(i.tag || i.Tag || i.TAG) === String(lookupId));
       if (type === 'maintenance') match = cache.tickets.find(i => String(i.ticketId || i.TicketId || i.TICKETID) === String(lookupId));
       if (type === 'staff') match = cache.staff.find(i => String(i.rowId || i.RowId || i.ROWID) === String(lookupId));
@@ -619,7 +667,7 @@
     
         if (p === 'assets') {
           const filter = document.getElementById('asset-unit-filter');
-          if (filter && filter.value !== "ALL") displayData = displayData.filter(item => String(item.apt || item.Apt || item.APT) === filter.value);
+          if (filter && filter.value !== "ALL") displayData = displayData.filter(item => String(getUnitNumber(item)) === filter.value);
         }
         if (isMaint) {
           const filter = document.getElementById('maint-status-filter');
@@ -632,7 +680,7 @@
     
         listEl.innerHTML = displayData.map(item => {
           if (!item) return '';
-          var unitId = item.apt || item.Apt || item.APT || '';
+          var unitId = getUnitNumber(item);
           if (isMaint) {
             return `
               <div class="card" onclick="openRecordRow('maintenance', '${item.ticketId || item.TicketId}')">
@@ -729,7 +777,7 @@
       const archivedInventory = cache.inventory.filter(i => i && String(i.archived || i.Archived || '') === 'Yes');
 
       if (selectedFilterSegment === 'ALL' || selectedFilterSegment === 'assets') {
-        archivedAssets.forEach(a => { archiveBundleHTML += `<div class="card" style="border-left:5px solid var(--danger)"><strong>[ASSET ARCHIVE] ${a.type || 'Asset'}</strong><br><small>Tag Ref ID: ${a.tag || a.Tag} | Location: Unit ${a.apt || a.Apt}</small></div>`; });
+        archivedAssets.forEach(a => { archiveBundleHTML += `<div class="card" style="border-left:5px solid var(--danger)"><strong>[ASSET ARCHIVE] ${a.type || 'Asset'}</strong><br><small>Tag Ref ID: ${a.tag || a.Tag} | Location: Unit ${getUnitNumber(a)}</small></div>`; });
       }
       if (selectedFilterSegment === 'ALL' || selectedFilterSegment === 'inventory') {
         archivedInventory.forEach(i => { archiveBundleHTML += `<div class="card" style="border-left:5px solid #ffc107"><strong>[INVENTORY ARCHIVE] ${i.name || i.Name || ''}</strong><br><small>Category: ${i.category || i.Category} | Qty: ${i.qty || i.Qty} | ID: ${i.itemId || i.ItemId}</small></div>`; });
@@ -818,7 +866,7 @@
       currentAvatarPhoto = "";
     
       if (type === 'apartment') {
-        var currentUnit = editData.apt || editData.Apt || editData.APT || '';
+        var currentUnit = getUnitNumber(editData);
         title.innerText = "Unit Profile: " + currentUnit;
         if (isEdit && (editData.photos || editData.Photos)) currentModalFiles = (editData.photos || editData.Photos).split(',').filter(Boolean);
         body.innerHTML = `
@@ -871,21 +919,14 @@
           <div id="assetPreviews" class="modal-preview-grid" style="display:none;"></div>
           <label class="icon-upload-label"><i class="fas fa-paperclip"></i><input type="file" id="assetCameraInput" accept="image/*,application/pdf" style="display:none"></label>`;
         
-        const sel = document.getElementById('a_apt'); 
-        (cache.apts || []).forEach(u => {
-          const uNum = u.apt || u.Apt || u.APT;
-          if (uNum) {
-            const o=document.createElement('option'); o.value=uNum; o.innerText='Unit ' + uNum; 
-            if(isEdit && String(uNum)===String(editData.apt || editData.Apt)) o.selected=true; 
-            sel.appendChild(o);
-          }
-        });
+        // Hydrate unit element picker
+        populateUnitDropdown('a_apt', isEdit ? getUnitNumber(editData) : '');
         if(isEdit && currentModalFiles.length > 0) populateModalInlineImageGalleryPreviews('assetPreviews');
         document.getElementById('assetCameraInput').onchange = (e) => { processIncomingMultiAttachments(e.target.files, 'assetPreviews'); };
 
         submit.onclick = () => {
           submit.disabled = true;
-          callApi(isEdit?'updateAsset':'saveAsset', { apt: sel.value, tag: uniqueTag, type: document.getElementById('a_type').value, status: document.getElementById('a_status').value, specs: document.getElementById('a_specs').value, loc: document.getElementById('a_loc').value, lastServiced: toSheetDate(document.getElementById('a_serviced').value), lastInspected: toSheetDate(document.getElementById('a_inspected').value), notes: document.getElementById('a_notes').value, photos: currentModalFiles.join(','), archived: document.getElementById('a_status').value === "Archived" ? "Yes" : "No" }).then(() => { closeModal(); refreshData('assets'); });
+          callApi(isEdit?'updateAsset':'saveAsset', { apt: document.getElementById('a_apt').value, tag: uniqueTag, type: document.getElementById('a_type').value, status: document.getElementById('a_status').value, specs: document.getElementById('a_specs').value, loc: document.getElementById('a_loc').value, lastServiced: toSheetDate(document.getElementById('a_serviced').value), lastInspected: toSheetDate(document.getElementById('a_inspected').value), notes: document.getElementById('a_notes').value, photos: currentModalFiles.join(','), archived: document.getElementById('a_status').value === "Archived" ? "Yes" : "No" }).then(() => { closeModal(); refreshData('assets'); });
         };
       }
       else if (type === 'maintenance') {
@@ -914,15 +955,7 @@
           <div id="maintPreviews" class="modal-preview-grid" style="display:none;"></div>
           <label class="icon-upload-label"><i class="fas fa-paperclip"></i><input type="file" id="maintCameraInput" accept="image/*,application/pdf" style="display:none"></label>`;
 
-        const aSel = document.getElementById('m_apt'); 
-        (cache.apts || []).forEach(u => { 
-          const uNum = u.apt || u.Apt || u.APT;
-          if (uNum) {
-            const o=document.createElement('option'); o.value=uNum; o.innerText='Unit ' + uNum; 
-            if(isEdit && String(uNum)===String(editData.apt || editData.Apt)) o.selected=true; 
-            aSel.appendChild(o); 
-          }
-        });
+        populateUnitDropdown('m_apt', isEdit ? getUnitNumber(editData) : '');
         const tSel = document.getElementById('m_tech'); tSel.innerHTML = '<option value="">-- Unassigned Responder --</option>';
         (cache.staff || []).forEach(s => { const o=document.createElement('option'); o.value=`${s.name || s.Name} (${s.role || s.Role})`; o.innerText=`${s.name || s.Name} [Staff]`; if(isEdit&&(editData.tech || editData.Tech)===o.value) o.selected=true; tSel.appendChild(o); });
         (cache.vendors || []).forEach(v => { const o=document.createElement('option'); o.value=`${v.company || v.Company} (${v.trade || v.Trade})`; o.innerText=`${v.company || v.Company} [Vendor]`; if(isEdit&&(editData.tech || editData.Tech)===o.value) o.selected=true; tSel.appendChild(o); });
@@ -932,7 +965,7 @@
 
         submit.onclick = () => {
           submit.disabled = true;
-          callApi(isEdit?'updateMaintenance':'saveMaintenance', { ticketId: uniqueTicket, apt: aSel.value, category: document.getElementById('m_category').value, priority: document.getElementById('m_priority').value, status: document.getElementById('m_status').value, tech: tSel.value, description: document.getElementById('m_desc').value, photos: currentModalFiles.join(',') }).then(() => { closeModal(); refreshData('maintenance'); });
+          callApi(isEdit?'updateMaintenance':'saveMaintenance', { ticketId: uniqueTicket, apt: document.getElementById('m_apt').value, category: document.getElementById('m_category').value, priority: document.getElementById('m_priority').value, status: document.getElementById('m_status').value, tech: tSel.value, description: document.getElementById('m_desc').value, photos: currentModalFiles.join(',') }).then(() => { closeModal(); refreshData('maintenance'); });
         };
       }
       else if (type === 'workorder') {
@@ -955,17 +988,7 @@
           <label ${labelStyle}>Operational Remarks</label><textarea id="w_notes" rows="2" ${largeInput} ${isApproved ? 'disabled' : ''}>${isEdit ? (editData.notes || editData.Notes) : ''}</textarea>
           ${isApproved ? `<button class="action-btn" style="background:var(--success); margin-top:15px;" onclick="printSingleWorkOrderDirect('${uniqueWO}')"><i class="fas fa-print"></i> Print Work Order</button>` : ''}`;
         
-        // CASE INSENSITIVE FALLBACK DROP-DOWN BUILDER: Fixes the 'undefined' selection label error
-        const wSel = document.getElementById('w_apt'); 
-        wSel.innerHTML = '<option value="">-- Choose Unit Reference --</option>';
-        (cache.apts || []).forEach(u => { 
-          const uNum = u.apt || u.Apt || u.APT;
-          if (uNum) {
-            const o=document.createElement('option'); o.value=uNum; o.innerText='Unit ' + uNum; 
-            if(isEdit && String(uNum)===String(editData.apt || editData.Apt)) o.selected=true; 
-            wSel.appendChild(o); 
-          }
-        });
+        populateUnitDropdown('w_apt', isEdit ? getUnitNumber(editData) : '');
         
         const asSel = document.getElementById('w_assigned');
         asSel.innerHTML = '<option value="">-- Choose Participant --</option>';
@@ -978,7 +1001,7 @@
             submit.disabled = true;
             callApi(isEdit ? 'updateWorkOrder' : 'saveWorkOrder', { 
               workOrderId: uniqueWO, 
-              apt: wSel.value, 
+              apt: document.getElementById('w_apt').value, 
               assigned: asSel.value,
               duration: document.getElementById('w_duration').value,
               amount: document.getElementById('w_amount').value, 
@@ -1021,16 +1044,11 @@
           <label ${labelStyle}>Consumption Meter Reading</label><input id="u_reading" type="number" ${largeInput}>
           <label ${labelStyle}>Token Purchase Cost (₦)</label><input id="u_amount" type="number" ${largeInput}>
           <label ${labelStyle}>Log Notes</label><textarea id="u_notes" rows="2" ${largeInput}></textarea>`;
-        const uSel = document.getElementById('u_apt'); 
-        (cache.apts || []).forEach(u => { 
-          const uNum = u.apt || u.Apt || u.APT;
-          if (uNum) {
-            const o=document.createElement('option'); o.value=uNum; o.innerText='Unit ' + uNum; uSel.appendChild(o); 
-          }
-        });
+        
+        populateUnitDropdown('u_apt', '');
         submit.onclick = () => {
           submit.disabled = true;
-          callApi('saveUtility', { apt: uSel.value, type: document.getElementById('u_type').value, meterNo: document.getElementById('u_meter').value, reading: document.getElementById('u_reading').value, amount: document.getElementById('u_amount').value, notes: document.getElementById('u_notes').value, photos: '' }).then(() => { closeModal(); refreshData('utilities'); });
+          callApi('saveUtility', { apt: document.getElementById('u_apt').value, type: document.getElementById('u_type').value, meterNo: document.getElementById('u_meter').value, reading: document.getElementById('u_reading').value, amount: document.getElementById('u_amount').value, notes: document.getElementById('u_notes').value, photos: '' }).then(() => { closeModal(); refreshData('utilities'); });
         };
       }
       else if (type === 'generator') {
@@ -1159,7 +1177,7 @@
     function printSingleWorkOrderDirect(woId) {
       const orderItem = cache.workorders.find(w => String(w.workOrderId || w.WorkOrderId) === woId); if(!orderItem) return;
       const logoUrl = "YOUR_LOGO_URL_HERE";
-      var unitId = orderItem.apt || orderItem.Apt || orderItem.APT || '';
+      var unitId = getUnitNumber(orderItem);
       
       let invoiceLayoutHtml = `
         <div style="padding: 20px; font-family:'Inter', sans-serif; color:#000;">
@@ -1231,7 +1249,11 @@
     function handleReportLayoutSwitch() {
       const layout = document.getElementById('rep-layout-selector').value; const f = document.getElementById('rep-dynamic-parameters-frame'); f.innerHTML = "";
       if (layout === "wo_selected") {
-        let options = (cache.workorders || []).map(w => `<option value="${w.workOrderId || w.WorkOrderId}">${w.workOrderId || w.WorkOrderId} (Unit ${w.apt || w.Apt || ''})</option>`).join('');
+        let options = (cache.workorders || []).map(w => {
+          const woId = w.workOrderId || w.WorkOrderId || '';
+          const unit = getUnitNumber(w);
+          return `<option value="${woId}">${woId} (Unit ${unit})</option>`;
+        }).join('');
         f.innerHTML = `<label>TARGET WORK ORDER ID REFERENCE:</label><select id="rep_p_wo">${options}</select>`;
       }
     }
@@ -1264,7 +1286,7 @@
             </thead>
             <tbody>
               ${filteredApts.map(a => {
-                var uNum = a.apt || a.Apt || a.APT || '';
+                var uNum = getUnitNumber(a);
                 return `
                   <tr>
                     <td>Unit ${uNum}</td>
@@ -1283,7 +1305,7 @@
           <h3>MAINTENANCE TICKETS LEDGER</h3>
           <table class="print-table">
             <thead><tr><th>Ticket ID</th><th>Unit</th><th>Category</th><th>Status</th></tr></thead>
-            <tbody>${cache.tickets.map(t => `<tr><td>${t.ticketId || t.TicketId}</td><td>Unit ${t.apt || t.Apt || ''}</td><td>${t.category || t.Category || ''}</td><td>${t.status || t.Status || ''}</td></tr>`).join('')}</tbody>
+            <tbody>${cache.tickets.map(t => `<tr><td>${t.ticketId || t.TicketId}</td><td>Unit ${getUnitNumber(t)}</td><td>${t.category || t.Category || ''}</td><td>${t.status || t.Status || ''}</td></tr>`).join('')}</tbody>
           </table>`;
       }
       else if (layout === "wo_all") {
@@ -1291,7 +1313,7 @@
           <h3>CORPORATE WORK ORDERS ACCOUNT STATEMENTS</h3>
           <table class="print-table">
             <thead><tr><th>Work Order ID</th><th>Unit Location</th><th>Description Scope</th><th>Budget Allocation</th><th>Status</th></tr></thead>
-            <tbody>${cache.workorders.map(w => `<tr><td><code>${w.workOrderId || w.WorkOrderId}</code></td><td>Unit ${w.apt || w.Apt || ''}</td><td>${w.description || w.Description || ''}</td><td><strong>₦${Number(w.amount || w.Amount || 0).toLocaleString()}</strong></td><td>${String(w.status || w.Status || '').toUpperCase()}</td></tr>`).join('')}</tbody>
+            <tbody>${cache.workorders.map(w => `<tr><td><code>${w.workOrderId || w.WorkOrderId}</code></td><td>Unit ${getUnitNumber(w)}</td><td>${w.description || w.Description || ''}</td><td><strong>₦${Number(w.amount || w.Amount || 0).toLocaleString()}</strong></td><td>${String(w.status || w.Status || '').toUpperCase()}</td></tr>`).join('')}</tbody>
           </table>`;
       }
       else if (layout === "wo_selected") {
@@ -1301,7 +1323,7 @@
           <div style="border:3px solid #000; padding:15px; border-radius:12px; text-align: left;">
             <h3>Work Order Individual Financial Job Card</h3>
             <p style="margin-top: 6px;"><strong>Tracking Work Order Reference:</strong> ${orderItem.workOrderId || orderItem.WorkOrderId}</p>
-            <p><strong>Target Property Node Location:</strong> Unit ${orderItem.apt || orderItem.Apt || ''}</p>
+            <p><strong>Target Property Node Location:</strong> Unit ${getUnitNumber(orderItem)}</p>
             <p><strong>Assigned Resource:</strong> ${orderItem.assigned || orderItem.Assigned || 'Unassigned'}</p>
             <p><strong>Timeline Duration:</strong> ${orderItem.duration || orderItem.Duration || 'Unspecified'}</p>
             <p><strong>Scope / Narrative:</strong> ${orderItem.description || orderItem.Description || ''}</p>
@@ -1318,7 +1340,7 @@
         });
         contentHtml = `<h3 style="margin-bottom: 12px;">COMPREHENSIVE SPACE LOGISTICS FRAME MATRIX</h3>`;
         filteredApts.forEach(a => { 
-          var uNum = a.apt || a.Apt || a.APT || '';
+          var uNum = getUnitNumber(a);
           contentHtml += `<div style="text-align: left; margin-bottom: 8px; padding-bottom: 4px; border-bottom: 1px dashed #ccc;"><h4>Unit ${uNum} Profile Overview</h4><p>Tenant Label: ${a.tenant || a.Tenant || 'Vacant'}</p></div>`; 
         });
       }
