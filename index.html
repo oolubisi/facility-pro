@@ -33,6 +33,7 @@
     .main { 
       width: 100%; 
       max-width: 500px; 
+      margin: 0 flex; 
       margin: 0 auto; 
       padding: 15px 12px 100px 12px; 
       min-height: 100vh; 
@@ -1075,6 +1076,7 @@
         if (isEdit && (editData.photos || editData.Photos)) currentModalFiles = (editData.photos || editData.Photos).split(',').filter(Boolean);
         body.innerHTML = `
           <label ${labelStyle}>Tenant Name</label><input id="f_tenant" value="${editData.tenant || editData.Tenant || ''}" ${largeInput}>
+          <label ${labelStyle}>Apartment Type</label><input id="f_type" value="${editData.type || editData.Type || 'Standard'}" disabled ${largeInput}>
           <label ${labelStyle}>Status State</label>
           <select id="f_status" ${largeInput}>
             <option value="Occupied" ${String(editData.status || editData.Status)==='Occupied'?'selected':''}>Occupied</option>
