@@ -1610,8 +1610,9 @@
             <div style="display:flex; align-items:center; gap:12px;">
               <img src="${logoUrl}" style="height:55px; max-width:150px; object-fit:contain;" onerror="this.style.display='none';">
               <div>
-                <h2 style="font-size:18px; margin:0; text-transform:uppercase;">${appSettings.fmName || 'Work Order Authorization Dossier'}</h2>
-                <small style="font-weight:700; color:#444;">${appSettings.estateName || ''} (${appSettings.estateAddress || ''})</small>
+                <h2 style="font-size:32px; margin:0; text-transform:uppercase;">${appSettings.estateName || 'Work Order Authorization Dossier'}</h2>
+                <small style="display:block; font-weight:700; color:#444; margin-top:4px;">${appSettings.estateAddress || ''}</small>
+                <small style="display:block; font-weight:700; color:#444; margin-top:2px;">Managed by: ${appSettings.fmName || 'Facility Pro Engine'}</small>
               </div>
             </div>
             <div style="text-align:right; font-size:12px; font-weight:800;">PRINT DATE:<br>${new Date().toLocaleDateString()}</div>
@@ -1671,7 +1672,8 @@
       const p = document.getElementById('rep-profile-selector').value; const l = document.getElementById('rep-layout-selector');
       let out = "<option value=''>-- Choose Option Layout --</option>";
       if (p === "apartments") { 
-        out += `<option value="apt_short_all">All Apartments Master List (Short Tenant Info)</option>
+        out += `<option value="apt_custom_print">Apartments Print Manifest (with Images)</option>
+                <option value="apt_short_all">All Apartments Master List (Short Tenant Info)</option>
                 <option value="apt_detailed_assets">Detailed Apartment Profile with Asset Logs & Media</option>
                 <option value="apt_complete_all">Complete Inventory Frame (Summary)</option>`; 
       } 
@@ -1696,10 +1698,57 @@
       const layout = document.getElementById('rep-layout-selector').value; if (!layout) return;
       const logoUrl = appSettings.logoUrl || "data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 30%22><text x=%220%22 y=%2220%22 font-family=%22sans-serif%22 font-size=%2210%22 fill=%22%23777%22>NO LOGO</text></svg>"; 
       
-      let headerStr = `<div style="display: flex; align-items: center; justify-content: space-between; padding-bottom: 12px; border-bottom: 3px solid #000; margin-bottom: 20px;"><div style="display: flex; align-items: center; gap: 14px;"><img src="${logoUrl}" style="height: 55px; max-width: 150px; object-fit: contain;" onerror="this.style.display='none';"><div style="text-align: left;"><h2 style="font-size: 16px; font-weight: 800; margin: 0; line-height: 1.2; text-transform:uppercase;">${appSettings.estateName || 'FACILITY OPERATIONS VERIFICATION REPORT'}</h2><small style="font-weight: 700; color: #444;">${appSettings.estateAddress || ''} | Managed by: ${appSettings.fmName || 'Facility Pro Engine'}</small></div></div><div style="text-align: right; font-size: 11px; font-weight: 800; white-space: nowrap;">RUN DATE:<br><span>${new Date().toLocaleDateString()}</span></div></div>`;
+      let headerStr = `<div style="display: flex; align-items: center; justify-content: space-between; padding-bottom: 12px; border-bottom: 3px solid #000; margin-bottom: 20px;">
+        <div style="display: flex; align-items: center; gap: 14px;">
+          <img src="${logoUrl}" style="height: 55px; max-width: 150px; object-fit: contain;" onerror="this.style.display='none';">
+          <div style="text-align: left;">
+            <h2 style="font-size: 32px; font-weight: 800; margin: 0; line-height: 1.2; text-transform:uppercase;">${appSettings.estateName || 'FACILITY OPERATIONS REPORT'}</h2>
+            <small style="display: block; font-weight: 700; color: #444; margin-top: 4px;">${appSettings.estateAddress || ''}</small>
+            <small style="display: block; font-weight: 700; color: #444; margin-top: 2px;">Managed by: ${appSettings.fmName || 'Facility Pro Engine'}</small>
+          </div>
+        </div>
+        <div style="text-align: right; font-size: 11px; font-weight: 800; white-space: nowrap;">RUN DATE:<br><span>${new Date().toLocaleDateString()}</span></div>
+      </div>`;
       let contentHtml = "";
 
-      if (layout === "apt_short_all") {
+      if (layout === "apt_custom_print") {
+        const filteredApts = cache.apts.filter(a => {
+          var type = String(a.type || a.Type || '').toLowerCase();
+          return type !== 'services';
+        });
+
+        contentHtml = `<h3 style="margin-bottom: 15px; text-transform: uppercase;">Apartments Print Manifest</h3>`;
+        
+        filteredApts.forEach((a, index) => {
+          const uNum = getUnitNumber(a);
+          const photosRaw = a.photos || a.Photos || '';
+          const photosArr = photosRaw.split(',').filter(Boolean).slice(0, 3);
+          
+          let imgRowHtml = '';
+          if (photosArr.length > 0) {
+            imgRowHtml = `<div style="display: flex; gap: 10px; margin-top: 10px; margin-bottom: 5px;">` + 
+              photosArr.map(url => `<img src="${getDirectImageUrl(url)}" style="width: 125px; height: 125px; object-fit: cover; border: 2px solid #000; border-radius: 6px;">`).join('') + 
+              `</div>`;
+          } else {
+            imgRowHtml = `<p style="font-size: 12px; color: var(--muted); font-style: italic; margin-top: 6px;">No room layout captures attached.</p>`;
+          }
+
+          contentHtml += `
+            <div style="margin-bottom: 30px; padding-bottom: 20px; border-bottom: 2px dashed #000; page-break-inside: avoid; text-align: left;">
+              <table class="print-table" style="width:100%; margin-bottom:8px;">
+                <tr><th style="width: 25%;">Apartment / Unit</th><td><strong>Unit ${uNum}</strong></td></tr>
+                <tr><th>Tenant Name</th><td>${a.tenant || a.Tenant || 'VACANT'}</td></tr>
+                <tr><th>Apartment Type</th><td>${a.type || a.Type || 'Standard'}</td></tr>
+                <tr><th>Status</th><td>${a.status || a.Status || 'Vacant'}</td></tr>
+                <tr><th>Lease End Date</th><td>${formatDateForDisplay(a.leaseEnd || a.LeaseEnd)}</td></tr>
+                <tr><th>Notes</th><td>${a.notes || a.Notes || 'No localized notes logged.'}</td></tr>
+              </table>
+              <div style="font-weight: 800; font-size: 12px; text-transform: uppercase; margin-top: 10px; color:#111;">Attached Scene Media (First 3 Images):</div>
+              ${imgRowHtml}
+            </div>`;
+        });
+      }
+      else if (layout === "apt_short_all") {
         const filteredApts = cache.apts.filter(a => {
           var status = String(a.status || a.Status || '').toLowerCase();
           var tenant = String(a.tenant || a.Tenant || '').toLowerCase();
