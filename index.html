@@ -309,6 +309,7 @@
 
         <div class="more-container">
           <div id="moreMenu" class="more-menu">
+            <div class="menu-item" onclick="showPage('serviceunits')"><i class="fas fa-warehouse"></i> Service Units</div>
             <div class="menu-item" onclick="showPage('utilities')"><i class="fas fa-bolt"></i> Utilities & Plant</div>
             <div class="menu-item" onclick="showPage('payments')"><i class="fas fa-cash-register"></i> Inflow Ledger <span id="s-cash-total" style="margin-left:auto; font-size:13px; background:var(--success); color:white; padding:2px 8px; border-radius:6px; font-weight:900;">₦0</span></div>
             <div class="menu-item" onclick="showPage('staff')"><i class="fas fa-users"></i> Staff Directory</div>
@@ -330,6 +331,16 @@
           </div>
         </div>
         <div id="apt-list"></div>
+      </div>
+
+      <div id="view-serviceunits" class="page-view">
+        <div class="page-header">
+          <div class="header-group">
+            <button class="home-btn" onclick="showPage('dashboard')"><i class="fas fa-home"></i></button>
+            <h2>Service Units</h2>
+          </div>
+        </div>
+        <div id="service-list"></div>
       </div>
 
       <div id="view-assets" class="page-view">
@@ -769,9 +780,9 @@
       const target = document.getElementById('view-' + p);
       if (target) { target.classList.add('active-view'); window.scrollTo(0,0); }
       if (p === 'dashboard') { updateDashboardCounters(); evalPreventiveMaintenanceAlerts(); }
-      else if (p === 'reports') initReportsEngine();
+      else if (p === 'reports') { initReportsEngine(); }
       else if (p === 'utilities') { refreshData('utilities'); setTimeout(renderGeneratorEfficiencyLogs, 500); }
-      else refreshData(p);
+      else { refreshData(p); }
     }
 
     function openRecordRow(type, lookupId) {
@@ -789,7 +800,7 @@
 
     function refreshData(p) {
       const idMap = { 
-        'apartments': 'apt-list', 'assets': 'asset-list', 'maintenance': 'maint-list', 
+        'apartments': 'apt-list', 'serviceunits': 'service-list', 'assets': 'asset-list', 'maintenance': 'maint-list', 
         'maint': 'maint-list', 'utilities': 'util-list', 'staff': 'staff-list', 
         'vendors': 'vendor-list', 'workorders': 'wo-list', 'inventory': 'inventory-list', 'payments': 'payment-list', 'archived': 'archived-list' 
       };
@@ -801,7 +812,17 @@
 
       callApi(apiCmd, {}).then(data => {
         let displayData = data || [];
-        if (p === 'apartments') { cache.apts = displayData; sortApartmentsCacheList(); displayData = cache.apts; }
+        if (p === 'apartments' || p === 'serviceunits') { 
+          cache.apts = displayData; 
+          sortApartmentsCacheList(); 
+          
+          // Segment routing checks based on explicit field mapping
+          if (p === 'apartments') {
+            displayData = cache.apts.filter(item => item && String(item.type || item.Type || '').toLowerCase() !== 'services');
+          } else {
+            displayData = cache.apts.filter(item => item && String(item.type || item.Type || '').toLowerCase() === 'services');
+          }
+        }
         if (p === 'assets') { cache.assets = displayData; displayData = displayData.filter(item => item && String(item.status || item.Status || '') !== 'Archived' && String(item.archived || item.Archived || '') !== 'Yes'); }
         if (isMaint) cache.tickets = displayData;
         if (p === 'staff') { cache.staff = displayData; displayData = displayData.filter(item => item && String(item.archived || item.Archived || '') !== 'Yes'); }
@@ -865,7 +886,7 @@
             return `
               <div class="card" onclick="openRecordRow('inventory', '${item.itemId || item.ItemId}')">
                 <div style="display:flex; justify-content:space-between; align-items:center;">
-                  <div><strong style="font-size:20px; color:#000;">${item.name || item.Name || 'Unnamed Item'}</strong><br><small style="color:var(--muted); font-weight:700;">ID: ${item.itemId || item.ItemId || ''} [${item.category || item.Category || 'General'}]</small></div>
+                  <div><strong style="font-size:20px;">Unit ${unitId}</strong><br><small style="color:var(--muted); font-weight:700;">ID: ${item.itemId || item.ItemId || ''} [${item.category || item.Category || 'General'}]</small></div>
                   <div style="text-align:right;"><span style="font-size:22px; font-weight:900; color:var(--primary);">${item.qty || item.Qty || 0}</span><br><small style="font-weight:800; font-size:10px; color:var(--muted)">UNITS</small></div>
                 </div>
               </div>`;
@@ -919,6 +940,7 @@
               </div>`;
           }
           else {
+            // Both apartments and service units share this click routing architecture cleanly
             return `
               <div class="card" onclick="openRecordRow('apartment', '${unitId}')">
                 <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -1581,7 +1603,6 @@
           const aptStatus = a.status || a.Status || 'Vacant';
           const aptNotes = a.notes || a.Notes || 'No localized condition notes logged.';
           
-          // Extract first 2 photos of apartment safely
           const aptPhotosRaw = a.photos || a.Photos || '';
           const aptPhotosArr = aptPhotosRaw.split(',').filter(Boolean).slice(0, 2);
           let aptImgHtml = '';
@@ -1593,7 +1614,6 @@
             aptImgHtml = `<p style="font-size:12px; color:var(--muted); font-style:italic; margin-top:4px; margin-bottom:10px;">No field unit layout captures attached.</p>`;
           }
 
-          // Query localized asset state array for active equipment mappings inside this unit loop
           const relatedAssets = cache.assets.filter(asset => String(getUnitNumber(asset)) === String(uNum) && String(asset.status || asset.Status || '') !== 'Archived' && String(asset.archived || asset.Archived || '') !== 'Yes');
           
           let assetsTableHtml = '';
