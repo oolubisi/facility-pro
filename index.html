@@ -164,13 +164,6 @@
       border-radius: 10px;
       border: 1px dashed var(--border);
     }
-    .modal-preview-thumb {
-      width: 55px;
-      height: 55px;
-      object-fit: cover;
-      border: 2px solid var(--text);
-      border-radius: 6px;
-    }
 
     .passport-frame-container {
       position: relative; 
@@ -247,7 +240,6 @@
     .print-table { width: 100%; border-collapse: collapse; margin-top: 12px; margin-bottom: 18px; font-size: 14px; }
     .print-table th, .print-table td { border: 1px solid #000000; padding: 8px 10px; text-align: left; }
     .print-table th { background: #f2f2f2; font-weight: 800; text-transform: uppercase; }
-    .report-thumb { max-width: 140px; max-height: 140px; object-fit: cover; border: 2px solid #000000; margin: 6px; border-radius: 6px; }
 
     #report-print-container { display: none; }
 
@@ -524,19 +516,19 @@
           <h4 style="font-weight: 800; text-transform: uppercase; margin-bottom: 10px; color: var(--primary);">Printout & Header Meta Configurations</h4>
           
           <label>ESTATE NAME</label>
-          <input type="text" id="cfg-estate-name" placeholder="e.g. Royal Palms Estate">
+          <input type="text" id="cfg-estate-name" placeholder="Loading...">
           
           <label>ESTATE ADDRESS</label>
-          <input type="text" id="cfg-estate-address" placeholder="e.g. Plot 12, Lekki Phase 1, Lagos">
+          <input type="text" id="cfg-estate-address" placeholder="Loading...">
           
           <label>FM COMPANY NAME</label>
-          <input type="text" id="cfg-fm-name" placeholder="e.g. Prime Facilities Management Ltd">
+          <input type="text" id="cfg-fm-name" placeholder="Loading...">
           
           <label>FM COMPANY ADDRESS</label>
-          <input type="text" id="cfg-fm-address" placeholder="e.g. 45 Corporate Boulevard, Ikeja">
+          <input type="text" id="cfg-fm-address" placeholder="Loading...">
           
           <label>COMPANY LOGO URL</label>
-          <input type="text" id="cfg-logo-url" placeholder="e.g. https://domain.com/assets/logo.png">
+          <input type="text" id="cfg-logo-url" placeholder="Loading...">
           
           <button class="action-btn" style="background: var(--success); margin-top: 15px;" onclick="commitApplicationSettingsData()">Save Settings</button>
         </div>
@@ -587,20 +579,27 @@
     };
 
     async function loadApplicationSettingsData() {
+      const stored = localStorage.getItem("facility_pro_config_meta");
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          if (parsed) appSettings = { ...appSettings, ...parsed };
+        } catch(e) {}
+      }
+      applySettingsToUIHeaders();
+
       try {
         const cloudSettings = await callApi('getSettings', {});
-        if (cloudSettings && cloudSettings.estateName) {
+        if (cloudSettings && (cloudSettings.estateName || cloudSettings.fmName)) {
           appSettings = { ...appSettings, ...cloudSettings };
           localStorage.setItem("facility_pro_config_meta", JSON.stringify(appSettings));
-        } else {
-          const stored = localStorage.getItem("facility_pro_config_meta");
-          if (stored) {
-            const parsed = JSON.parse(stored);
-            if (parsed) appSettings = { ...appSettings, ...parsed };
-          }
+          applySettingsToUIHeaders();
+          syncSettingsInputsToUIFields();
         }
-      } catch(e) { console.error("Settings fetching route failed:", e); }
-      
+      } catch(e) { console.error("Cloud configuration load failed:", e); }
+    }
+
+    function applySettingsToUIHeaders() {
       const logoEl = document.getElementById("app-header-logo");
       if (logoEl) {
         if (appSettings.logoUrl) {
@@ -624,15 +623,15 @@
       appSettings.logoUrl = document.getElementById("cfg-logo-url").value.trim();
       
       localStorage.setItem("facility_pro_config_meta", JSON.stringify(appSettings));
+      applySettingsToUIHeaders();
       
       try {
         await callApi('saveSettings', appSettings);
+        alert("Settings successfully synchronized globally to Google Sheet across all devices!");
       } catch (err) {
         console.error("Cloud synchronization failing, saved locally:", err);
+        alert("Saved locally! Cloud syncing is currently offline.");
       }
-      
-      await loadApplicationSettingsData();
-      alert("Settings successfully synchronized globally to Google Sheet across devices!");
       showPage("dashboard");
     }
 
@@ -883,8 +882,27 @@
       const target = document.getElementById('view-' + p);
       if (target) { target.classList.add('active-view'); window.scrollTo(0,0); }
       if (p === 'dashboard') { updateDashboardCounters(); evalPreventiveMaintenanceAlerts(); }
-      else if (p === 'reports') { initReportsEngine(); }
-      else if (p === 'settings') { syncSettingsInputsToUIFields(); }
+      else if (p === 'reports') { 
+        initReportsEngine(); 
+        callApi('getSettings', {}).then(cloudSettings => {
+          if (cloudSettings && (cloudSettings.estateName || cloudSettings.fmName)) {
+            appSettings = { ...appSettings, ...cloudSettings };
+            localStorage.setItem("facility_pro_config_meta", JSON.stringify(appSettings));
+            applySettingsToUIHeaders();
+          }
+        });
+      }
+      else if (p === 'settings') { 
+        syncSettingsInputsToUIFields(); 
+        callApi('getSettings', {}).then(cloudSettings => {
+          if (cloudSettings && (cloudSettings.estateName || cloudSettings.fmName)) {
+            appSettings = { ...appSettings, ...cloudSettings };
+            localStorage.setItem("facility_pro_config_meta", JSON.stringify(appSettings));
+            applySettingsToUIHeaders();
+            syncSettingsInputsToUIFields();
+          }
+        });
+      }
       else if (p === 'utilities') { refreshData('utilities'); setTimeout(renderGeneratorEfficiencyLogs, 500); }
       else { refreshData(p); }
     }
@@ -1689,7 +1707,7 @@
       const p = document.getElementById('rep-profile-selector').value; const l = document.getElementById('rep-layout-selector');
       let out = "<option value=''>-- Choose Option Layout --</option>";
       if (p === "apartments") { 
-        out += `<option value="apt_custom_print">Apartments Print Manifest (Asset Lines)</option>
+        out += `<option value="apt_custom_print">Apartments Print Manifest (2 Assets Per Line)</option>
                 <option value="apt_single_isolated_print">Isolated Single Apartment Detailed Dossier</option>
                 <option value="apt_short_all">All Apartments Master List (Short Tenant Info)</option>
                 <option value="apt_detailed_assets">Detailed Apartment Profile with Asset Logs & Media</option>
@@ -1750,8 +1768,8 @@
           
           let assetsLinesHtml = '';
           if (relatedAssets.length > 0) {
-            assetsLinesHtml = `<div style="margin-top: 5px; line-height: 1.6; font-size: 13px;">` + 
-              relatedAssets.map(ast => `<div style="border-bottom: 1px dashed #ddd; padding: 2px 0;">• ${ast.type || 'Asset'} - ${ast.specs || 'No specifications tracked.'}</div>`).join('') + 
+            assetsLinesHtml = `<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 8px; font-size: 13px; width: 100%;">` + 
+              relatedAssets.map(ast => `<div style="border-bottom: 1px dashed #000; padding: 4px 0; text-align:left; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">• <strong>${ast.type || 'Asset'}</strong> - ${ast.specs || 'No specs.'}</div>`).join('') + 
               `</div>`;
           } else {
             assetsLinesHtml = `<p style="font-size: 12px; color: var(--muted); font-style: italic; margin-top: 4px;">No active registered hardware equipment linked onto this flat code.</p>`;
@@ -1767,7 +1785,7 @@
                 <tr><th>Lease End Date</th><td>${formatDateForDisplay(a.leaseEnd || a.LeaseEnd)}</td></tr>
                 <tr><th>Notes</th><td>${a.notes || a.Notes || 'No localized notes logged.'}</td></tr>
               </table>
-              <div style="font-weight: 800; font-size: 12px; text-transform: uppercase; margin-top: 12px; color:#111; border-bottom:1px dashed #000; padding-bottom:2px;">Registered System Assets Logistics Grid:</div>
+              <div style="font-weight: 800; font-size: 12px; text-transform: uppercase; margin-top: 12px; color:#111; border-bottom:1px dashed #000; padding-bottom:2px;">Registered System Assets Logistics Grid (2 Per Line):</div>
               ${assetsLinesHtml}
             </div>`;
         });
@@ -1832,7 +1850,7 @@
               </table>
               <div style="font-weight: 800; font-size: 13px; text-transform: uppercase; color:#111; border-bottom:1px dashed #000; padding-bottom:2px;">Apartment Interior Room captures:</div>
               ${aptImgHtml}
-              <div style="font-weight: 800; font-size: 13px; text-transform: uppercase; margin-top: 15px; margin-bottom: 10px; color:#111; border-bottom:1px dashed #000; padding-bottom:2px;">Mechanical Appurtenances & System Assets Inventory Profiles:</div>
+              <div style="font-weight: 800; font-size: 13px; text-transform: uppercase; margin-top: 15px; margin-bottom: 10px; color:#111; border-bottom:1px dashed #000; padding-bottom:2px;">Mechanical Appurtenances & System Assets Inventory Profiles (2 Per row):</div>
               ${assetsMediaBlockHtml}
             </div>`;
         }
