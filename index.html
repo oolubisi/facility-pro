@@ -795,8 +795,6 @@
       if (type === 'workorder') match = cache.workorders.find(i => String(i.workOrderId || i.WorkOrderId || i.WORKORDERID) === String(lookupId));
       if (type === 'inventory') match = cache.inventory.find(i => String(i.itemId || i.ItemId || i.ITEMID) === String(lookupId));
       if (type === 'payment') match = cache.payments.find(i => String(i.paymentId || i.PaymentId) === String(lookupId));
-      
-      // Multi-layer fallback matching logic for chronological logging segments
       if (type === 'utility' || type === 'generator') {
         match = cache.utilities.find((i, idx) => String(i.rowId || i.id || idx) === String(lookupId));
       }
@@ -1398,6 +1396,7 @@
 
           <label ${labelStyle}>Staff ID</label><input id="st_id" value="${uniqueId}" ${largeInput} ${isEdit?'disabled':''}>
           <label ${labelStyle}>Employee Full Name</label><input id="st_name" value="${isEdit ? (editData.name || editData.Name) : ''}" ${largeInput}>
+          <label ${labelStyle}>Contact Address</label><input id="st_address" value="${isEdit ? (editData.address || editData.Address || '') : ''}" ${largeInput}>
           <label ${labelStyle}>Core Specialization / Role</label><input id="st_role" value="${isEdit ? (editData.role || editData.Role) : ''}" ${largeInput}>
           <label ${labelStyle}>Phone 1</label><input id="st_p1" type="tel" maxlength="11" inputmode="numeric" oninput="this.value=this.value.replace(/[^0-9]/g,'')" value="${isEdit?(editData.phone1 || editData.Phone1 || ''):''}" ${largeInput}>
           <label ${labelStyle}>Phone 2</label><input id="st_p2" type="tel" maxlength="11" inputmode="numeric" oninput="this.value=this.value.replace(/[^0-9]/g,'')" value="${isEdit?(editData.phone2 || editData.Phone2 || ''):''}" ${largeInput}>
@@ -1432,7 +1431,7 @@
           if(!p1 || p1.length !== 11) { alert("Phone 1 must be exactly 11 numeric digits."); return; }
           if(!p2 || p2.length !== 11) { alert("Phone 2 must be exactly 11 numeric digits."); return; }
           submit.disabled = true;
-          callApi(isEdit?'updateStaff':'saveStaff', { rowId: document.getElementById('st_id').value, name: document.getElementById('st_name').value, role: document.getElementById('st_role').value, phone1: String(p1), phone2: String(p2), email: document.getElementById('st_email').value, passport: currentAvatarPhoto, attachments: currentModalFiles.join(','), archived: document.getElementById('st_archived').value }).then(() => { closeModal(); refreshData('staff'); });
+          callApi(isEdit?'updateStaff':'saveStaff', { rowId: document.getElementById('st_id').value, name: document.getElementById('st_name').value, address: document.getElementById('st_address').value, role: document.getElementById('st_role').value, phone1: String(p1), phone2: String(p2), email: document.getElementById('st_email').value, passport: currentAvatarPhoto, attachments: currentModalFiles.join(','), archived: document.getElementById('st_archived').value }).then(() => { closeModal(); refreshData('staff'); });
         };
       }
       else if (type === 'vendor') {
@@ -1453,6 +1452,7 @@
 
           <label ${labelStyle}>Vendor ID</label><input id="v_id" value="${uniqueId}" ${largeInput} ${isEdit?'disabled':''}>
           <label ${labelStyle}>Corporate Entity Name</label><input id="v_company" value="${isEdit ? (editData.company || editData.Company) : ''}" ${largeInput}>
+          <label ${labelStyle}>Business Address</label><input id="v_address" value="${isEdit ? (editData.address || editData.Address || '') : ''}" ${largeInput}>
           <label ${labelStyle}>Trade Domain Specialization</label><input id="v_trade" value="${isEdit ? (editData.trade || editData.Trade) : ''}" ${largeInput}>
           <label ${labelStyle}>Primary Account Contact Name</label><input id="v_contact" value="${isEdit ? (editData.contactName || editData.ContactName) : ''}" ${largeInput}>
           <label ${labelStyle}>Phone 1</label><input id="v_phone1" type="tel" maxlength="11" inputmode="numeric" oninput="this.value=this.value.replace(/[^0-9]/g,'')" value="${isEdit?(editData.phone1 || editData.Phone1 || ''):''}" ${largeInput}>
@@ -1489,7 +1489,7 @@
           if(!p1 || p1.length !== 11) { alert("Phone 1 must be exactly 11 numeric digits."); return; }
           if(!p2 || p2.length !== 11) { alert("Phone 2 must be exactly 11 numeric digits."); return; }
           submit.disabled = true;
-          callApi(isEdit?'updateVendor':'saveVendor', { rowId: document.getElementById('v_id').value, company: document.getElementById('v_company').value, trade: document.getElementById('v_trade').value, contactName: document.getElementById('v_contact').value, phone1: String(p1), phone2: String(p2), email: document.getElementById('v_email').value, contractEnd: toSheetDate(document.getElementById('v_end').value), passport: currentAvatarPhoto, attachments: currentModalFiles.join(','), archived: document.getElementById('v_archived').value }).then(() => { closeModal(); refreshData('vendors'); });
+          callApi(isEdit?'updateVendor':'saveVendor', { rowId: document.getElementById('v_id').value, company: document.getElementById('v_company').value, address: document.getElementById('v_address').value, trade: document.getElementById('v_trade').value, contactName: document.getElementById('v_contact').value, phone1: String(p1), phone2: String(p2), email: document.getElementById('v_email').value, contractEnd: toSheetDate(document.getElementById('v_end').value), passport: currentAvatarPhoto, attachments: currentModalFiles.join(','), archived: document.getElementById('v_archived').value }).then(() => { closeModal(); refreshData('vendors'); });
         };
       }
     }
