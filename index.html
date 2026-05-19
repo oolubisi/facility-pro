@@ -265,8 +265,8 @@
       
       <div id="view-dashboard" class="page-view active-view">
         <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid var(--card-light);">
-          <img src="YOUR_LOGO_URL_HERE" alt="Logo" style="height: 45px; max-width: 130px; object-fit: contain;" onerror="this.style.display='none';">
-          <h2 style="color:var(--primary); font-weight:800; margin: 0;">Facility Pro</h2>
+          <img id="app-header-logo" src="" alt="Logo" style="height: 45px; max-width: 130px; object-fit: contain;" onerror="this.style.display='none';">
+          <h2 id="app-header-title" style="color:var(--primary); font-weight:800; margin: 0;">Facility Pro</h2>
         </div>
 
         <div id="pms-alert-banner" class="alert-banner" onclick="showPage('assets')">
@@ -316,6 +316,7 @@
             <div class="menu-item" onclick="showPage('vendors')"><i class="fas fa-truck"></i> Vendors</div>
             <div class="menu-item" onclick="showPage('archived')"><i class="fas fa-archive"></i> Archive Bin</div>
             <div class="menu-item" onclick="showPage('reports');"><i class="fas fa-print"></i> Reports Console</div>
+            <div class="menu-item" onclick="showPage('settings');"><i class="fas fa-cog"></i> Settings Console</div>
           </div>
           <button class="action-btn" style="background:var(--card-light); border:2px solid var(--border); color:#000;" onclick="toggleMoreMenu(event)">
             <i class="fas fa-ellipsis-h"></i> More Options
@@ -510,6 +511,35 @@
         </div>
       </div>
 
+      <div id="view-settings" class="page-view">
+        <div class="page-header">
+          <div class="header-group">
+            <button class="home-btn" onclick="showPage('dashboard')"><i class="fas fa-home"></i></button>
+            <h2>Settings Console</h2>
+          </div>
+        </div>
+        <div class="card">
+          <h4 style="font-weight: 800; text-transform: uppercase; margin-bottom: 10px; color: var(--primary);">Printout & Header Meta Configurations</h4>
+          
+          <label>ESTATE NAME</label>
+          <input type="text" id="cfg-estate-name" placeholder="e.g. Royal Palms Estate">
+          
+          <label>ESTATE ADDRESS</label>
+          <input type="text" id="cfg-estate-address" placeholder="e.g. Plot 12, Lekki Phase 1, Lagos">
+          
+          <label>FM COMPANY NAME</label>
+          <input type="text" id="cfg-fm-name" placeholder="e.g. Prime Facilities Management Ltd">
+          
+          <label>FM COMPANY ADDRESS</label>
+          <input type="text" id="cfg-fm-address" placeholder="e.g. 45 Corporate Boulevard, Ikeja">
+          
+          <label>COMPANY LOGO URL</label>
+          <input type="text" id="cfg-logo-url" placeholder="e.g. https://domain.com/assets/logo.png">
+          
+          <button class="action-btn" style="background: var(--success); margin-top: 15px;" onclick="commitApplicationSettingsData()">Save Settings</button>
+        </div>
+      </div>
+
     </main>
   </div>
 
@@ -540,10 +570,66 @@
     
     let currentModalFiles = [];
     let currentAvatarPhoto = "";
+    
+    let appSettings = {
+      estateName: "Facility Pro Estate",
+      estateAddress: "123 Infrastructure Way, Lagos, Nigeria",
+      fmName: "Facility Operations Management",
+      fmAddress: "Primary Support Office Center",
+      logoUrl: ""
+    };
 
     window.onload = () => { 
+      loadApplicationSettingsData();
       bootstrapDataRegistriesPipeline(); 
     };
+
+    function loadApplicationSettingsData() {
+      try {
+        const stored = localStorage.getItem("facility_pro_config_meta");
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (parsed) appSettings = { ...appSettings, ...parsed };
+        }
+      } catch(e) { console.error("Settings load failed:", e); }
+      
+      const logoEl = document.getElementById("app-header-logo");
+      if (logoEl) {
+        if (appSettings.logoUrl) {
+          logoEl.src = appSettings.logoUrl;
+          logoEl.style.display = "block";
+        } else {
+          logoEl.style.display = "none";
+        }
+      }
+      const titleEl = document.getElementById("app-header-title");
+      if (titleEl) {
+        titleEl.innerText = appSettings.estateName || "Facility Pro";
+      }
+    }
+
+    function commitApplicationSettingsData() {
+      appSettings.estateName = document.getElementById("cfg-estate-name").value.trim();
+      appSettings.estateAddress = document.getElementById("cfg-estate-address").value.trim();
+      appSettings.fmName = document.getElementById("cfg-fm-name").value.trim();
+      appSettings.fmAddress = document.getElementById("cfg-fm-address").value.trim();
+      appSettings.logoUrl = document.getElementById("cfg-logo-url").value.trim();
+      
+      localStorage.setItem("facility_pro_config_meta", JSON.stringify(appSettings));
+      loadApplicationSettingsData();
+      alert("Settings successfully synchronized locally!");
+      showPage("dashboard");
+    }
+
+    function syncSettingsInputsToUIFields() {
+      if (document.getElementById("cfg-estate-name")) {
+        document.getElementById("cfg-estate-name").value = appSettings.estateName || "";
+        document.getElementById("cfg-estate-address").value = appSettings.estateAddress || "";
+        document.getElementById("cfg-fm-name").value = appSettings.fmName || "";
+        document.getElementById("cfg-fm-address").value = appSettings.fmAddress || "";
+        document.getElementById("cfg-logo-url").value = appSettings.logoUrl || "";
+      }
+    }
 
     function bootstrapDataRegistriesPipeline() {
       const actions = ['getApartments', 'getAssets', 'getMaintenance', 'getStaff', 'getVendors', 'getUtilities', 'getWorkOrders', 'getInventory', 'getPayments'];
@@ -781,6 +867,7 @@
       if (target) { target.classList.add('active-view'); window.scrollTo(0,0); }
       if (p === 'dashboard') { updateDashboardCounters(); evalPreventiveMaintenanceAlerts(); }
       else if (p === 'reports') { initReportsEngine(); }
+      else if (p === 'settings') { syncSettingsInputsToUIFields(); }
       else if (p === 'utilities') { refreshData('utilities'); setTimeout(renderGeneratorEfficiencyLogs, 500); }
       else { refreshData(p); }
     }
@@ -1514,7 +1601,7 @@
 
     function printSingleWorkOrderDirect(woId) {
       const orderItem = cache.workorders.find(w => String(w.workOrderId || w.WorkOrderId) === woId); if(!orderItem) return;
-      const logoUrl = "YOUR_LOGO_URL_HERE";
+      const logoUrl = appSettings.logoUrl || "data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 30%22><text x=%220%22 y=%2220%22 font-family=%22sans-serif%22 font-size=%2212%22 fill=%22%23666%22>NO LOGO</text></svg>";
       var unitId = getUnitNumber(orderItem);
       
       let invoiceLayoutHtml = `
@@ -1522,7 +1609,10 @@
           <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:3px solid #000; padding-bottom:10px; margin-bottom:20px;">
             <div style="display:flex; align-items:center; gap:12px;">
               <img src="${logoUrl}" style="height:55px; max-width:150px; object-fit:contain;" onerror="this.style.display='none';">
-              <h2 style="font-size:20px; margin:0; text-transform:uppercase;">Work Order Authorization Dossier</h2>
+              <div>
+                <h2 style="font-size:18px; margin:0; text-transform:uppercase;">${appSettings.fmName || 'Work Order Authorization Dossier'}</h2>
+                <small style="font-weight:700; color:#444;">${appSettings.estateName || ''} (${appSettings.estateAddress || ''})</small>
+              </div>
             </div>
             <div style="text-align:right; font-size:12px; font-weight:800;">PRINT DATE:<br>${new Date().toLocaleDateString()}</div>
           </div>
@@ -1539,6 +1629,9 @@
           <div style="margin-top:50px; display:grid; grid-template-columns:1fr 1fr; gap:40px; text-align:center; font-size:12px; font-weight:800;">
             <div><div style="border-bottom:1px solid #000; margin-bottom:5px; height:30px;"></div>FIELD DISPATCH SIGNATURE</div>
             <div><div style="border-bottom:1px solid #000; margin-bottom:5px; height:30px;"></div>EXECUTIVE APPROVAL CLEARANCE</div>
+          </div>
+          <div style="margin-top: 30px; font-size: 10px; color: #666; text-align: center; border-top: 1px dashed #ccc; padding-top: 10px;">
+            ${appSettings.fmAddress || ''}
           </div>
         </div>`;
 
@@ -1601,9 +1694,9 @@
 
     function compileReportPreview() {
       const layout = document.getElementById('rep-layout-selector').value; if (!layout) return;
-      const logoUrl = "YOUR_LOGO_URL_HERE"; 
+      const logoUrl = appSettings.logoUrl || "data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 30%22><text x=%220%22 y=%2220%22 font-family=%22sans-serif%22 font-size=%2210%22 fill=%22%23777%22>NO LOGO</text></svg>"; 
       
-      let headerStr = `<div style="display: flex; align-items: center; justify-content: space-between; padding-bottom: 12px; border-bottom: 3px solid #000; margin-bottom: 20px;"><div style="display: flex; align-items: center; gap: 14px;"><img src="${logoUrl}" style="height: 55px; max-width: 150px; object-fit: contain;" onerror="this.style.display='none';"><div style="text-align: left;"><h2 style="font-size: 18px; font-weight: 800; margin: 0; line-height: 1.2;">FACILITY PRO OPERATIONS MANAGEMENT VERIFICATION REPORT</h2></div></div><div style="text-align: right; font-size: 11px; font-weight: 800; white-space: nowrap;">RUN DATE:<br><span>${new Date().toLocaleDateString()}</span></div></div>`;
+      let headerStr = `<div style="display: flex; align-items: center; justify-content: space-between; padding-bottom: 12px; border-bottom: 3px solid #000; margin-bottom: 20px;"><div style="display: flex; align-items: center; gap: 14px;"><img src="${logoUrl}" style="height: 55px; max-width: 150px; object-fit: contain;" onerror="this.style.display='none';"><div style="text-align: left;"><h2 style="font-size: 16px; font-weight: 800; margin: 0; line-height: 1.2; text-transform:uppercase;">${appSettings.estateName || 'FACILITY OPERATIONS VERIFICATION REPORT'}</h2><small style="font-weight: 700; color: #444;">${appSettings.estateAddress || ''} | Managed by: ${appSettings.fmName || 'Facility Pro Engine'}</small></div></div><div style="text-align: right; font-size: 11px; font-weight: 800; white-space: nowrap;">RUN DATE:<br><span>${new Date().toLocaleDateString()}</span></div></div>`;
       let contentHtml = "";
 
       if (layout === "apt_short_all") {
