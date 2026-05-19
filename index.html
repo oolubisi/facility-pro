@@ -1672,7 +1672,8 @@
       const p = document.getElementById('rep-profile-selector').value; const l = document.getElementById('rep-layout-selector');
       let out = "<option value=''>-- Choose Option Layout --</option>";
       if (p === "apartments") { 
-        out += `<option value="apt_custom_print">Apartments Print Manifest (with Images)</option>
+        out += `<option value="apt_custom_print">Apartments Print Manifest (Asset Lines)</option>
+                <option value="apt_single_isolated_print">Isolated Single Apartment Detailed Dossier</option>
                 <option value="apt_short_all">All Apartments Master List (Short Tenant Info)</option>
                 <option value="apt_detailed_assets">Detailed Apartment Profile with Asset Logs & Media</option>
                 <option value="apt_complete_all">Complete Inventory Frame (Summary)</option>`; 
@@ -1691,6 +1692,13 @@
           return `<option value="${woId}">${woId} (Unit ${unit})</option>`;
         }).join('');
         f.innerHTML = `<label>TARGET WORK ORDER ID REFERENCE:</label><select id="rep_p_wo">${options}</select>`;
+      }
+      else if (layout === "apt_single_isolated_print") {
+        let options = (cache.apts || []).filter(a => String(a.type || a.Type || '').toLowerCase() !== 'services').map(a => {
+          const uNum = getUnitNumber(a);
+          return `<option value="${uNum}">Unit ${uNum}</option>`;
+        }).join('');
+        f.innerHTML = `<label>SELECT TARGET APARTMENT TO PRINT:</label><select id="rep_p_apt">${options}</select>`;
       }
     }
 
@@ -1721,20 +1729,19 @@
         
         filteredApts.forEach((a, index) => {
           const uNum = getUnitNumber(a);
-          const photosRaw = a.photos || a.Photos || '';
-          const photosArr = photosRaw.split(',').filter(Boolean).slice(0, 3);
+          const relatedAssets = cache.assets.filter(asset => String(getUnitNumber(asset)) === String(uNum) && String(asset.status || asset.Status || '') !== 'Archived' && String(asset.archived || asset.Archived || '') !== 'Yes');
           
-          let imgRowHtml = '';
-          if (photosArr.length > 0) {
-            imgRowHtml = `<div style="display: flex; gap: 10px; margin-top: 10px; margin-bottom: 5px;">` + 
-              photosArr.map(url => `<img src="${getDirectImageUrl(url)}" style="width: 125px; height: 125px; object-fit: cover; border: 2px solid #000; border-radius: 6px;">`).join('') + 
+          let assetsLinesHtml = '';
+          if (relatedAssets.length > 0) {
+            assetsLinesHtml = `<div style="margin-top: 5px; line-height: 1.6; font-size: 13px;">` + 
+              relatedAssets.map(ast => `<div style="border-bottom: 1px dashed #ddd; padding: 2px 0;">• ${ast.type || 'Asset'} - ${ast.specs || 'No specifications tracked.'}</div>`).join('') + 
               `</div>`;
           } else {
-            imgRowHtml = `<p style="font-size: 12px; color: var(--muted); font-style: italic; margin-top: 6px;">No room layout captures attached.</p>`;
+            assetsLinesHtml = `<p style="font-size: 12px; color: var(--muted); font-style: italic; margin-top: 4px;">No active registered hardware equipment linked onto this flat code.</p>`;
           }
 
           contentHtml += `
-            <div style="margin-bottom: 30px; padding-bottom: 20px; border-bottom: 2px dashed #000; page-break-inside: avoid; text-align: left;">
+            <div style="margin-bottom: 30px; padding-bottom: 20px; border-bottom: 2px solid #000; page-break-inside: avoid; text-align: left;">
               <table class="print-table" style="width:100%; margin-bottom:8px;">
                 <tr><th style="width: 25%;">Apartment / Unit</th><td><strong>Unit ${uNum}</strong></td></tr>
                 <tr><th>Tenant Name</th><td>${a.tenant || a.Tenant || 'VACANT'}</td></tr>
@@ -1743,10 +1750,75 @@
                 <tr><th>Lease End Date</th><td>${formatDateForDisplay(a.leaseEnd || a.LeaseEnd)}</td></tr>
                 <tr><th>Notes</th><td>${a.notes || a.Notes || 'No localized notes logged.'}</td></tr>
               </table>
-              <div style="font-weight: 800; font-size: 12px; text-transform: uppercase; margin-top: 10px; color:#111;">Attached Scene Media (First 3 Images):</div>
-              ${imgRowHtml}
+              <div style="font-weight: 800; font-size: 12px; text-transform: uppercase; margin-top: 12px; color:#111; border-bottom:1px dashed #000; padding-bottom:2px;">Registered System Assets Logistics Grid:</div>
+              ${assetsLinesHtml}
             </div>`;
         });
+      }
+      else if (layout === "apt_single_isolated_print") {
+        const targetAptId = document.getElementById('rep_p_apt').value;
+        const aptItem = cache.apts.find(a => String(getUnitNumber(a)) === String(targetAptId));
+        
+        if (!aptItem) {
+          contentHtml = "<p style='text-align:center; padding:20px; font-weight:700;'>Selected apartment profile entry could not be extracted from memory cache blocks.</p>";
+        } else {
+          const uNum = getUnitNumber(aptItem);
+          const aptPhotosRaw = aptItem.photos || aptItem.Photos || '';
+          const aptPhotosArr = aptPhotosRaw.split(',').filter(Boolean).slice(0, 3);
+          
+          let aptImgHtml = '';
+          if (aptPhotosArr.length > 0) {
+            aptImgHtml = `<div style="display: flex; gap: 10px; margin-top: 10px; margin-bottom: 20px;">` + 
+              aptPhotosArr.map(url => `<img src="${getDirectImageUrl(url)}" style="width: 135px; height: 135px; object-fit: cover; border: 2px solid #000; border-radius: 6px;">`).join('') + 
+              `</div>`;
+          } else {
+            aptImgHtml = `<p style="font-size: 12px; color: var(--muted); font-style: italic; margin-top: 6px; margin-bottom: 20px;">No layout captures attached for this space structural block.</p>`;
+          }
+
+          const relatedAssets = cache.assets.filter(asset => String(getUnitNumber(asset)) === String(uNum) && String(asset.status || asset.Status || '') !== 'Archived' && String(asset.archived || asset.Archived || '') !== 'Yes');
+          
+          let assetsMediaBlockHtml = '';
+          if (relatedAssets.length > 0) {
+            assetsMediaBlockHtml = relatedAssets.map(ast => {
+              const astPhotosRaw = ast.photos || ast.Photos || '';
+              const firstAstPhoto = astPhotosRaw.split(',').filter(Boolean)[0];
+              
+              const astImgTag = firstAstPhoto 
+                ? `<img src="${getDirectImageUrl(firstAstPhoto)}" style="width: 95px; height: 95px; object-fit: cover; border: 2px solid #000; border-radius: 6px; margin-right: 15px; flex-shrink:0;">` 
+                : `<div style="width: 95px; height: 95px; border: 2px dashed var(--border); border-radius: 6px; display: flex; align-items: center; justify-content: center; background: #f8f9fa; margin-right: 15px; font-size: 11px; color: var(--muted); font-style: italic; flex-shrink:0;">No Capture</div>`;
+              
+              return `
+                <div style="display: flex; align-items: center; margin-bottom: 12px; padding: 10px; border: 1px solid #000; border-radius: 8px; background: #ffffff; page-break-inside: avoid;">
+                  ${astImgTag}
+                  <div style="line-height: 1.5; text-align:left;">
+                    <div style="font-size: 15px; font-weight: 800; color: var(--primary);">${ast.type || ast.Type || 'Asset'}</div>
+                    <div style="font-size: 13px; font-weight: 700; margin-top:2px;">Tag Ref: <code style="background: #e9ecef; padding: 1px 4px; border-radius: 4px; font-size:12px;">${ast.tag || ast.Tag || ''}</code></div>
+                    <div style="font-size: 13px; font-weight: 700;">Status State: <span style="text-transform: uppercase; font-weight:900; color: ${String(ast.status || '').toLowerCase() === 'operational' ? 'var(--success)' : 'var(--danger)'};">${ast.status || ast.Status || 'Unknown'}</span></div>
+                    ${ast.specs || ast.Specs ? `<div style="font-size: 12px; color: var(--muted); margin-top:2px;">Specs: ${ast.specs || ast.Specs}</div>` : ''}
+                  </div>
+                </div>`;
+            }).join('');
+          } else {
+            assetsMediaBlockHtml = `<p style="font-size: 12px; color: var(--muted); font-style: italic;">No functional mechanical system assets tracked directly inside this flat block index environment.</p>`;
+          }
+
+          contentHtml = `
+            <h3 style="margin-bottom: 15px; text-transform: uppercase;">Isolated Apartment Detailed Dossier</h3>
+            <div style="text-align: left;">
+              <table class="print-table" style="width:100%; margin-bottom:15px;">
+                <tr><th style="width: 25%;">Apartment / Unit</th><td><strong>Unit ${uNum}</strong></td></tr>
+                <tr><th>Tenant Name</th><td>${aptItem.tenant || aptItem.Tenant || 'VACANT'}</td></tr>
+                <tr><th>Apartment Type</th><td>${aptItem.type || aptItem.Type || 'Standard'}</td></tr>
+                <tr><th>Status</th><td>${aptItem.status || aptItem.Status || 'Vacant'}</td></tr>
+                <tr><th>Lease End Date</th><td>${formatDateForDisplay(aptItem.leaseEnd || aptItem.LeaseEnd)}</td></tr>
+                <tr><th>Notes</th><td>${aptItem.notes || aptItem.Notes || 'No localized notes logged.'}</td></tr>
+              </table>
+              <div style="font-weight: 800; font-size: 13px; text-transform: uppercase; color:#111; border-bottom:1px dashed #000; padding-bottom:2px;">Apartment Interior Room captures (Max 3 Row):</div>
+              ${aptImgHtml}
+              <div style="font-weight: 800; font-size: 13px; text-transform: uppercase; margin-top: 15px; margin-bottom: 10px; color:#111; border-bottom:1px dashed #000; padding-bottom:2px;">Mechanical Appurtenances & System Assets Inventory Profiles:</div>
+              ${assetsMediaBlockHtml}
+            </div>`;
+        }
       }
       else if (layout === "apt_short_all") {
         const filteredApts = cache.apts.filter(a => {
