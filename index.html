@@ -249,6 +249,8 @@
     .print-table th { background: #f2f2f2; font-weight: 800; text-transform: uppercase; }
     .report-thumb { max-width: 140px; max-height: 140px; object-fit: cover; border: 2px solid #000000; margin: 6px; border-radius: 6px; }
 
+    #report-print-container { display: none; }
+
     @media print {
       body * { visibility: hidden; }
       #report-print-container, #report-print-container * { visibility: visible; }
@@ -579,19 +581,25 @@
       logoUrl: ""
     };
 
-    window.onload = () => { 
-      loadApplicationSettingsData();
+    window.onload = async () => { 
+      await loadApplicationSettingsData();
       bootstrapDataRegistriesPipeline(); 
     };
 
-    function loadApplicationSettingsData() {
+    async function loadApplicationSettingsData() {
       try {
-        const stored = localStorage.getItem("facility_pro_config_meta");
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          if (parsed) appSettings = { ...appSettings, ...parsed };
+        const cloudSettings = await callApi('getSettings', {});
+        if (cloudSettings && cloudSettings.estateName) {
+          appSettings = { ...appSettings, ...cloudSettings };
+          localStorage.setItem("facility_pro_config_meta", JSON.stringify(appSettings));
+        } else {
+          const stored = localStorage.getItem("facility_pro_config_meta");
+          if (stored) {
+            const parsed = JSON.parse(stored);
+            if (parsed) appSettings = { ...appSettings, ...parsed };
+          }
         }
-      } catch(e) { console.error("Settings load failed:", e); }
+      } catch(e) { console.error("Settings fetching route failed:", e); }
       
       const logoEl = document.getElementById("app-header-logo");
       if (logoEl) {
@@ -608,7 +616,7 @@
       }
     }
 
-    function commitApplicationSettingsData() {
+    async function commitApplicationSettingsData() {
       appSettings.estateName = document.getElementById("cfg-estate-name").value.trim();
       appSettings.estateAddress = document.getElementById("cfg-estate-address").value.trim();
       appSettings.fmName = document.getElementById("cfg-fm-name").value.trim();
@@ -616,8 +624,15 @@
       appSettings.logoUrl = document.getElementById("cfg-logo-url").value.trim();
       
       localStorage.setItem("facility_pro_config_meta", JSON.stringify(appSettings));
-      loadApplicationSettingsData();
-      alert("Settings successfully synchronized locally!");
+      
+      try {
+        await callApi('saveSettings', appSettings);
+      } catch (err) {
+        console.error("Cloud synchronization failing, saved locally:", err);
+      }
+      
+      await loadApplicationSettingsData();
+      alert("Settings successfully synchronized globally to Google Sheet across devices!");
       showPage("dashboard");
     }
 
@@ -863,6 +878,8 @@
 
     function showPage(p) {
       document.querySelectorAll('.page-view').forEach(v => v.classList.remove('active-view'));
+      document.getElementById('report-print-container').innerHTML = '';
+      
       const target = document.getElementById('view-' + p);
       if (target) { target.classList.add('active-view'); window.scrollTo(0,0); }
       if (p === 'dashboard') { updateDashboardCounters(); evalPreventiveMaintenanceAlerts(); }
@@ -1694,11 +1711,11 @@
         f.innerHTML = `<label>TARGET WORK ORDER ID REFERENCE:</label><select id="rep_p_wo">${options}</select>`;
       }
       else if (layout === "apt_single_isolated_print") {
-        let options = (cache.apts || []).filter(a => String(a.type || a.Type || '').toLowerCase() !== 'services').map(a => {
+        let options = (cache.apts || []).map(a => {
           const uNum = getUnitNumber(a);
-          return `<option value="${uNum}">Unit ${uNum}</option>`;
+          return `<option value="${uNum}">Unit ${uNum} [${a.type || 'Standard'}]</option>`;
         }).join('');
-        f.innerHTML = `<label>SELECT TARGET APARTMENT TO PRINT:</label><select id="rep_p_apt">${options}</select>`;
+        f.innerHTML = `<label>SELECT TARGET APARTMENT TO PRINT (INCLUDES SERVICES):</label><select id="rep_p_apt">${options}</select>`;
       }
     }
 
@@ -1764,12 +1781,12 @@
         } else {
           const uNum = getUnitNumber(aptItem);
           const aptPhotosRaw = aptItem.photos || aptItem.Photos || '';
-          const aptPhotosArr = aptPhotosRaw.split(',').filter(Boolean).slice(0, 3);
+          const aptPhotosArr = aptPhotosRaw.split(',').filter(Boolean).slice(0, 4);
           
           let aptImgHtml = '';
           if (aptPhotosArr.length > 0) {
-            aptImgHtml = `<div style="display: flex; gap: 10px; margin-top: 10px; margin-bottom: 20px;">` + 
-              aptPhotosArr.map(url => `<img src="${getDirectImageUrl(url)}" style="width: 135px; height: 135px; object-fit: cover; border: 2px solid #000; border-radius: 6px;">`).join('') + 
+            aptImgHtml = `<div style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; margin-bottom: 20px;">` + 
+              aptPhotosArr.map(url => `<img src="${getDirectImageUrl(url)}" style="width: 102px; height: 102px; object-fit: cover; border: 2px solid #000; border-radius: 6px;">`).join('') + 
               `</div>`;
           } else {
             aptImgHtml = `<p style="font-size: 12px; color: var(--muted); font-style: italic; margin-top: 6px; margin-bottom: 20px;">No layout captures attached for this space structural block.</p>`;
@@ -1779,27 +1796,27 @@
           
           let assetsMediaBlockHtml = '';
           if (relatedAssets.length > 0) {
-            assetsMediaBlockHtml = relatedAssets.map(ast => {
-              const astPhotosRaw = ast.photos || ast.Photos || '';
-              const firstAstPhoto = astPhotosRaw.split(',').filter(Boolean)[0];
-              
-              const astImgTag = firstAstPhoto 
-                ? `<img src="${getDirectImageUrl(firstAstPhoto)}" style="width: 95px; height: 95px; object-fit: cover; border: 2px solid #000; border-radius: 6px; margin-right: 15px; flex-shrink:0;">` 
-                : `<div style="width: 95px; height: 95px; border: 2px dashed var(--border); border-radius: 6px; display: flex; align-items: center; justify-content: center; background: #f8f9fa; margin-right: 15px; font-size: 11px; color: var(--muted); font-style: italic; flex-shrink:0;">No Capture</div>`;
-              
-              return `
-                <div style="display: flex; align-items: center; margin-bottom: 12px; padding: 10px; border: 1px solid #000; border-radius: 8px; background: #ffffff; page-break-inside: avoid;">
-                  ${astImgTag}
-                  <div style="line-height: 1.5; text-align:left;">
-                    <div style="font-size: 15px; font-weight: 800; color: var(--primary);">${ast.type || ast.Type || 'Asset'}</div>
-                    <div style="font-size: 13px; font-weight: 700; margin-top:2px;">Tag Ref: <code style="background: #e9ecef; padding: 1px 4px; border-radius: 4px; font-size:12px;">${ast.tag || ast.Tag || ''}</code></div>
-                    <div style="font-size: 13px; font-weight: 700;">Status State: <span style="text-transform: uppercase; font-weight:900; color: ${String(ast.status || '').toLowerCase() === 'operational' ? 'var(--success)' : 'var(--danger)'};">${ast.status || ast.Status || 'Unknown'}</span></div>
-                    ${ast.specs || ast.Specs ? `<div style="font-size: 12px; color: var(--muted); margin-top:2px;">Specs: ${ast.specs || ast.Specs}</div>` : ''}
-                  </div>
-                </div>`;
-            }).join('');
+            assetsMediaBlockHtml = `<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; width: 100%;">` + 
+              relatedAssets.map(ast => {
+                const astPhotosRaw = ast.photos || ast.Photos || '';
+                const firstAstPhoto = astPhotosRaw.split(',').filter(Boolean)[0];
+                
+                const astImgTag = firstAstPhoto 
+                  ? `<img src="${getDirectImageUrl(firstAstPhoto)}" style="width: 85px; height: 85px; object-fit: cover; border: 2px solid #000; border-radius: 6px; margin-right: 12px; flex-shrink:0;">` 
+                  : `<div style="width: 85px; height: 85px; border: 2px dashed var(--border); border-radius: 6px; display: flex; align-items: center; justify-content: center; background: #f8f9fa; margin-right: 12px; font-size: 10px; color: var(--muted); font-style: italic; flex-shrink:0;">No Capture</div>`;
+                
+                return `
+                  <div style="display: flex; align-items: center; padding: 10px; border: 1px solid #000; border-radius: 8px; background: #ffffff; page-break-inside: avoid;">
+                    ${astImgTag}
+                    <div style="line-height: 1.4; text-align:left; font-size: 12px; overflow: hidden;">
+                      <div style="font-size: 14px; font-weight: 800; color: var(--primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${ast.type || ast.Type || 'Asset'}</div>
+                      <div style="margin-top:2px; font-weight: 700;">Tag: <code style="background: #e9ecef; padding: 1px 4px; border-radius: 4px; font-size:11px;">${ast.tag || ast.Tag || ''}</code></div>
+                      <div style="font-weight: 700; margin-top:1px;">Status: <span style="text-transform: uppercase; font-weight:900; color: ${String(ast.status || '').toLowerCase() === 'operational' ? 'var(--success)' : 'var(--danger)'};">${ast.status || ast.Status || 'Unknown'}</span></div>
+                    </div>
+                  </div>`;
+              }).join('') + `</div>`;
           } else {
-            assetsMediaBlockHtml = `<p style="font-size: 12px; color: var(--muted); font-style: italic;">No functional mechanical system assets tracked directly inside this flat block index environment.</p>`;
+            assetsMediaBlockHtml = `<p style="font-size: 12px; color: var(--muted); font-style: italic;">No functional mechanical system assets tracked directly inside this flat block environment.</p>`;
           }
 
           contentHtml = `
@@ -1813,7 +1830,7 @@
                 <tr><th>Lease End Date</th><td>${formatDateForDisplay(aptItem.leaseEnd || aptItem.LeaseEnd)}</td></tr>
                 <tr><th>Notes</th><td>${aptItem.notes || aptItem.Notes || 'No localized notes logged.'}</td></tr>
               </table>
-              <div style="font-weight: 800; font-size: 13px; text-transform: uppercase; color:#111; border-bottom:1px dashed #000; padding-bottom:2px;">Apartment Interior Room captures (Max 3 Row):</div>
+              <div style="font-weight: 800; font-size: 13px; text-transform: uppercase; color:#111; border-bottom:1px dashed #000; padding-bottom:2px;">Apartment Interior Room captures:</div>
               ${aptImgHtml}
               <div style="font-weight: 800; font-size: 13px; text-transform: uppercase; margin-top: 15px; margin-bottom: 10px; color:#111; border-bottom:1px dashed #000; padding-bottom:2px;">Mechanical Appurtenances & System Assets Inventory Profiles:</div>
               ${assetsMediaBlockHtml}
