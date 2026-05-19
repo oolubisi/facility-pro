@@ -795,6 +795,12 @@
       if (type === 'workorder') match = cache.workorders.find(i => String(i.workOrderId || i.WorkOrderId || i.WORKORDERID) === String(lookupId));
       if (type === 'inventory') match = cache.inventory.find(i => String(i.itemId || i.ItemId || i.ITEMID) === String(lookupId));
       if (type === 'payment') match = cache.payments.find(i => String(i.paymentId || i.PaymentId) === String(lookupId));
+      
+      // Multi-layer fallback matching logic for chronological logging segments
+      if (type === 'utility' || type === 'generator') {
+        match = cache.utilities.find((i, idx) => String(i.rowId || i.id || idx) === String(lookupId));
+      }
+      
       if (match) openModal(type, match);
     }
 
@@ -816,7 +822,6 @@
           cache.apts = displayData; 
           sortApartmentsCacheList(); 
           
-          // Segment routing checks based on explicit field mapping
           if (p === 'apartments') {
             displayData = cache.apts.filter(item => item && String(item.type || item.Type || '').toLowerCase() !== 'services');
           } else {
@@ -845,7 +850,7 @@
           if (filter && filter.value !== "ALL") displayData = displayData.filter(item => String(item.status || item.Status || '') === filter.value);
         }
     
-        listEl.innerHTML = displayData.map(item => {
+        listEl.innerHTML = displayData.map((item, idx) => {
           if (!item) return '';
           var unitId = getUnitNumber(item);
           if (isMaint) {
@@ -931,8 +936,10 @@
           }
           else if (p === 'utilities') {
             const isPlant = item.type === 'Plant Check' || String(unitId).includes('GENERATOR') || unitId === 'DIESEL-TANK';
+            const itemType = isPlant ? 'generator' : 'utility';
+            const lookupId = item.rowId || item.id || idx;
             return `
-              <div class="card" style="border-left: 6px solid ${isPlant ? '#fd7e14' : 'var(--primary)'};">
+              <div class="card" onclick="openRecordRow('${itemType}', '${lookupId}')" style="border-left: 6px solid ${isPlant ? '#fd7e14' : 'var(--primary)'}; cursor: pointer;">
                 <div style="display:flex; justify-content:space-between; align-items:start;">
                   <div><strong>${unitId}</strong><br><span style="font-size:12px; font-weight:800; color:var(--muted);">${String(item.type || '').toUpperCase()}</span></div>
                   <span style="padding:4px 10px; font-weight:900; background:#000; color:#fff; border-radius:6px; font-size:14px;">${item.reading || item.Reading || 0}</span>
@@ -940,7 +947,6 @@
               </div>`;
           }
           else {
-            // Both apartments and service units share this click routing architecture cleanly
             return `
               <div class="card" onclick="openRecordRow('apartment', '${unitId}')">
                 <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -1314,35 +1320,64 @@
         };
       }
       else if (type === 'utility') {
-        title.innerText = "Record Utility Data";
+        title.innerText = isEdit ? "Update Utility Data" : "Record Utility Data";
         body.innerHTML = `
           <label ${labelStyle}>Select Asset Unit</label><select id="u_apt" ${largeInput}></select>
           <label ${labelStyle}>Utility Profile Class</label>
-          <select id="u_type" ${largeInput}><option value="Electricity">Electricity Meter</option><option value="Water">Water Gauge</option></select>
-          <label ${labelStyle}>Meter Box Serial No</label><input id="u_meter" ${largeInput}>
-          <label ${labelStyle}>Consumption Meter Reading</label><input id="u_reading" type="number" ${largeInput}>
-          <label ${labelStyle}>Token Purchase Cost (₦)</label><input id="u_amount" type="number" ${largeInput}>
-          <label ${labelStyle}>Log Notes</label><textarea id="u_notes" rows="2" ${largeInput}></textarea>`;
+          <select id="u_type" ${largeInput}>
+            <option value="Electricity" ${isEdit && String(editData.type)==='Electricity'?'selected':''}>Electricity Meter</option>
+            <option value="Water" ${isEdit && String(editData.type)==='Water'?'selected':''}>Water Gauge</option>
+          </select>
+          <label ${labelStyle}>Meter Box Serial No</label><input id="u_meter" value="${isEdit ? (editData.meterNo || '') : ''}" ${largeInput}>
+          <label ${labelStyle}>Consumption Meter Reading</label><input id="u_reading" type="number" value="${isEdit ? (editData.reading || '') : ''}" ${largeInput}>
+          <label ${labelStyle}>Token Purchase Cost (₦)</label><input id="u_amount" type="number" value="${isEdit ? (editData.amount || editData.Amount || '') : ''}" ${largeInput}>
+          <label ${labelStyle}>Log Notes</label><textarea id="u_notes" rows="2" ${largeInput}>${isEdit ? (editData.notes || '') : ''}</textarea>`;
         
-        populateUnitDropdown('u_apt', '');
+        populateUnitDropdown('u_apt', isEdit ? getUnitNumber(editData) : '');
         submit.onclick = () => {
           submit.disabled = true;
-          callApi('saveUtility', { apt: document.getElementById('u_apt').value, type: document.getElementById('u_type').value, meterNo: document.getElementById('u_meter').value, reading: document.getElementById('u_reading').value, amount: document.getElementById('u_amount').value, notes: document.getElementById('u_notes').value, photos: '' }).then(() => { closeModal(); refreshData('utilities'); });
+          callApi(isEdit ? 'updateUtility' : 'saveUtility', { 
+            rowId: isEdit ? (editData.rowId || editData.id || '') : '',
+            apt: document.getElementById('u_apt').value, 
+            type: document.getElementById('u_type').value, 
+            meterNo: document.getElementById('u_meter').value, 
+            reading: document.getElementById('u_reading').value, 
+            amount: document.getElementById('u_amount').value, 
+            notes: document.getElementById('u_notes').value, 
+            photos: isEdit ? (editData.photos || '') : '' 
+          }).then(() => { closeModal(); refreshData('utilities'); });
         };
       }
       else if (type === 'generator') {
-        title.innerText = "Log Plant Status";
+        title.innerText = isEdit ? "Update Plant Status" : "Log Plant Status";
         body.innerHTML = `
           <label ${labelStyle}>Select Heavy Plant Machine</label>
-          <select id="g_equipment" ${largeInput}><option value="GENERATOR-1">Generator 1 (Main)</option><option value="GENERATOR-2">Generator 2 (Backup)</option><option value="DIESEL-TANK">Bulk Diesel Fuel Reservoir</option></select>
-          <label ${labelStyle}>Engine Run Hours Meter</label><input id="g_reading" type="number" step="0.1" ${largeInput}>
+          <select id="g_equipment" ${largeInput}>
+            <option value="GENERATOR-1" ${isEdit && String(editData.apt || editData.Apt)==='GENERATOR-1'?'selected':''}>Generator 1 (Main)</option>
+            <option value="GENERATOR-2" ${isEdit && String(editData.apt || editData.Apt)==='GENERATOR-2'?'selected':''}>Generator 2 (Backup)</option>
+            <option value="DIESEL-TANK" ${isEdit && String(editData.apt || editData.Apt)==='DIESEL-TANK'?'selected':''}>Bulk Diesel Fuel Reservoir</option>
+          </select>
+          <label ${labelStyle}>Engine Run Hours Meter</label><input id="g_reading" type="number" step="0.1" value="${isEdit ? (editData.reading || '') : ''}" ${largeInput}>
           <label ${labelStyle}>Tank Current Storage Capacity Level</label>
-          <select id="g_tank" ${largeInput}><option value="Tank Level: Full (100%)">Full (100%)</option><option value="Tank Level: Half Full (50%)">Half Full (50%)</option><option value="Tank Level: Critical (10%)">Critical Threshold (10%)</option></select>
-          <label ${labelStyle}>Diesel Liters Added</label><input id="g_added" type="number" ${largeInput}>
-          <label ${labelStyle}>Field Observations Remark</label><textarea id="g_notes" rows="2" ${largeInput}></textarea>`;
+          <select id="g_tank" ${largeInput}>
+            <option value="Tank Level: Full (100%)" ${isEdit && String(editData.meterNo)==='Tank Level: Full (100%)'?'selected':''}>Full (100%)</option>
+            <option value="Tank Level: Half Full (50%)" ${isEdit && String(editData.meterNo)==='Tank Level: Half Full (50%)'?'selected':''}>Half Full (50%)</option>
+            <option value="Tank Level: Critical (10%)" ${isEdit && String(editData.meterNo)==='Tank Level: Critical (10%)'?'selected':''}>Critical Threshold (10%)</option>
+          </select>
+          <label ${labelStyle}>Diesel Liters Added</label><input id="g_added" type="number" value="${isEdit ? (editData.amount || editData.Amount || '') : ''}" ${largeInput}>
+          <label ${labelStyle}>Field Observations Remark</label><textarea id="g_notes" rows="2" ${largeInput}>${isEdit ? (editData.notes || '') : ''}</textarea>`;
         submit.onclick = () => {
           submit.disabled = true;
-          callApi('saveUtility', { apt: document.getElementById('g_equipment').value, type: "Plant Check", meterNo: document.getElementById('g_tank').value, reading: document.getElementById('g_reading').value, amount: document.getElementById('g_added').value || 0, notes: document.getElementById('g_notes').value, photos: '' }).then(() => { closeModal(); refreshData('utilities'); });
+          callApi(isEdit ? 'updateUtility' : 'saveUtility', { 
+            rowId: isEdit ? (editData.rowId || editData.id || '') : '',
+            apt: document.getElementById('g_equipment').value, 
+            type: "Plant Check", 
+            meterNo: document.getElementById('g_tank').value, 
+            reading: document.getElementById('g_reading').value, 
+            amount: document.getElementById('g_added').value || 0, 
+            notes: document.getElementById('g_notes').value, 
+            photos: isEdit ? (editData.photos || '') : '' 
+          }).then(() => { closeModal(); refreshData('utilities'); });
         };
       }
       else if (type === 'staff') {
