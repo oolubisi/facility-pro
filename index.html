@@ -1826,12 +1826,12 @@
 
   let contentHtml = "";
 
-  // 1. Apartments Manifest
+  // 1. Apartments Manifest (2-column assets, thick separators)
   if (layout === "apt_custom_print") {
     const filteredApts = cache.apts.filter(a => String(a.type || a.Type || '').toLowerCase() !== 'services');
     contentHtml = `<h3 style="margin-bottom: 15px; text-transform: uppercase;">APARTMENTS MANIFEST</h3>`;
 
-    filteredApts.forEach((a, index) => {
+    filteredApts.forEach((a) => {
       const uNum = getUnitNumber(a);
       let meterNo = a.meterNo || a.MeterNo || ((cache.utilities || []).find(u => String(getUnitNumber(u)) === String(uNum) && String(u.type) === 'Electricity') || {}).meterNo || 'N/A';
       const relatedAssets = cache.assets.filter(ast => String(getUnitNumber(ast)) === String(uNum) && String(ast.status || ast.Status || '') !== 'Archived');
@@ -1857,7 +1857,7 @@
         </div>`;
     });
   }
-  // 2. Detailed Dossier (Includes Type & Pictures)
+  // 2. Detailed Dossier (1 asset per row, box width 45%)
   else if (layout === "apt_single_isolated_print") {
     const aptItem = cache.apts.find(a => String(getUnitNumber(a)) === String(document.getElementById('rep_p_apt').value));
     if (!aptItem) { contentHtml = "<p>Selected apartment not found.</p>"; }
@@ -1877,7 +1877,7 @@
         const statusColor = (ast.status || '').toLowerCase() === 'operational' ? '#157347' : '#C00000';
         
         assetsHtml += `
-          <div style="border: 1px solid #000; border-radius: 4px; padding: 6px; display: flex; align-items: flex-start; gap: 10px; page-break-inside: avoid;">
+          <div style="border: 1px solid #000; border-radius: 4px; padding: 6px; display: flex; align-items: flex-start; gap: 10px; page-break-inside: avoid; width: 45%;">
             ${img}
             <div style="flex: 1; display: flex; flex-direction: column; gap: 2px;">
               <div style="font-size: 14px; font-weight: 900; color: #0056b3;">${ast.type || 'Asset'}</div>
