@@ -1857,7 +1857,7 @@
         </div>`;
     });
   }
-  // 2. Detailed Dossier (Includes Type & Pictures)
+  // 2. Detailed Dossier (Includes Type, Photos, and Location)
   else if (layout === "apt_single_isolated_print") {
     const aptItem = cache.apts.find(a => String(getUnitNumber(a)) === String(document.getElementById('rep_p_apt').value));
     if (!aptItem) { contentHtml = "<p>Selected apartment not found.</p>"; }
@@ -1868,7 +1868,6 @@
       let meterNo = aptItem.meterNo || aptItem.MeterNo || ((cache.utilities || []).find(u => String(getUnitNumber(u)) === String(uNum) && String(u.type) === 'Electricity') || {}).meterNo || 'Unassigned';
       const relatedAssets = cache.assets.filter(ast => String(getUnitNumber(ast)) === String(uNum) && String(ast.status || ast.Status || '') !== 'Archived');
 
-      // Pictures increased to 180px
       let photosHtml = photos.length > 0 ? photos.map(url => `<img src="${getDirectImageUrl(url)}" style="width: 180px; height: 180px; object-fit: cover; border: 1px solid #000; margin-right: 5px;">`).join('') : '<p>No photos available.</p>';
       
       let assetsHtml = `<div style="display: flex; flex-wrap: wrap; gap: 10px;">`;
@@ -1884,6 +1883,7 @@
               <div style="font-size: 14px; font-weight: 900; color: #0056b3;">${ast.type || 'Asset'}</div>
               <div style="font-size: 11px; font-weight: 800;">Specs: <span style="font-weight: 500;">${ast.specs || 'N/A'}</span></div>
               <div style="font-size: 11px; font-weight: 800;">Tag: <span style="font-weight: 700; border: 1px dashed #000; padding: 1px 4px; font-family: monospace;">${ast.tag || 'N/A'}</span></div>
+              <div style="font-size: 11px; font-weight: 800;">Loc: <span style="font-weight: 500;">${ast.loc || ast.Loc || 'N/A'}</span></div>
               <div style="font-size: 11px; font-weight: 800;">Status: <span style="font-weight: 900; color: ${statusColor};">${(ast.status || 'Unknown').toUpperCase()}</span></div>
             </div>
           </div>`;
