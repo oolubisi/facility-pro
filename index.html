@@ -1834,14 +1834,13 @@
         
         filteredApts.forEach((a, index) => {
           const uNum = getUnitNumber(a);
-          
-          // Hybrid Meter Check: from Apartment directly, fallback to Utility Cache
-          let meterNo = a.meterNo || a.MeterNo;
-          if (!meterNo) {
-            const elecUtil = (cache.utilities || []).find(u => String(getUnitNumber(u)) === String(uNum) && String(u.type) === 'Electricity');
-            if (elecUtil && (elecUtil.meterNo || elecUtil.MeterNo)) meterNo = elecUtil.meterNo || elecUtil.MeterNo;
-          }
-          meterNo = meterNo || 'Unassigned';
+          
+          let meterNo = a.meterNo || a.MeterNo;
+          if (!meterNo) {
+            const elecUtil = (cache.utilities || []).find(u => String(getUnitNumber(u)) === String(uNum) && String(u.type) === 'Electricity');
+            if (elecUtil && (elecUtil.meterNo || elecUtil.MeterNo)) meterNo = elecUtil.meterNo || elecUtil.MeterNo;
+          }
+          meterNo = meterNo || 'Unassigned';
 
           const relatedAssets = cache.assets.filter(asset => String(getUnitNumber(asset)) === String(uNum) && String(asset.status || asset.Status || '') !== 'Archived' && String(asset.archived || asset.Archived || '') !== 'Yes');
           
@@ -1860,7 +1859,7 @@
                 <tr><th style="width: 25%;">Apartment / Unit</th><td><strong>Unit ${uNum}</strong></td></tr>
                 <tr><th>Tenant Name</th><td>${a.tenant || a.Tenant || 'VACANT'}</td></tr>
                 <tr><th>Apartment Type</th><td>${a.type || a.Type || 'Standard'}</td></tr>
-                <tr><th>Meter No</th><td>${meterNo}</td></tr>
+                <tr><th>Meter No</th><td>${meterNo}</td></tr>
                 <tr><th>Status</th><td>${a.status || a.Status || 'Vacant'}</td></tr>
                 <tr><th>Lease End Date</th><td>${formatDateForDisplay(a.leaseEnd || a.LeaseEnd)}</td></tr>
                 <tr><th>Notes</th><td>${a.notes || a.Notes || 'No localized notes logged.'}</td></tr>
@@ -1878,22 +1877,22 @@
           contentHtml = "<p style='text-align:center; padding:20px; font-weight:700;'>Selected apartment profile entry could not be extracted from memory cache blocks.</p>";
         } else {
           const uNum = getUnitNumber(aptItem);
-          
-          // Hybrid Meter Check: from Apartment directly, fallback to Utility Cache
-          let meterNo = aptItem.meterNo || aptItem.MeterNo;
-          if (!meterNo) {
-            const elecUtil = (cache.utilities || []).find(u => String(getUnitNumber(u)) === String(uNum) && String(u.type) === 'Electricity');
-            if (elecUtil && (elecUtil.meterNo || elecUtil.MeterNo)) meterNo = elecUtil.meterNo || elecUtil.MeterNo;
-          }
-          meterNo = meterNo || 'Unassigned';
+          
+          let meterNo = aptItem.meterNo || aptItem.MeterNo;
+          if (!meterNo) {
+            const elecUtil = (cache.utilities || []).find(u => String(getUnitNumber(u)) === String(uNum) && String(u.type) === 'Electricity');
+            if (elecUtil && (elecUtil.meterNo || elecUtil.MeterNo)) meterNo = elecUtil.meterNo || elecUtil.MeterNo;
+          }
+          meterNo = meterNo || 'Unassigned';
 
           const aptPhotosRaw = aptItem.photos || aptItem.Photos || '';
           const aptPhotosArr = aptPhotosRaw.split(',').filter(Boolean).slice(0, 4);
           
           let aptImgHtml = '';
           if (aptPhotosArr.length > 0) {
+            // Picture size increased from 102px to 153px
             aptImgHtml = `<div style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; margin-bottom: 20px;">` + 
-              aptPhotosArr.map(url => `<img src="${getDirectImageUrl(url)}" style="width: 102px; height: 102px; object-fit: cover; border: 2px solid #000; border-radius: 6px;">`).join('') + 
+              aptPhotosArr.map(url => `<img src="${getDirectImageUrl(url)}" style="width: 153px; height: 153px; object-fit: cover; border: 2px solid #000; border-radius: 6px;">`).join('') + 
               `</div>`;
           } else {
             aptImgHtml = `<p style="font-size: 12px; color: var(--muted); font-style: italic; margin-top: 6px; margin-bottom: 20px;">No layout captures attached for this space structural block.</p>`;
@@ -1903,7 +1902,8 @@
           
           let assetsMediaBlockHtml = '';
           if (relatedAssets.length > 0) {
-            assetsMediaBlockHtml = `<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; width: 100%;">` + 
+            // Grid changed to 1 column so each asset fills the width
+            assetsMediaBlockHtml = `<div style="display: grid; grid-template-columns: 1fr; gap: 12px; width: 100%;">` + 
               relatedAssets.map(ast => {
                 const astPhotosRaw = ast.photos || ast.Photos || '';
                 const firstAstPhoto = astPhotosRaw.split(',').filter(Boolean)[0];
@@ -1915,7 +1915,7 @@
                 return `
                   <div style="display: flex; align-items: center; padding: 10px; border: 1px solid #000; border-radius: 8px; background: #ffffff; page-break-inside: avoid;">
                     ${astImgTag}
-                    <div style="line-height: 1.4; text-align:left; font-size: 12px; overflow: hidden;">
+                    <div style="line-height: 1.4; text-align:left; font-size: 12px; overflow: hidden; flex: 1;">
                       <div style="font-size: 14px; font-weight: 800; color: var(--primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${ast.type || ast.Type || 'Asset'}</div>
                       <div style="margin-top:2px; font-weight: 700;">Tag: <code style="background: #e9ecef; padding: 1px 4px; border-radius: 4px; font-size:11px;">${ast.tag || ast.Tag || ''}</code></div>
                       <div style="font-weight: 700; margin-top:2px;">Location: <span style="font-weight:500;">${ast.loc || ast.Loc || 'Not Specified'}</span></div>
@@ -1935,7 +1935,7 @@
                 <tr><th style="width: 25%;">Apartment / Unit</th><td><strong>Unit ${uNum}</strong></td></tr>
                 <tr><th>Tenant Name</th><td>${aptItem.tenant || aptItem.Tenant || 'VACANT'}</td></tr>
                 <tr><th>Apartment Type</th><td>${aptItem.type || aptItem.Type || 'Standard'}</td></tr>
-                <tr><th>Meter No</th><td>${meterNo}</td></tr>
+                <tr><th>Meter No</th><td>${meterNo}</td></tr>
                 <tr><th>Status</th><td>${aptItem.status || aptItem.Status || 'Vacant'}</td></tr>
                 <tr><th>Lease End Date</th><td>${formatDateForDisplay(aptItem.leaseEnd || aptItem.LeaseEnd)}</td></tr>
                 <tr><th>Notes</th><td>${aptItem.notes || aptItem.Notes || 'No localized notes logged.'}</td></tr>
@@ -1984,6 +1984,8 @@
       document.getElementById('report-print-container').innerHTML = rawCompiledOutput;
       document.getElementById('report-onscreen-preview-card').style.display = "block";
     }
+
+    
     // ---------------------------------------------------------
     // OFFLINE SYNC & PWA REGISTRATION
     // ---------------------------------------------------------
