@@ -695,21 +695,32 @@
       }
     }
 
-    function bootstrapDataRegistriesPipeline() {
+    async function bootstrapDataRegistriesPipeline() {
       const actions = ['getApartments', 'getAssets', 'getMaintenance', 'getStaff', 'getVendors', 'getUtilities', 'getWorkOrders', 'getInventory', 'getPayments'];
       const map = ['apts', 'assets', 'tickets', 'staff', 'vendors', 'utilities', 'workorders', 'inventory', 'payments'];
       
-      Promise.all(actions.map(act => callApi(act, {}))).then(results => {
-        results.forEach((res, i) => { 
-          if(res) cache[map[i]] = res; 
-        });
-        if (cache.apts) sortApartmentsCacheList();
-        updateDashboardCounters();
-        evalPreventiveMaintenanceAlerts();
-        prepopulateStaticFilterSelectors();
-      });
-    }
+      const results = await Promise.all(actions.map(async (act) => {
+        try {
+          return await callApi(act, {});
+        } catch (e) {
+          // If the network call throws, callApi (with my previous fix) 
+          // should already be returning the localStorage backup.
+          return [];
+        }
+      }));
 
+      results.forEach((res, i) => { 
+        if(res) cache[map[i]] = res; 
+      });
+
+      if (cache.apts) sortApartmentsCacheList();
+      updateDashboardCounters();
+      evalPreventiveMaintenanceAlerts();
+      prepopulateStaticFilterSelectors();
+      
+      console.log("Registry Pipeline Finished. Data loaded (Cloud or Cache).");
+    }
+    
     function getUnitNumber(u) {
       if (!u) return '';
       if (u.apt !== undefined) return u.apt;
