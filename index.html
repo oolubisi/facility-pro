@@ -578,6 +578,22 @@
       bootstrapDataRegistriesPipeline(); 
     };
 
+    // Helper for sequential ID generation (STF-0001, VND-0001)
+    function generateNextId(prefix, list, idKey) {
+      let maxId = 0;
+      list.forEach(item => {
+        const idVal = item[idKey] || item[idKey.charAt(0).toUpperCase() + idKey.slice(1)] || item[idKey.toUpperCase()];
+        if (idVal && typeof idVal === 'string' && idVal.startsWith(prefix)) {
+          const parts = idVal.split('-');
+          if (parts.length > 1) {
+            const numPart = parseInt(parts[1], 10);
+            if (!isNaN(numPart) && numPart > maxId) maxId = numPart;
+          }
+        }
+      });
+      return `${prefix}-${String(maxId + 1).padStart(4, '0')}`;
+    }
+
     async function loadApplicationSettingsData() {
       const stored = localStorage.getItem("facility_pro_config_meta");
       if (stored) {
@@ -1519,7 +1535,7 @@
         };
       }
       else if (type === 'staff') {
-        const uniqueId = isEdit ? (editData.rowId || editData.RowId) : "STF-" + Math.random().toString(36).substr(2, 5).toUpperCase();
+        const uniqueId = isEdit ? (editData.rowId || editData.RowId) : generateNextId('STF', cache.staff, 'rowId');
         title.innerText = "Staff Profile Management";
         currentAvatarPhoto = isEdit ? (editData.passport || editData.Passport) : "";
         if (isEdit && (editData.attachments || editData.Attachments)) currentModalFiles = (editData.attachments || editData.Attachments).split(',').filter(Boolean);
@@ -1575,7 +1591,7 @@
         };
       }
       else if (type === 'vendor') {
-        const uniqueId = isEdit ? (editData.rowId || editData.RowId) : "VND-" + Math.random().toString(36).substr(2, 5).toUpperCase();
+        const uniqueId = isEdit ? (editData.rowId || editData.RowId) : generateNextId('VND', cache.vendors, 'rowId');
         title.innerText = "Vendor SLA Registry Profile";
         currentAvatarPhoto = isEdit ? (editData.passport || editData.Passport) : "";
         if (isEdit && (editData.attachments || editData.Attachments)) currentModalFiles = (editData.attachments || editData.Attachments).split(',').filter(Boolean);
