@@ -1894,42 +1894,58 @@
               aptPhotosArr.map(url => `<img src="${getDirectImageUrl(url)}" style="width: 153px; height: 153px; object-fit: cover; border: 2px solid #000; border-radius: 6px;">`).join('') + 
               `</div>`;
           } else {
-            aptImgHtml = `<p style="font-size: 12px; color: var(--muted); font-style: italic; margin-top: 6px; margin-bottom: 20px;">No layout captures attached for this space structural block.</p>`;
+            aptImgHtml = `<p style="font-size: 12px; color: #495057; font-style: italic; margin-top: 6px; margin-bottom: 20px;">No layout captures attached for this space structural block.</p>`;
           }
 
           const relatedAssets = cache.assets.filter(asset => String(getUnitNumber(asset)) === String(uNum) && String(asset.status || asset.Status || '') !== 'Archived' && String(asset.archived || asset.Archived || '') !== 'Yes');
           
           let assetsMediaBlockHtml = '';
           if (relatedAssets.length > 0) {
-            // Restored to 2 columns (1fr 1fr) with the exact mockup design
-            assetsMediaBlockHtml = `<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%;">` + 
-              relatedAssets.map(ast => {
-                const astPhotosRaw = ast.photos || ast.Photos || '';
-                const firstAstPhoto = astPhotosRaw.split(',').filter(Boolean)[0];
-                
-                const astImgTag = firstAstPhoto 
-                  ? `<img src="${getDirectImageUrl(firstAstPhoto)}" style="width: 140px; height: 140px; object-fit: cover; border: 1px dashed #888; padding: 2px; flex-shrink:0;">` 
-                  : `<div style="width: 140px; height: 140px; border: 1px dashed #888; display: flex; align-items: center; justify-content: center; background: #f8f9fa; padding: 2px; font-size: 10px; color: var(--muted); font-style: italic; flex-shrink:0;">No Image</div>`;
+            // Restructured completely to use bulletproof <table> loops for PDF compilation
+            assetsMediaBlockHtml = `<table style="width: 100%; border-collapse: separate; border-spacing: 10px; table-layout: fixed; margin-left: -10px;"><tbody>`;
+            
+            for (let i = 0; i < relatedAssets.length; i += 2) {
+              assetsMediaBlockHtml += `<tr style="page-break-inside: avoid;">`;
+              
+              for (let j = 0; j < 2; j++) {
+                if (i + j < relatedAssets.length) {
+                  const ast = relatedAssets[i + j];
+                  const astPhotosRaw = ast.photos || ast.Photos || '';
+                  const firstAstPhoto = astPhotosRaw.split(',').filter(Boolean)[0];
+                  
+                  const astImgTag = firstAstPhoto 
+                    ? `<img src="${getDirectImageUrl(firstAstPhoto)}" style="width: 140px; height: 140px; object-fit: cover; border: 1px dashed #888; padding: 2px;">` 
+                    : `<div style="width: 140px; height: 140px; border: 1px dashed #888; display: flex; align-items: center; justify-content: center; background: #f8f9fa; padding: 2px; font-size: 10px; color: #495057; font-style: italic;">No Image</div>`;
 
-                const statusStr = String(ast.status || ast.Status || 'Unknown').toUpperCase();
-                const statusColor = statusStr === 'OPERATIONAL' ? 'var(--success)' : (statusStr === 'FAULTY' ? 'var(--danger)' : 'var(--muted)');
-                
-                return `
-                  <div style="border: 1px solid #000; border-radius: 6px; padding: 10px; background: #ffffff; page-break-inside: avoid; display: flex; flex-direction: column;">
-                    <div style="font-size: 14px; font-weight: 800; margin-bottom: 8px; color: #000;">Specs: <span style="font-weight: 500;">${ast.specs || ast.Specs || 'N/A'}</span></div>
-                    <div style="display: flex; gap: 12px; align-items: center;">
-                      ${astImgTag}
-                      <div style="flex: 1; display: flex; flex-direction: column; gap: 8px; text-align: left; overflow: hidden;">
-                        <div style="font-size: 17px; font-weight: 800; color: var(--primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${ast.type || ast.Type || 'Asset'}</div>
-                        <div style="font-size: 13px; font-weight: 800; display: flex; align-items: center; gap: 4px;">Tag: <span style="font-weight: 700; border: 1px dashed #000; padding: 2px 6px; font-family: monospace; letter-spacing: 0.5px;">${ast.tag || ast.Tag || 'N/A'}</span></div>
-                        <div style="font-size: 13px; font-weight: 800;">Location: <span style="font-weight: 500;">${ast.loc || ast.Loc || 'Not Specified'}</span></div>
-                        <div style="font-size: 13px; font-weight: 800;">Status: <span style="font-weight: 900; color: ${statusColor};">${statusStr}</span></div>
-                      </div>
-                    </div>
-                  </div>`;
-              }).join('') + `</div>`;
+                  const statusStr = String(ast.status || ast.Status || 'Unknown').toUpperCase();
+                  const statusColor = statusStr === 'OPERATIONAL' ? '#157347' : (statusStr === 'FAULTY' ? '#C00000' : '#495057');
+                  
+                  assetsMediaBlockHtml += `
+                    <td style="width: 50%; border: 1px solid #000; border-radius: 6px; padding: 10px; background: #ffffff; vertical-align: top;">
+                      <div style="font-size: 14px; font-weight: 800; margin-bottom: 8px; color: #000;">Specs: <span style="font-weight: 500;">${ast.specs || ast.Specs || 'N/A'}</span></div>
+                      <table style="width: 100%; border-collapse: collapse;">
+                        <tr>
+                          <td style="width: 145px; vertical-align: top; padding: 0;">
+                            ${astImgTag}
+                          </td>
+                          <td style="vertical-align: top; padding: 0 0 0 12px;">
+                            <div style="font-size: 17px; font-weight: 900; color: #0056b3; margin-bottom: 8px;">${ast.type || ast.Type || 'Asset'}</div>
+                            <div style="font-size: 13px; font-weight: 800; margin-bottom: 8px;">Tag: <span style="font-weight: 700; border: 1px dashed #000; padding: 2px 6px; font-family: monospace; letter-spacing: 0.5px;">${ast.tag || ast.Tag || 'N/A'}</span></div>
+                            <div style="font-size: 13px; font-weight: 800; margin-bottom: 8px;">Location: <span style="font-weight: 500;">${ast.loc || ast.Loc || 'Not Specified'}</span></div>
+                            <div style="font-size: 13px; font-weight: 800;">Status: <span style="font-weight: 900; color: ${statusColor};">${statusStr}</span></div>
+                          </td>
+                        </tr>
+                      </table>
+                    </td>`;
+                } else {
+                  assetsMediaBlockHtml += `<td style="width: 50%; padding: 10px;"></td>`;
+                }
+              }
+              assetsMediaBlockHtml += `</tr>`;
+            }
+            assetsMediaBlockHtml += `</tbody></table>`;
           } else {
-            assetsMediaBlockHtml = `<p style="font-size: 12px; color: var(--muted); font-style: italic;">No functional mechanical system assets tracked directly inside this flat block environment.</p>`;
+            assetsMediaBlockHtml = `<p style="font-size: 12px; color: #495057; font-style: italic;">No functional mechanical system assets tracked directly inside this flat block environment.</p>`;
           }
 
           contentHtml = `
