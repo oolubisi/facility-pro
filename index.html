@@ -1901,26 +1901,30 @@
           
           let assetsMediaBlockHtml = '';
           if (relatedAssets.length > 0) {
-            assetsMediaBlockHtml = `<div style="display: grid; grid-template-columns: 1fr; gap: 8px; width: 100%;">` + 
+            // Restored to 2 columns (1fr 1fr) with the exact mockup design
+            assetsMediaBlockHtml = `<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%;">` + 
               relatedAssets.map(ast => {
                 const astPhotosRaw = ast.photos || ast.Photos || '';
                 const firstAstPhoto = astPhotosRaw.split(',').filter(Boolean)[0];
                 
-                // Asset Image size increased from 85px to 128px
                 const astImgTag = firstAstPhoto 
-                  ? `<img src="${getDirectImageUrl(firstAstPhoto)}" style="width: 128px; height: 128px; object-fit: cover; border: 1px solid #000; border-radius: 4px; margin-right: 10px; flex-shrink:0;">` 
-                  : `<div style="width: 128px; height: 128px; border: 1px dashed var(--border); border-radius: 4px; display: flex; align-items: center; justify-content: center; background: #f8f9fa; margin-right: 10px; font-size: 10px; color: var(--muted); font-style: italic; flex-shrink:0;">No Capture</div>`;
+                  ? `<img src="${getDirectImageUrl(firstAstPhoto)}" style="width: 140px; height: 140px; object-fit: cover; border: 1px dashed #888; padding: 2px; flex-shrink:0;">` 
+                  : `<div style="width: 140px; height: 140px; border: 1px dashed #888; display: flex; align-items: center; justify-content: center; background: #f8f9fa; padding: 2px; font-size: 10px; color: var(--muted); font-style: italic; flex-shrink:0;">No Image</div>`;
+
+                const statusStr = String(ast.status || ast.Status || 'Unknown').toUpperCase();
+                const statusColor = statusStr === 'OPERATIONAL' ? 'var(--success)' : (statusStr === 'FAULTY' ? 'var(--danger)' : 'var(--muted)');
                 
-                // Padding reduced to 4px to hug the image to the border
                 return `
-                  <div style="display: flex; align-items: center; padding: 4px; border: 1px solid #000; border-radius: 6px; background: #ffffff; page-break-inside: avoid;">
-                    ${astImgTag}
-                    <div style="line-height: 1.3; text-align:left; font-size: 12px; overflow: hidden; flex: 1; padding: 2px 0;">
-                      <div style="font-size: 15px; font-weight: 800; color: var(--primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${ast.type || ast.Type || 'Asset'}</div>
-                      <div style="margin-top:2px; font-weight: 700;">Tag: <code style="background: #e9ecef; padding: 1px 4px; border-radius: 4px; font-size:11px;">${ast.tag || ast.Tag || ''}</code></div>
-                      <div style="font-weight: 700; margin-top:2px;">Location: <span style="font-weight:500;">${ast.loc || ast.Loc || 'Not Specified'}</span></div>
-                      <div style="font-weight: 700; margin-top:2px;">Specs: <span style="font-weight:500;">${ast.specs || ast.Specs || 'None Logged'}</span></div>
-                      <div style="font-weight: 700; margin-top:2px;">Status: <span style="text-transform: uppercase; font-weight:900; color: ${String(ast.status || '').toLowerCase() === 'operational' ? 'var(--success)' : 'var(--danger)'};">${ast.status || ast.Status || 'Unknown'}</span></div>
+                  <div style="border: 1px solid #000; border-radius: 6px; padding: 10px; background: #ffffff; page-break-inside: avoid; display: flex; flex-direction: column;">
+                    <div style="font-size: 14px; font-weight: 800; margin-bottom: 8px; color: #000;">Specs: <span style="font-weight: 500;">${ast.specs || ast.Specs || 'N/A'}</span></div>
+                    <div style="display: flex; gap: 12px; align-items: center;">
+                      ${astImgTag}
+                      <div style="flex: 1; display: flex; flex-direction: column; gap: 8px; text-align: left; overflow: hidden;">
+                        <div style="font-size: 17px; font-weight: 800; color: var(--primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${ast.type || ast.Type || 'Asset'}</div>
+                        <div style="font-size: 13px; font-weight: 800; display: flex; align-items: center; gap: 4px;">Tag: <span style="font-weight: 700; border: 1px dashed #000; padding: 2px 6px; font-family: monospace; letter-spacing: 0.5px;">${ast.tag || ast.Tag || 'N/A'}</span></div>
+                        <div style="font-size: 13px; font-weight: 800;">Location: <span style="font-weight: 500;">${ast.loc || ast.Loc || 'Not Specified'}</span></div>
+                        <div style="font-size: 13px; font-weight: 800;">Status: <span style="font-weight: 900; color: ${statusColor};">${statusStr}</span></div>
+                      </div>
                     </div>
                   </div>`;
               }).join('') + `</div>`;
