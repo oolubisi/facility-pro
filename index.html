@@ -6,7 +6,7 @@
   <title>Facility Pro Mobile</title>
   
   <!-- PWA MANIFEST LINK -->
-  <link rel="manifest" href="?file=manifest">
+  <link rel="manifest" href="?file=manifest.json">
   
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght=400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
@@ -2057,7 +2057,7 @@
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         // Using the ?file=sw routing established in Code.gs
-        navigator.serviceWorker.register('?file=sw')
+        navigator.serviceWorker.register('sw.js')
           .then(reg => console.log('Service Worker Registered Successfully!', reg))
           .catch(err => console.error('Service Worker Registration Failed:', err));
       });
