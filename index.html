@@ -1857,7 +1857,7 @@
         </div>`;
     });
   }
-  // 2. Detailed Dossier (Includes Type, Photos, Location, and 25% larger asset thumbnails)
+  // 2. Detailed Dossier
   else if (layout === "apt_single_isolated_print") {
     const aptItem = cache.apts.find(a => String(getUnitNumber(a)) === String(document.getElementById('rep_p_apt').value));
     if (!aptItem) { contentHtml = "<p>Selected apartment not found.</p>"; }
@@ -1873,7 +1873,6 @@
       let assetsHtml = `<div style="display: flex; flex-wrap: wrap; gap: 10px;">`;
       relatedAssets.forEach(ast => {
         const photo = (ast.photos || ast.Photos || '').split(',')[0];
-        // Asset thumbnail size increased by 25% (90px -> 112px)
         const img = photo ? `<img src="${getDirectImageUrl(photo)}" style="width: 112px; height: 112px; object-fit: cover; border: 1px dashed #888; padding: 2px;">` : `<div style="width: 112px; height: 112px; border: 1px dashed #888; display: flex; align-items: center; justify-content: center; font-size: 9px; color: #888;">No Image</div>`;
         const statusColor = (ast.status || '').toLowerCase() === 'operational' ? '#157347' : '#C00000';
         
@@ -1891,10 +1890,14 @@
       });
       assetsHtml += `</div>`;
       
-      contentHtml = `<h3>APARTMENT DETAILED DOSSIER</h3>
+      contentHtml = `
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <h3 style="margin: 0; text-transform: uppercase;">APARTMENT DETAILED DOSSIER</h3>
+            <div style="border: 3px solid #000; padding: 8px 16px; font-size: 24px; font-weight: 800;">UNIT ${uNum}</div>
+        </div>
         <table style="width:100%; margin-bottom:15px; font-size:12px;">
-          <tr><th>Unit</th><td>${uNum}</td><th>Type</th><td>${aptType}</td></tr>
-          <tr><th>Meter No</th><td>${meterNo}</td><th>Status</th><td>${aptItem.status || 'Vacant'}</td></tr>
+          <tr><th>Type</th><td>${aptType}</td><th>Meter No</th><td>${meterNo}</td></tr>
+          <tr><th>Status</th><td>${aptItem.status || 'Vacant'}</td></tr>
         </table>
         <div style="margin-bottom:15px;"><strong>Interior Captures:</strong><br>${photosHtml}</div>
         <div style="margin-bottom:10px; font-weight:800;">ASSETS:</div>
