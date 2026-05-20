@@ -1826,7 +1826,7 @@
 
   let contentHtml = "";
 
-  // 1. Apartments Manifest (2-column assets, thick separators)
+  // 1. Apartments Manifest
   if (layout === "apt_custom_print") {
     const filteredApts = cache.apts.filter(a => String(a.type || a.Type || '').toLowerCase() !== 'services');
     contentHtml = `<h3 style="margin-bottom: 15px; text-transform: uppercase;">APARTMENTS MANIFEST</h3>`;
@@ -1850,14 +1850,14 @@
         <div style="margin-bottom: 25px; padding-bottom: 20px; border-bottom: 4px solid #333; page-break-inside: avoid;">
           <table style="width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 8px;">
             <tr><td style="padding: 4px; border: 1px solid #999; font-weight: 800; background: #f0f0f0;">Unit</td><td style="padding: 4px; border: 1px solid #999;">${uNum}</td><td style="padding: 4px; border: 1px solid #999; font-weight: 800; background: #f0f0f0;">Tenant</td><td style="padding: 4px; border: 1px solid #999;">${a.tenant || a.Tenant || 'VACANT'}</td></tr>
-            <tr><td style="padding: 4px; border: 1px solid #999; font-weight: 800; background: #f0f0f0;">Type</td><td style="padding: 4px; border: 1px solid #999;">${a.type || a.Type || 'Standard'}</td><td style="padding: 4px; border: 1px solid #999; font-weight: 800; background: #f0f0f0;">Meter No</td><td style="padding: 4px; border: 1px solid #999;">${meterNo}</td></tr>
+            <tr><td style="padding: 4px; border: 1px solid #999; font-weight: 800; background: #f0f0f0;">Type</td><td style="padding: 4px; border: 1px solid #999;">${a.type || a.Type || 'Standard'}</td><td style="padding: 1px solid #999; font-weight: 800; background: #f0f0f0;">Meter No</td><td style="padding: 4px; border: 1px solid #999;">${meterNo}</td></tr>
           </table>
           <div style="font-weight: 800; font-size: 11px; text-transform: uppercase; margin-bottom: 4px;">REGISTERED ASSETS:</div>
           <table style="width: 100%; border-collapse: collapse; font-size: 10px;">${assetRows}</table>
         </div>`;
     });
   }
-  // 2. Detailed Dossier (1 asset per row, box width 45%)
+  // 2. Detailed Dossier (2 columns, 45% width cards)
   else if (layout === "apt_single_isolated_print") {
     const aptItem = cache.apts.find(a => String(getUnitNumber(a)) === String(document.getElementById('rep_p_apt').value));
     if (!aptItem) { contentHtml = "<p>Selected apartment not found.</p>"; }
@@ -1870,7 +1870,8 @@
 
       let photosHtml = photos.length > 0 ? photos.map(url => `<img src="${getDirectImageUrl(url)}" style="width: 120px; height: 120px; object-fit: cover; border: 1px solid #000; margin-right: 5px;">`).join('') : '<p>No photos available.</p>';
       
-      let assetsHtml = `<div style="display: flex; flex-direction: column; gap: 8px;">`;
+      // Flex container with wrap to achieve 2-column layout
+      let assetsHtml = `<div style="display: flex; flex-wrap: wrap; gap: 10px;">`;
       relatedAssets.forEach(ast => {
         const photo = (ast.photos || ast.Photos || '').split(',')[0];
         const img = photo ? `<img src="${getDirectImageUrl(photo)}" style="width: 90px; height: 90px; object-fit: cover; border: 1px dashed #888; padding: 2px;">` : `<div style="width: 90px; height: 90px; border: 1px dashed #888; display: flex; align-items: center; justify-content: center; font-size: 9px; color: #888;">No Image</div>`;
