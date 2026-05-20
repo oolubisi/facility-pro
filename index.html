@@ -1826,17 +1826,16 @@
 
   let contentHtml = "";
 
-  // 1. Apartments Manifest (2-column assets, thick separators, forced page containment)
+  // 1. Apartments Manifest
   if (layout === "apt_custom_print") {
     const filteredApts = cache.apts.filter(a => String(a.type || a.Type || '').toLowerCase() !== 'services');
     contentHtml = `<h3 style="margin-bottom: 15px; text-transform: uppercase;">APARTMENTS MANIFEST</h3>`;
 
-    filteredApts.forEach((a) => {
+    filteredApts.forEach((a, index) => {
       const uNum = getUnitNumber(a);
       let meterNo = a.meterNo || a.MeterNo || ((cache.utilities || []).find(u => String(getUnitNumber(u)) === String(uNum) && String(u.type) === 'Electricity') || {}).meterNo || 'N/A';
       const relatedAssets = cache.assets.filter(ast => String(getUnitNumber(ast)) === String(uNum) && String(ast.status || ast.Status || '') !== 'Archived');
 
-      // Asset Table (2-column, rigid layout)
       let assetRows = "";
       for (let i = 0; i < relatedAssets.length; i += 2) {
         assetRows += "<tr>";
@@ -1858,15 +1857,19 @@
         </div>`;
     });
   }
-  // 2. Detailed Dossier (1 asset per row as requested)
+  // 2. Detailed Dossier (Includes Type & Pictures)
   else if (layout === "apt_single_isolated_print") {
     const aptItem = cache.apts.find(a => String(getUnitNumber(a)) === String(document.getElementById('rep_p_apt').value));
     if (!aptItem) { contentHtml = "<p>Selected apartment not found.</p>"; }
     else {
       const uNum = getUnitNumber(aptItem);
+      const aptType = aptItem.type || aptItem.Type || 'Standard';
+      const photos = (aptItem.photos || aptItem.Photos || '').split(',').filter(Boolean);
       let meterNo = aptItem.meterNo || aptItem.MeterNo || ((cache.utilities || []).find(u => String(getUnitNumber(u)) === String(uNum) && String(u.type) === 'Electricity') || {}).meterNo || 'Unassigned';
       const relatedAssets = cache.assets.filter(ast => String(getUnitNumber(ast)) === String(uNum) && String(ast.status || ast.Status || '') !== 'Archived');
 
+      let photosHtml = photos.length > 0 ? photos.map(url => `<img src="${getDirectImageUrl(url)}" style="width: 120px; height: 120px; object-fit: cover; border: 1px solid #000; margin-right: 5px;">`).join('') : '<p>No photos available.</p>';
+      
       let assetsHtml = `<div style="display: flex; flex-direction: column; gap: 8px;">`;
       relatedAssets.forEach(ast => {
         const photo = (ast.photos || ast.Photos || '').split(',')[0];
@@ -1885,8 +1888,14 @@
           </div>`;
       });
       assetsHtml += `</div>`;
+      
       contentHtml = `<h3>APARTMENT DETAILED DOSSIER</h3>
-        <table style="width:100%; margin-bottom:15px; font-size:12px;"><tr><th>Unit</th><td>${uNum}</td><th>Meter No</th><td>${meterNo}</td></tr></table>
+        <table style="width:100%; margin-bottom:15px; font-size:12px;">
+          <tr><th>Unit</th><td>${uNum}</td><th>Type</th><td>${aptType}</td></tr>
+          <tr><th>Meter No</th><td>${meterNo}</td><th>Status</th><td>${aptItem.status || 'Vacant'}</td></tr>
+        </table>
+        <div style="margin-bottom:15px;"><strong>Interior Captures:</strong><br>${photosHtml}</div>
+        <div style="margin-bottom:10px; font-weight:800;">ASSETS:</div>
         ${assetsHtml}`;
     }
   }
