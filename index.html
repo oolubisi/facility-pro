@@ -1850,14 +1850,14 @@
         <div style="margin-bottom: 25px; padding-bottom: 20px; border-bottom: 4px solid #333; page-break-inside: avoid;">
           <table style="width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 8px;">
             <tr><td style="padding: 4px; border: 1px solid #999; font-weight: 800; background: #f0f0f0;">Unit</td><td style="padding: 4px; border: 1px solid #999;">${uNum}</td><td style="padding: 4px; border: 1px solid #999; font-weight: 800; background: #f0f0f0;">Tenant</td><td style="padding: 4px; border: 1px solid #999;">${a.tenant || a.Tenant || 'VACANT'}</td></tr>
-            <tr><td style="padding: 4px; border: 1px solid #999; font-weight: 800; background: #f0f0f0;">Type</td><td style="padding: 4px; border: 1px solid #999;">${a.type || a.Type || 'Standard'}</td><td style="padding: 1px solid #999; font-weight: 800; background: #f0f0f0;">Meter No</td><td style="padding: 4px; border: 1px solid #999;">${meterNo}</td></tr>
+            <tr><td style="padding: 4px; border: 1px solid #999; font-weight: 800; background: #f0f0f0;">Type</td><td style="padding: 4px; border: 1px solid #999;">${a.type || a.Type || 'Standard'}</td><td style="padding: 4px; border: 1px solid #999; font-weight: 800; background: #f0f0f0;">Meter No</td><td style="padding: 4px; border: 1px solid #999;">${meterNo}</td></tr>
           </table>
           <div style="font-weight: 800; font-size: 11px; text-transform: uppercase; margin-bottom: 4px;">REGISTERED ASSETS:</div>
           <table style="width: 100%; border-collapse: collapse; font-size: 10px;">${assetRows}</table>
         </div>`;
     });
   }
-  // 2. Detailed Dossier (2 columns, 45% width cards)
+  // 2. Detailed Dossier (Includes Type & Pictures)
   else if (layout === "apt_single_isolated_print") {
     const aptItem = cache.apts.find(a => String(getUnitNumber(a)) === String(document.getElementById('rep_p_apt').value));
     if (!aptItem) { contentHtml = "<p>Selected apartment not found.</p>"; }
@@ -1868,9 +1868,9 @@
       let meterNo = aptItem.meterNo || aptItem.MeterNo || ((cache.utilities || []).find(u => String(getUnitNumber(u)) === String(uNum) && String(u.type) === 'Electricity') || {}).meterNo || 'Unassigned';
       const relatedAssets = cache.assets.filter(ast => String(getUnitNumber(ast)) === String(uNum) && String(ast.status || ast.Status || '') !== 'Archived');
 
-      let photosHtml = photos.length > 0 ? photos.map(url => `<img src="${getDirectImageUrl(url)}" style="width: 120px; height: 120px; object-fit: cover; border: 1px solid #000; margin-right: 5px;">`).join('') : '<p>No photos available.</p>';
+      // Pictures increased to 180px
+      let photosHtml = photos.length > 0 ? photos.map(url => `<img src="${getDirectImageUrl(url)}" style="width: 180px; height: 180px; object-fit: cover; border: 1px solid #000; margin-right: 5px;">`).join('') : '<p>No photos available.</p>';
       
-      // Flex container with wrap to achieve 2-column layout
       let assetsHtml = `<div style="display: flex; flex-wrap: wrap; gap: 10px;">`;
       relatedAssets.forEach(ast => {
         const photo = (ast.photos || ast.Photos || '').split(',')[0];
