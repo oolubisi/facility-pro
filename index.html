@@ -557,20 +557,34 @@
   <script>
     const GAS_URL = "https://script.google.com/macros/s/AKfycbz2Mgm-8O5yMivikqt1WwXf6msezVQcUNFMOoRjHpI4nDNHEevrucIfpNiKShcRG7_-/exec"; 
                      
-    // UPDATED FOR OFFLINE SYNC SUPPORT
+// UPDATED FOR OFFLINE SYNC SUPPORT & LOCAL CACHING
     async function callApi(action, data = {}) {
       try {
         const response = await fetch(GAS_URL, { method: "POST", body: JSON.stringify({ action: action, data: data }) });
-        return await response.json();
+        const result = await response.json();
+        
+        // 1. If we successfully fetched data, save a hidden backup to the phone's memory
+        if (action.startsWith('get')) {
+          localStorage.setItem('facility_pro_backup_' + action, JSON.stringify(result));
+        }
+        
+        return result;
       } catch (err) { 
         console.warn("Network Error / Offline:", err);
         
-        // Do not queue read operations (getting data) or heavy image uploads
-        if (action.startsWith('get') || action === 'uploadImage') {
+        // 2. If we are offline and trying to read data, load the hidden backup!
+        if (action.startsWith('get')) {
+          const backup = localStorage.getItem('facility_pro_backup_' + action);
+          return backup ? JSON.parse(backup) : []; 
+        }
+
+        // Do not queue heavy image uploads
+        if (action === 'uploadImage') {
+          alert("Cannot upload photos while offline. Please try again when connected.");
           return null; 
         }
 
-        // Queue save/update operations
+        // 3. Queue save/update operations
         const queue = JSON.parse(localStorage.getItem('facility_pro_sync_queue') || '[]');
         queue.push({ action, data, timestamp: Date.now() });
         localStorage.setItem('facility_pro_sync_queue', JSON.stringify(queue));
