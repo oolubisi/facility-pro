@@ -1857,7 +1857,7 @@
         </div>`;
     });
   }
-  // 2. Detailed Dossier (Includes Type, Photos, and Location)
+  // 2. Detailed Dossier (Includes Type, Photos, Location, and 25% larger asset thumbnails)
   else if (layout === "apt_single_isolated_print") {
     const aptItem = cache.apts.find(a => String(getUnitNumber(a)) === String(document.getElementById('rep_p_apt').value));
     if (!aptItem) { contentHtml = "<p>Selected apartment not found.</p>"; }
@@ -1873,7 +1873,8 @@
       let assetsHtml = `<div style="display: flex; flex-wrap: wrap; gap: 10px;">`;
       relatedAssets.forEach(ast => {
         const photo = (ast.photos || ast.Photos || '').split(',')[0];
-        const img = photo ? `<img src="${getDirectImageUrl(photo)}" style="width: 90px; height: 90px; object-fit: cover; border: 1px dashed #888; padding: 2px;">` : `<div style="width: 90px; height: 90px; border: 1px dashed #888; display: flex; align-items: center; justify-content: center; font-size: 9px; color: #888;">No Image</div>`;
+        // Asset thumbnail size increased by 25% (90px -> 112px)
+        const img = photo ? `<img src="${getDirectImageUrl(photo)}" style="width: 112px; height: 112px; object-fit: cover; border: 1px dashed #888; padding: 2px;">` : `<div style="width: 112px; height: 112px; border: 1px dashed #888; display: flex; align-items: center; justify-content: center; font-size: 9px; color: #888;">No Image</div>`;
         const statusColor = (ast.status || '').toLowerCase() === 'operational' ? '#157347' : '#C00000';
         
         assetsHtml += `
