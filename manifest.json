@@ -1,7 +1,7 @@
 {
   "name": "Facility Pro Mobile",
   "short_name": "FacilityPro",
-  "start_url": "/facility-pro/", 
+  "start_url": "https://oolubisi.github.io/facility-pro/", 
   "display": "standalone",
   "background_color": "#FFFFFF",
   "theme_color": "#0056b3",
