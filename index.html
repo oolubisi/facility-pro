@@ -4,6 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Facility Pro Mobile</title>
+  
+  <!-- PWA MANIFEST LINK -->
+  <link rel="manifest" href="?file=manifest">
+  
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght=400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   <style>
@@ -553,11 +557,27 @@
   <script>
     const GAS_URL = "https://script.google.com/macros/s/AKfycbz2Mgm-8O5yMivikqt1WwXf6msezVQcUNFMOoRjHpI4nDNHEevrucIfpNiKShcRG7_-/exec"; 
                      
+    // UPDATED FOR OFFLINE SYNC SUPPORT
     async function callApi(action, data = {}) {
       try {
         const response = await fetch(GAS_URL, { method: "POST", body: JSON.stringify({ action: action, data: data }) });
         return await response.json();
-      } catch (err) { console.error("CRITICAL API DISCONNECT:", err); return null; }
+      } catch (err) { 
+        console.warn("Network Error / Offline:", err);
+        
+        // Do not queue read operations (getting data) or heavy image uploads
+        if (action.startsWith('get') || action === 'uploadImage') {
+          return null; 
+        }
+
+        // Queue save/update operations
+        const queue = JSON.parse(localStorage.getItem('facility_pro_sync_queue') || '[]');
+        queue.push({ action, data, timestamp: Date.now() });
+        localStorage.setItem('facility_pro_sync_queue', JSON.stringify(queue));
+        
+        alert("Connection lost. Your data was saved locally and will sync automatically when you regain signal.");
+        return { status: "queued" };
+      }
     }
     
     let cache = { apts: [], assets: [], tickets: [], staff: [], vendors: [], utilities: [], workorders: [], inventory: [], payments: [] };
@@ -2011,6 +2031,38 @@
       document.getElementById('report-print-container').innerHTML = rawCompiledOutput;
       document.getElementById('report-onscreen-preview-card').style.display = "block";
     }
+
+    // ---------------------------------------------------------
+    // OFFLINE SYNC & PWA REGISTRATION
+    // ---------------------------------------------------------
+    
+    // 1. Listen for internet connection returning
+    window.addEventListener('online', async () => {
+      const queue = JSON.parse(localStorage.getItem('facility_pro_sync_queue') || '[]');
+      if (queue.length === 0) return;
+
+      alert("Connection restored! Syncing offline records to the server...");
+      
+      for (const item of queue) {
+        // Send each queued item to the server
+        await fetch(GAS_URL, { method: "POST", body: JSON.stringify({ action: item.action, data: item.data }) });
+      }
+      
+      // Clear the queue and refresh the UI with fresh data
+      localStorage.removeItem('facility_pro_sync_queue');
+      bootstrapDataRegistriesPipeline(); 
+    });
+
+    // 2. Register the Service Worker
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        // Using the ?file=sw routing established in Code.gs
+        navigator.serviceWorker.register('?file=sw')
+          .then(reg => console.log('Service Worker Registered Successfully!', reg))
+          .catch(err => console.error('Service Worker Registration Failed:', err));
+      });
+    }
+
   </script>
 </body>
 </html>
