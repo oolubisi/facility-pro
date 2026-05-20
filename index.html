@@ -1890,7 +1890,6 @@
           
           let aptImgHtml = '';
           if (aptPhotosArr.length > 0) {
-            // Picture size increased from 102px to 153px
             aptImgHtml = `<div style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; margin-bottom: 20px;">` + 
               aptPhotosArr.map(url => `<img src="${getDirectImageUrl(url)}" style="width: 153px; height: 153px; object-fit: cover; border: 2px solid #000; border-radius: 6px;">`).join('') + 
               `</div>`;
@@ -1902,21 +1901,22 @@
           
           let assetsMediaBlockHtml = '';
           if (relatedAssets.length > 0) {
-            // Grid changed to 1 column so each asset fills the width
-            assetsMediaBlockHtml = `<div style="display: grid; grid-template-columns: 1fr; gap: 12px; width: 100%;">` + 
+            assetsMediaBlockHtml = `<div style="display: grid; grid-template-columns: 1fr; gap: 8px; width: 100%;">` + 
               relatedAssets.map(ast => {
                 const astPhotosRaw = ast.photos || ast.Photos || '';
                 const firstAstPhoto = astPhotosRaw.split(',').filter(Boolean)[0];
                 
+                // Asset Image size increased from 85px to 128px
                 const astImgTag = firstAstPhoto 
-                  ? `<img src="${getDirectImageUrl(firstAstPhoto)}" style="width: 85px; height: 85px; object-fit: cover; border: 2px solid #000; border-radius: 6px; margin-right: 12px; flex-shrink:0;">` 
-                  : `<div style="width: 85px; height: 85px; border: 2px dashed var(--border); border-radius: 6px; display: flex; align-items: center; justify-content: center; background: #f8f9fa; margin-right: 12px; font-size: 10px; color: var(--muted); font-style: italic; flex-shrink:0;">No Capture</div>`;
+                  ? `<img src="${getDirectImageUrl(firstAstPhoto)}" style="width: 128px; height: 128px; object-fit: cover; border: 1px solid #000; border-radius: 4px; margin-right: 10px; flex-shrink:0;">` 
+                  : `<div style="width: 128px; height: 128px; border: 1px dashed var(--border); border-radius: 4px; display: flex; align-items: center; justify-content: center; background: #f8f9fa; margin-right: 10px; font-size: 10px; color: var(--muted); font-style: italic; flex-shrink:0;">No Capture</div>`;
                 
+                // Padding reduced to 4px to hug the image to the border
                 return `
-                  <div style="display: flex; align-items: center; padding: 10px; border: 1px solid #000; border-radius: 8px; background: #ffffff; page-break-inside: avoid;">
+                  <div style="display: flex; align-items: center; padding: 4px; border: 1px solid #000; border-radius: 6px; background: #ffffff; page-break-inside: avoid;">
                     ${astImgTag}
-                    <div style="line-height: 1.4; text-align:left; font-size: 12px; overflow: hidden; flex: 1;">
-                      <div style="font-size: 14px; font-weight: 800; color: var(--primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${ast.type || ast.Type || 'Asset'}</div>
+                    <div style="line-height: 1.3; text-align:left; font-size: 12px; overflow: hidden; flex: 1; padding: 2px 0;">
+                      <div style="font-size: 15px; font-weight: 800; color: var(--primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${ast.type || ast.Type || 'Asset'}</div>
                       <div style="margin-top:2px; font-weight: 700;">Tag: <code style="background: #e9ecef; padding: 1px 4px; border-radius: 4px; font-size:11px;">${ast.tag || ast.Tag || ''}</code></div>
                       <div style="font-weight: 700; margin-top:2px;">Location: <span style="font-weight:500;">${ast.loc || ast.Loc || 'Not Specified'}</span></div>
                       <div style="font-weight: 700; margin-top:2px;">Specs: <span style="font-weight:500;">${ast.specs || ast.Specs || 'None Logged'}</span></div>
@@ -1984,7 +1984,6 @@
       document.getElementById('report-print-container').innerHTML = rawCompiledOutput;
       document.getElementById('report-onscreen-preview-card').style.display = "block";
     }
-
     
     // ---------------------------------------------------------
     // OFFLINE SYNC & PWA REGISTRATION
