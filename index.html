@@ -581,7 +581,10 @@
 
     function generateNextId(prefix, list, idKey) {
       let maxId = 0;
-      list.forEach(item => {
+      // Make sure the list is actually a valid array before trying to loop
+      const safeList = Array.isArray(list) ? list : [];
+      
+      safeList.forEach(item => {
         const idVal = item[idKey] || item[idKey.charAt(0).toUpperCase() + idKey.slice(1)] || item[idKey.toUpperCase()];
         if (idVal && typeof idVal === 'string' && idVal.startsWith(prefix)) {
           const parts = idVal.split('-');
@@ -1311,7 +1314,8 @@
       currentAvatarPhoto = "";
       
       if (type === 'expenserequest') {
-        const uniqueId = isEdit ? (editData.reqId || editData.ReqId) : generateNextId('EXR', cache.expenseRequests, 'reqId');
+        // Fallback to empty array if cache is not fully loaded
+        const uniqueId = isEdit ? (editData.reqId || editData.ReqId) : generateNextId('EXR', cache.expenseRequests || [], 'reqId');
         title.innerText = isEdit ? "Update Expense Request" : "Draft Expense Request";
         
         body.innerHTML = `
@@ -1338,7 +1342,8 @@
         };
     }
     else if (type === 'cashexpense') {
-        const uniqueId = isEdit ? (editData.cashId || editData.CashId) : generateNextId('CSH', cache.cashExpenses, 'cashId');
+        // Fallback to empty array if cache is not fully loaded
+        const uniqueId = isEdit ? (editData.cashId || editData.CashId) : generateNextId('CSH', cache.cashExpenses || [], 'cashId');
         title.innerText = isEdit ? "Edit Cash Expense" : "Log Cash Expense";
         
         body.innerHTML = `
