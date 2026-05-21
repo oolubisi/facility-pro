@@ -1734,7 +1734,6 @@
 
     function printSingleWorkOrderDirect(woId) {
       const orderItem = cache.workorders.find(w => String(w.workOrderId || w.WorkOrderId) === woId); if(!orderItem) return;
-      const logoUrl = appSettings.logoUrl || "data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 30%22><text x=%220%22 y=%2220%22 font-family=%22sans-serif%22 font-size=%2212%22 fill=%22%23666%22>NO LOGO</text></svg>";
       var unitId = getUnitNumber(orderItem);
       
       // Look up detailed asset data if one is linked to the work order
@@ -1748,11 +1747,17 @@
           }
       }
       
+      // Look up Apartment Type
+      let aptType = "Standard";
+      if (unitId) {
+          const aptRecord = cache.apts.find(a => String(getUnitNumber(a)) === String(unitId));
+          if (aptRecord) aptType = aptRecord.type || aptRecord.Type || 'Standard';
+      }
+      
       let invoiceLayoutHtml = `
         <div style="padding: 20px; font-family:'Inter', sans-serif; color:#000; background:#fff;">
           <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:3px solid #000; padding-bottom:10px; margin-bottom:20px;">
             <div style="display:flex; align-items:center; gap:12px;">
-              <img src="${logoUrl}" style="height:55px; max-width:150px; object-fit:contain;" onerror="this.style.display='none';">
               <div>
                 <h2 style="font-size:32px; margin:0; text-transform:uppercase;">${appSettings.estateName || 'Work Order Dossier'}</h2>
                 <small style="display:block; font-weight:700; color:#444; margin-top:4px;">${appSettings.estateAddress || ''}</small>
@@ -1767,7 +1772,7 @@
           <table style="width:100%; border-collapse:collapse; margin-bottom:20px; font-size:14px;">
             <tr><th style="width:30%; padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Work Order Reference</th><td style="padding:10px; border:1px solid #000;"><strong>${orderItem.workOrderId || orderItem.WorkOrderId}</strong></td></tr>
             <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Date Logged</th><td style="padding:10px; border:1px solid #000;">${formatDateForDisplay(orderItem.date || orderItem.Date)}</td></tr>
-            <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Assigned Node Location</th><td style="padding:10px; border:1px solid #000;">Unit ${unitId}</td></tr>
+            <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Apt : Type</th><td style="padding:10px; border:1px solid #000;">Unit ${unitId} : ${aptType}</td></tr>
             <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Target Asset Data</th><td style="padding:10px; border:1px solid #000;">${assetInfo}</td></tr>
             <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Assigned Participant</th><td style="padding:10px; border:1px solid #000;">${orderItem.assigned || orderItem.Assigned || 'Unassigned'}</td></tr>
             <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Project Duration</th><td style="padding:10px; border:1px solid #000;">${orderItem.duration || orderItem.Duration || 'Not Specified'}</td></tr>
@@ -1784,7 +1789,6 @@
 
       document.getElementById('report-print-container').innerHTML = invoiceLayoutHtml;
       
-      // Allow slight delay for images/logo to load before triggering native print dialog
       setTimeout(() => {
         window.print();
       }, 100);
@@ -1854,11 +1858,9 @@
     function compileReportPreview() {
   const layout = document.getElementById('rep-layout-selector').value;
   if (!layout) return;
-  const logoUrl = appSettings.logoUrl || "data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 30%22><text x=%220%22 y=%2220%22 font-family=%22sans-serif%22 font-size=%2210%22 fill=%22%23777%22>NO LOGO</text></svg>";
-
+  
   let headerStr = `<div style="display: flex; align-items: center; justify-content: space-between; padding-bottom: 12px; border-bottom: 3px solid #000; margin-bottom: 20px;">
     <div style="display: flex; align-items: center; gap: 14px;">
-      <img src="${logoUrl}" style="height: 55px; max-width: 150px; object-fit: contain;" onerror="this.style.display='none';">
       <div style="text-align: left;">
         <h2 style="font-size: 32px; font-weight: 800; margin: 0; line-height: 1.2; text-transform:uppercase;">${appSettings.estateName || 'FACILITY OPERATIONS REPORT'}</h2>
         <small style="display: block; font-weight: 700; color: #444; margin-top: 4px;">${appSettings.estateAddress || ''}</small>
