@@ -65,6 +65,17 @@
     .nav-card .count { font-size: 38px; font-weight: 900; color: var(--text); line-height: 1.1; } 
     .nav-card small { font-size: 16px; text-transform: uppercase; color: var(--text); font-weight: 800; margin-top: 4px; } 
 
+    /* NEW SMALL DASHBOARD CARDS FOR "MORE" VIEW */
+    .nav-card-small {
+      background: var(--card); border: 2px solid var(--border); border-radius: 16px; 
+      padding: 12px; text-align: center; display: flex; flex-direction: column;
+      justify-content: center; align-items: center; cursor: pointer; 
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05); min-height: 58px;
+    }
+    .nav-card-small:active { background: var(--card-light); transform: scale(0.98); }
+    .nav-card-small i { font-size: 24px; color: var(--primary); margin-bottom: 4px; } 
+    .nav-card-small small { font-size: 13px; text-transform: uppercase; color: var(--text); font-weight: 800; }
+
     .alert-banner {
       background: #FFF3CD; border: 2px solid #FFEBAA; color: #856404; padding: 14px;
       border-radius: 16px; margin-bottom: 15px; font-weight: 700; font-size: 15px;
@@ -138,24 +149,6 @@
     .page-view { display: none; }
     .active-view { display: block; }
 
-    .more-container { position: relative; margin-top: 8px; }
-    .more-menu { 
-      display: none; position: absolute; bottom: 60px; left: 0; right: 0; 
-      background: #FFFFFF; border: 3px solid var(--text); border-radius: 16px; 
-      z-index: 1000; box-shadow: 0 8px 24px rgba(0,0,0,0.2); overflow: hidden;
-    }
-    .more-menu.show { display: block; animation: menuPop 0.12s ease-out; }
-    @keyframes menuPop { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
-
-    .menu-item { 
-      padding: 16px; border-bottom: 2px solid var(--border); display: flex; 
-      align-items: center; gap: 12px; cursor: pointer; color: var(--text); 
-      font-size: 18px; font-weight: 700; background: white;
-    }
-    .menu-item:active { background: var(--card-light); }
-    .menu-item i { color: var(--primary); width: 22px; text-align: center; }
-    .menu-item:last-child { border-bottom: none; }
-
     #report-print-container { display: none; }
     @media print {
       body * { visibility: hidden; }
@@ -215,22 +208,60 @@
           </div>
         </div>
 
-        <div class="more-container">
-          <div id="moreMenu" class="more-menu">
-            <div class="menu-item" onclick="showPage('serviceunits')"><i class="fas fa-warehouse"></i> Service Units</div>
-            <div class="menu-item" onclick="showPage('utilities')"><i class="fas fa-bolt"></i> Utilities & Plant</div>
-            <div class="menu-item" onclick="showPage('expenserequests')"><i class="fas fa-file-signature"></i> Expense Requests</div>
-            <div class="menu-item" onclick="showPage('cashexpenses')"><i class="fas fa-money-bill-wave"></i> Cash Expenses</div>
-            <div class="menu-item" onclick="showPage('payments')"><i class="fas fa-wallet"></i> Ledger & Payments</div>
-            <div class="menu-item" onclick="showPage('staff')"><i class="fas fa-users"></i> Staff Directory</div>
-            <div class="menu-item" onclick="showPage('vendors')"><i class="fas fa-truck"></i> Vendors</div>
-            <div class="menu-item" onclick="showPage('archived')"><i class="fas fa-archive"></i> Archive Bin</div>
-            <div class="menu-item" onclick="showPage('reports');"><i class="fas fa-print"></i> Reports Console</div>
-            <div class="menu-item" onclick="showPage('settings');"><i class="fas fa-cog"></i> Settings Console</div>
+        <button class="action-btn" style="background:var(--card-light); border:2px solid var(--border); color:#000; margin-top: 8px;" onclick="showPage('more')">
+          <i class="fas fa-ellipsis-h"></i> More...
+        </button>
+      </div>
+
+      <div id="view-more" class="page-view">
+        <div class="page-header">
+          <div class="header-group">
+            <button class="home-btn" onclick="showPage('dashboard')"><i class="fas fa-home"></i></button>
+            <h2>More Options</h2>
           </div>
-          <button class="action-btn" style="background:var(--card-light); border:2px solid var(--border); color:#000;" onclick="toggleMoreMenu(event)">
-            <i class="fas fa-ellipsis-h"></i> More...
-          </button>
+        </div>
+        
+        <div class="nav-grid">
+          <div class="nav-card-small" onclick="showPage('serviceunits')">
+            <i class="fas fa-warehouse"></i>
+            <small>Service Units</small>
+          </div>
+          <div class="nav-card-small" onclick="showPage('utilities')">
+            <i class="fas fa-bolt"></i>
+            <small>Utilities & Plant</small>
+          </div>
+          <div class="nav-card-small" onclick="showPage('expenserequests')">
+            <i class="fas fa-file-signature"></i>
+            <small>Expense Req</small>
+          </div>
+          <div class="nav-card-small" onclick="showPage('cashexpenses')">
+            <i class="fas fa-money-bill-wave"></i>
+            <small>Cash Expenses</small>
+          </div>
+          <div class="nav-card-small" onclick="showPage('payments')">
+            <i class="fas fa-wallet"></i>
+            <small>Ledger</small>
+          </div>
+          <div class="nav-card-small" onclick="showPage('staff')">
+            <i class="fas fa-users"></i>
+            <small>Staff</small>
+          </div>
+          <div class="nav-card-small" onclick="showPage('vendors')">
+            <i class="fas fa-truck"></i>
+            <small>Vendors</small>
+          </div>
+          <div class="nav-card-small" onclick="showPage('archived')">
+            <i class="fas fa-archive"></i>
+            <small>Archive Bin</small>
+          </div>
+          <div class="nav-card-small" onclick="showPage('reports')" style="grid-column: span 2;">
+            <i class="fas fa-print"></i>
+            <small>Reports Console</small>
+          </div>
+          <div class="nav-card-small" onclick="showPage('settings')" style="grid-column: span 2; background: #e9ecef;">
+            <i class="fas fa-cog" style="color: #6c757d;"></i>
+            <small style="color: #6c757d;">Settings</small>
+          </div>
         </div>
       </div>
 
@@ -317,7 +348,7 @@
             <button class="home-btn" onclick="showPage('dashboard')"><i class="fas fa-home"></i></button>
             <h2>Expense Requests</h2>
           </div>
-          <button class="action-btn" style="width:auto; padding:10px 20px;" onclick="openModal('expenserequest')">Draft</button>
+          <button class="action-btn" style="width:auto; padding:10px 20px;" onclick="openModal('expenserequest')">Add</button>
         </div>
         <div id="expense-req-list"></div>
       </div>
@@ -328,7 +359,7 @@
             <button class="home-btn" onclick="showPage('dashboard')"><i class="fas fa-home"></i></button>
             <h2>Cash Expenses</h2>
           </div>
-          <button class="action-btn" style="width:auto; padding:10px 20px;" onclick="openModal('cashexpense')">Log Cash</button>
+          <button class="action-btn" style="width:auto; padding:10px 20px;" onclick="openModal('cashexpense')">Add</button>
         </div>
         <div id="cash-expense-list"></div>
       </div>
@@ -350,7 +381,7 @@
             <button class="home-btn" onclick="showPage('dashboard')"><i class="fas fa-home"></i></button>
             <h2>Ledger Transactions</h2>
           </div>
-          <button class="action-btn" style="width:auto; padding:10px 20px;" onclick="openModal('payment')">Log Ledger</button>
+          <button class="action-btn" style="width:auto; padding:10px 20px;" onclick="openModal('payment')">Add</button>
         </div>
         <div id="payment-list"></div>
       </div>
@@ -844,9 +875,6 @@
       if (document.getElementById('s-wo')) document.getElementById('s-wo').innerText = woCount || '0';
       if (document.getElementById('s-pm-due')) document.getElementById('s-pm-due').innerText = pmCombinedSum || '0';
     }
-    
-    function toggleMoreMenu(e) { e.stopPropagation(); document.getElementById('moreMenu').classList.toggle('show'); }
-    document.addEventListener('click', () => { const m = document.getElementById('moreMenu'); if(m) m.classList.remove('show'); });
 
     function showPage(p) {
       document.querySelectorAll('.page-view').forEach(v => v.classList.remove('active-view'));
@@ -859,7 +887,7 @@
       else if (p === 'reports') { initReportsEngine(); }
       else if (p === 'settings') { syncSettingsInputsToUIFields(); }
       else if (p === 'utilities') { refreshData('utilities'); setTimeout(renderGeneratorEfficiencyLogs, 500); }
-      else { refreshData(p); }
+      else if (p !== 'more') { refreshData(p); }
     }
 
     function openRecordRow(type, lookupId) {
@@ -1226,7 +1254,7 @@
       currentAvatarPhoto = "";
       
       if (type === 'expenserequest') {
-        const uniqueId = isEdit ? (editData.reqId || editData.ReqId) : "EXR-" + Math.random().toString(36).substr(2, 5).toUpperCase();
+        const uniqueId = isEdit ? (editData.reqId || editData.ReqId) : generateNextId('EXR', cache.expenseRequests, 'reqId');
         title.innerText = isEdit ? "Update Expense Request" : "Draft Expense Request";
         
         body.innerHTML = `
@@ -1249,7 +1277,7 @@
         };
       }
       else if (type === 'cashexpense') {
-        const uniqueId = isEdit ? (editData.cashId || editData.CashId) : "CSH-" + Math.random().toString(36).substr(2, 5).toUpperCase();
+        const uniqueId = isEdit ? (editData.cashId || editData.CashId) : generateNextId('CSH', cache.cashExpenses, 'cashId');
         title.innerText = isEdit ? "Edit Cash Expense" : "Log Cash Expense";
         
         body.innerHTML = `
@@ -1391,10 +1419,11 @@
         };
       }
       else if (type === 'maintenance') {
-        const uniqueTicket = isEdit ? (editData.ticketId || editData.TicketId) : "TKT-" + Math.random().toString(36).substr(2, 5).toUpperCase();
+        const uniqueTicket = isEdit ? (editData.ticketId || editData.TicketId) : generateNextId('TKT', cache.tickets, 'ticketId');
         title.innerText = isEdit ? "Update Ticket" : "Log Maintenance Issue";
         if (isEdit && (editData.photos || editData.Photos)) currentModalFiles = (editData.photos || editData.Photos).split(',').filter(Boolean);
         body.innerHTML = `
+          <label ${labelStyle}>Ticket ID</label><input type="text" value="${uniqueTicket}" disabled ${largeInput} style="background:#e9ecef; font-weight:900;">
           <label ${labelStyle}>Property Target Unit Coordinate</label><select id="m_apt" ${largeInput}></select>
           <label ${labelStyle}>Issue Category</label><input id="m_category" value="${isEdit ? (editData.category || editData.Category) : ''}" ${largeInput}>
           <label ${labelStyle}>Priority Level</label>
@@ -1495,9 +1524,10 @@
         }
       }
       else if (type === 'payment') {
-        const uniqueId = isEdit ? (editData.paymentId) : "PAY-" + Math.random().toString(36).substr(2, 5).toUpperCase();
+        const uniqueId = isEdit ? (editData.paymentId) : generateNextId('PAY', cache.payments, 'paymentId');
         title.innerText = isEdit ? "Edit Ledger Record" : "Log Financial Ledger";
         body.innerHTML = `
+          <label ${labelStyle}>Payment ID</label><input type="text" value="${uniqueId}" disabled ${largeInput} style="background:#e9ecef; font-weight:900;">
           <label ${labelStyle}>Transaction Direction</label>
           <select id="p_direction" ${largeInput}>
             <option value="INFLOW" ${isEdit && editData.direction==='INFLOW'?'selected':''}>INFLOW (+ Receivables)</option>
@@ -1518,7 +1548,7 @@
         };
       }
       else if (type === 'inventory') {
-        const uniqueItem = isEdit ? (editData.itemId || editData.ItemId) : "INV-" + Math.random().toString(36).substr(2, 5).toUpperCase();
+        const uniqueItem = isEdit ? (editData.itemId || editData.ItemId) : generateNextId('INV', cache.inventory, 'itemId');
         title.innerText = isEdit ? "Edit Stock Ledger Item" : "Register New Inventory Item";
         body.innerHTML = `
           <label ${labelStyle}>Item Identity Code</label><input id="i_id" value="${uniqueItem}" disabled ${largeInput}>
