@@ -1419,16 +1419,18 @@
         };
       }
       else if (type === 'workorder') {
-        const uniqueWO = isEdit ? (editData.workOrderId || editData.WorkOrderId) : "WO-" + Math.random().toString(36).substr(2, 5).toUpperCase();
+        // Updated to use the WO-0001 sequential ID generator
+        const uniqueWO = isEdit ? (editData.workOrderId || editData.WorkOrderId) : generateNextId('WO', cache.workorders, 'workOrderId');
         title.innerText = isEdit ? "Work Order Portfolio" : "Log Work Order Expense";
         const isApproved = isEdit && String(editData.status || editData.Status) === "Approved";
         
-        // Always show print button if the order already exists in the system
         const canPrint = isEdit; 
         
         body.innerHTML = `
+          <label ${labelStyle}>Work Order ID</label><input type="text" value="${uniqueWO}" disabled ${largeInput} style="background:#e9ecef; font-weight:900;">
           <label ${labelStyle}>Date Logged</label><input id="w_date" type="date" value="${isEdit && (editData.date || editData.Date) ? fromSheetDate(editData.date || editData.Date) : new Date().toISOString().split('T')[0]}" ${largeInput} ${isApproved ? 'disabled' : ''}>
-          <label ${labelStyle}>Unit</label><select id="w_apt" ${largeInput} ${isApproved ? 'disabled' : ''}></select>
+          <label ${labelStyle}>Unit Node</label><select id="w_apt" ${largeInput} ${isApproved ? 'disabled' : ''}></select>
+          <label ${labelStyle}>Target Asset (Optional)</label><select id="w_asset" ${largeInput} ${isApproved ? 'disabled' : ''}><option value="">-- No Specific Asset --</option></select>
           <label ${labelStyle}>Assigned</label><select id="w_assigned" ${largeInput} ${isApproved ? 'disabled' : ''}></select>
           <label ${labelStyle}>Duration</label><input id="w_duration" type="text" value="${isEdit ? (editData.duration || editData.Duration || '') : ''}" placeholder="e.g. 3 Days, 1 Week" ${largeInput} ${isApproved ? 'disabled' : ''}>
           <label ${labelStyle}>Budget (₦)</label><input id="w_amount" type="number" value="${isEdit ? (editData.amount || editData.Amount) : ''}" placeholder="Cost allocation entry" ${largeInput} ${isApproved ? 'disabled' : ''}>
@@ -1440,10 +1442,27 @@
           </select>
           <label ${labelStyle}>Scope / Narrative</label><textarea id="w_desc" rows="3" ${largeInput} ${isApproved ? 'disabled' : ''}>${isEdit ? (editData.description || editData.Description) : ''}</textarea>
           <label ${labelStyle}>Operational Remarks</label><textarea id="w_notes" rows="2" ${largeInput} ${isApproved ? 'disabled' : ''}>${isEdit ? (editData.notes || editData.Notes) : ''}</textarea>
-          ${canPrint ? `<button class="action-btn" style="background:var(--primary); margin-top:15px;" onclick="printSingleWorkOrderDirect('${uniqueWO}')"><i class="fas fa-print"></i> Print Work Order Form</button>` : ''}`;
+          ${canPrint ? `<button class="action-btn" style="background:var(--primary); margin-top:15px;" onclick="printSingleWorkOrderDirect('${uniqueWO}')"><i class="fas fa-print"></i> Print Work Order</button>` : ''}`;
         
         populateUnitDropdown('w_apt', isEdit ? getUnitNumber(editData) : '');
         
+        // Asset population logic dynamically based on selected Unit
+        const assetSel = document.getElementById('w_asset');
+        const populateAssets = (unitNum) => {
+            assetSel.innerHTML = '<option value="">-- No Specific Asset (Unit Level) --</option>';
+            if (!unitNum) return;
+            const related = cache.assets.filter(a => String(getUnitNumber(a)) === String(unitNum) && String(a.status || a.Status) !== 'Archived');
+            related.forEach(a => {
+                const o = document.createElement('option');
+                o.value = a.tag || a.Tag;
+                o.innerText = `${a.type || 'Asset'} (${a.tag || a.Tag})`;
+                if (isEdit && String(editData.asset || editData.Asset) === String(o.value)) o.selected = true;
+                assetSel.appendChild(o);
+            });
+        };
+        setTimeout(() => populateAssets(isEdit ? getUnitNumber(editData) : ''), 100);
+        document.getElementById('w_apt').addEventListener('change', (e) => populateAssets(e.target.value));
+
         const asSel = document.getElementById('w_assigned');
         asSel.innerHTML = '<option value="">-- Choose Participant --</option>';
         (cache.staff || []).forEach(s => { const o=document.createElement('option'); o.value=`${s.name || s.Name} (${s.role || s.Role})`; o.innerText=`${s.name || s.Name} [Staff]`; if(isEdit && (editData.assigned || editData.Assigned)===o.value) o.selected=true; asSel.appendChild(o); });
@@ -1458,6 +1477,7 @@
               workOrderId: uniqueWO, 
               date: toSheetDate(document.getElementById('w_date').value),
               apt: document.getElementById('w_apt').value, 
+              asset: document.getElementById('w_asset').value,
               assigned: asSel.value,
               duration: document.getElementById('w_duration').value,
               amount: document.getElementById('w_amount').value, 
@@ -1717,6 +1737,17 @@
       const logoUrl = appSettings.logoUrl || "data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 30%22><text x=%220%22 y=%2220%22 font-family=%22sans-serif%22 font-size=%2212%22 fill=%22%23666%22>NO LOGO</text></svg>";
       var unitId = getUnitNumber(orderItem);
       
+      // Look up detailed asset data if one is linked to the work order
+      let assetInfo = "N/A";
+      if (orderItem.asset || orderItem.Asset) {
+          const ast = cache.assets.find(a => String(a.tag || a.Tag) === String(orderItem.asset || orderItem.Asset));
+          if (ast) {
+              assetInfo = `${ast.tag || 'N/A'}; ${ast.type || 'N/A'}; ${ast.specs || 'N/A'}; ${ast.loc || ast.Loc || 'N/A'}`;
+          } else {
+              assetInfo = orderItem.asset || orderItem.Asset;
+          }
+      }
+      
       let invoiceLayoutHtml = `
         <div style="padding: 20px; font-family:'Inter', sans-serif; color:#000; background:#fff;">
           <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:3px solid #000; padding-bottom:10px; margin-bottom:20px;">
@@ -1737,6 +1768,7 @@
             <tr><th style="width:30%; padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Work Order Reference</th><td style="padding:10px; border:1px solid #000;"><strong>${orderItem.workOrderId || orderItem.WorkOrderId}</strong></td></tr>
             <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Date Logged</th><td style="padding:10px; border:1px solid #000;">${formatDateForDisplay(orderItem.date || orderItem.Date)}</td></tr>
             <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Assigned Node Location</th><td style="padding:10px; border:1px solid #000;">Unit ${unitId}</td></tr>
+            <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Target Asset Data</th><td style="padding:10px; border:1px solid #000;">${assetInfo}</td></tr>
             <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Assigned Participant</th><td style="padding:10px; border:1px solid #000;">${orderItem.assigned || orderItem.Assigned || 'Unassigned'}</td></tr>
             <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Project Duration</th><td style="padding:10px; border:1px solid #000;">${orderItem.duration || orderItem.Duration || 'Not Specified'}</td></tr>
             <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Financial Budget Tariff</th><td style="padding:10px; border:1px solid #000; font-size:18px;"><strong>₦${Number(orderItem.amount || orderItem.Amount || 0).toLocaleString()}</strong></td></tr>
@@ -1744,11 +1776,6 @@
             <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left; vertical-align:top;">Scope / Narrative</th><td style="padding:10px; border:1px solid #000;">${orderItem.description || orderItem.Description || 'No description provided.'}</td></tr>
             <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left; vertical-align:top;">Operational Remarks</th><td style="padding:10px; border:1px solid #000;">${orderItem.notes || orderItem.Notes || 'No operational feedback logged.'}</td></tr>
           </table>
-          
-          <div style="margin-top:50px; display:grid; grid-template-columns:1fr 1fr; gap:40px; text-align:center; font-size:12px; font-weight:800;">
-            <div><div style="border-bottom:1px solid #000; margin-bottom:5px; height:40px;"></div>FIELD DISPATCH SIGNATURE</div>
-            <div><div style="border-bottom:1px solid #000; margin-bottom:5px; height:40px;"></div>EXECUTIVE APPROVAL CLEARANCE</div>
-          </div>
           
           <div style="margin-top: 40px; font-size: 10px; color: #666; text-align: center; border-top: 1px dashed #ccc; padding-top: 10px;">
             ${appSettings.fmAddress || ''}
@@ -1763,6 +1790,7 @@
       }, 100);
     }
 
+    
     function compressImageToTargetLimit(base64Str, targetMaxBytes) {
       return new Promise((resolve) => {
         const img = new Image(); img.src = base64Str; img.onload = () => {
