@@ -307,9 +307,11 @@
 
         <div class="more-container">
           <div id="moreMenu" class="more-menu">
+            <div class="menu-item" onclick="showPage('expenserequests')"><i class="fas fa-file-invoice"></i> Expense Requests</div>
+            <div class="menu-item" onclick="showPage('cashexpenses')"><i class="fas fa-wallet"></i> Cash Expenses</div>
+            <div class="menu-item" onclick="showPage('payments')"><i class="fas fa-hand-holding-usd"></i> Inflow Ledger <span id="s-cash-total" style="margin-left:auto; font-size:13px; background:var(--success); color:white; padding:2px 8px; border-radius:6px; font-weight:900;">₦0</span></div>
             <div class="menu-item" onclick="showPage('serviceunits')"><i class="fas fa-warehouse"></i> Service Units</div>
             <div class="menu-item" onclick="showPage('utilities')"><i class="fas fa-bolt"></i> Utilities & Plant</div>
-            <div class="menu-item" onclick="showPage('payments')"><i class="fas fa-cash-register"></i> Inflow Ledger <span id="s-cash-total" style="margin-left:auto; font-size:13px; background:var(--success); color:white; padding:2px 8px; border-radius:6px; font-weight:900;">₦0</span></div>
             <div class="menu-item" onclick="showPage('staff')"><i class="fas fa-users"></i> Staff Directory</div>
             <div class="menu-item" onclick="showPage('vendors')"><i class="fas fa-truck"></i> Vendors</div>
             <div class="menu-item" onclick="showPage('archived')"><i class="fas fa-archive"></i> Archive Bin</div>
@@ -317,7 +319,7 @@
             <div class="menu-item" onclick="showPage('settings');"><i class="fas fa-cog"></i> Settings Console</div>
           </div>
           <button class="action-btn" style="background:var(--card-light); border:2px solid var(--border); color:#000;" onclick="toggleMoreMenu(event)">
-            <i class="fas fa-ellipsis-h"></i> More Options
+            <i class="fas fa-ellipsis-h"></i> More...
           </button>
         </div>
       </div>
@@ -410,15 +412,26 @@
         <div id="inventory-list"></div>
       </div>
 
-      <div id="view-payments" class="page-view">
+      <div id="view-expenserequests" class="page-view">
         <div class="page-header">
           <div class="header-group">
             <button class="home-btn" onclick="showPage('dashboard')"><i class="fas fa-home"></i></button>
-            <h2>Inflow Revenue Ledger</h2>
+            <h2>Expense Requests</h2>
           </div>
-          <button class="action-btn" style="width:auto; padding:10px 20px;" onclick="openModal('payment')">Log Inflow</button>
+          <button class="action-btn" style="width:auto; padding:10px 20px;" onclick="openModal('expenserequest')">Add</button>
         </div>
-        <div id="payment-list"></div>
+        <div id="expenserequests-list"></div>
+      </div>
+
+      <div id="view-cashexpenses" class="page-view">
+        <div class="page-header">
+          <div class="header-group">
+            <button class="home-btn" onclick="showPage('dashboard')"><i class="fas fa-home"></i></button>
+            <h2>Cash Expenses (Outflow)</h2>
+          </div>
+          <button class="action-btn" style="width:auto; padding:10px 20px;" onclick="openModal('cashexpense')">Log Expense</button>
+        </div>
+        <div id="cashexpenses-list"></div>
       </div>
 
       <div id="view-utilities" class="page-view">
@@ -493,7 +506,7 @@
             <option value="">-- Choose Profile Group --</option>
             <option value="apartments">Apartments / Tenancy</option>
             <option value="tickets">Maintenance Work Orders</option>
-            <option value="workorders">Financial Work Orders</option>
+            <option value="workorders">Financials</option>
           </select>
 
           <label>SELECT PRINT TYPE CONFIGURATION</label>
@@ -595,8 +608,8 @@
       }
     }
     
-    let cache = { apts: [], assets: [], tickets: [], staff: [], vendors: [], utilities: [], workorders: [], inventory: [], payments: [] };
-    
+    let cache = { apts: [], assets: [], tickets: [], staff: [], vendors: [], utilities: [], workorders: [], inventory: [], payments: [], expenserequests: [], cashexpenses: [] };    
+
     let currentModalFiles = [];
     let currentAvatarPhoto = "";
     
@@ -698,9 +711,9 @@
 
     // UPDATED FOR DASHBOARD FIX
     async function bootstrapDataRegistriesPipeline() {
-      const actions = ['getApartments', 'getAssets', 'getMaintenance', 'getStaff', 'getVendors', 'getUtilities', 'getWorkOrders', 'getInventory', 'getPayments'];
-      const map = ['apts', 'assets', 'tickets', 'staff', 'vendors', 'utilities', 'workorders', 'inventory', 'payments'];
-      
+      const actions = ['getApartments', 'getAssets', 'getMaintenance', 'getStaff', 'getVendors', 'getUtilities', 'getWorkOrders', 'getInventory', 'getPayments', 'getExpenseRequests', 'getCashExpenses'];
+      const map = ['apts', 'assets', 'tickets', 'staff', 'vendors', 'utilities', 'workorders', 'inventory', 'payments', 'expenserequests', 'cashexpenses'];      
+
       console.log("Starting Data Pipeline...");
 
       const results = await Promise.all(actions.map(async (act) => {
@@ -1036,6 +1049,8 @@
           const filter = document.getElementById('wo-status-filter');
           if (filter && filter.value !== "ALL") displayData = displayData.filter(item => String(item.status || item.Status || '') === filter.value);
         }
+        if (p === 'expenserequests') cache.expenserequests = displayData;
+        if (p === 'cashexpenses') cache.cashexpenses = displayData;
     
         listEl.innerHTML = displayData.map((item, idx) => {
           if (!item) return '';
@@ -1142,6 +1157,35 @@
                   <div><strong>${unitId}</strong><br><span style="font-size:12px; font-weight:800; color:var(--muted);">${String(item.type || '').toUpperCase()}</span></div>
                   <span style="padding:4px 10px; font-weight:900; background:#000; color:#fff; border-radius:6px; font-size:14px;">${item.reading || item.Reading || 0}</span>
                 </div>
+              </div>`;
+          }
+            else if (p === 'expenserequests') {
+            const reqId = item.reqId || item.ReqId;
+            return `
+              <div class="card">
+                <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:8px;">
+                  <div><strong style="font-size:18px;">Unit ${unitId}</strong><br><small style="color:var(--muted); font-weight:700;">${reqId} • ${formatDateForDisplay(item.date)}</small></div>
+                  <div style="font-size:20px; font-weight:900; color:var(--danger)">₦${Number(item.amount || 0).toLocaleString()}</div>
+                </div>
+                <div style="font-size:14px; font-weight:800; color:var(--primary); margin-bottom:4px;">Asset: ${item.asset || item.Asset || 'None'}</div>
+                <div style="font-size:15px; font-weight:600; color:#000; margin-bottom:15px; background:var(--card-light); padding:10px; border-radius:8px;">${item.job || item.Job || ''}</div>
+                
+                <div style="display:flex; gap:8px;">
+                  <button onclick="convertExpense('${reqId}', 'workorder')" style="flex:1; background:var(--primary); color:#fff; border:none; padding:10px; border-radius:8px; font-weight:800; cursor:pointer;"><i class="fas fa-file-invoice"></i> Move to WO</button>
+                  <button onclick="convertExpense('${reqId}', 'cashexpense')" style="flex:1; background:#000; color:#fff; border:none; padding:10px; border-radius:8px; font-weight:800; cursor:pointer;"><i class="fas fa-wallet"></i> Move to Cash</button>
+                  <button onclick="deleteRecordDirect('ExpenseRequests', 'reqId', '${reqId}', 'expenserequests')" style="background:var(--danger); color:#fff; border:none; padding:10px 15px; border-radius:8px; font-weight:800; cursor:pointer;"><i class="fas fa-trash"></i></button>
+                </div>
+              </div>`;
+          }
+          else if (p === 'cashexpenses') {
+            return `
+              <div class="card" onclick="openRecordRow('cashexpense', '${item.cashId || item.CashId}')">
+                <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:4px;">
+                  <div><strong style="font-size:20px;">Unit ${unitId}</strong><br><small style="color:var(--muted); font-weight:700;">ID: ${item.cashId || item.CashId}</small></div>
+                  <div style="text-align:right;"><span style="font-size:20px; font-weight:900; color:var(--danger);">-₦${Number(item.amount || 0).toLocaleString()}</span><br><small style="font-size:11px; font-weight:700; color:var(--muted);">${formatDateForDisplay(item.date)}</small></div>
+                </div>
+                <div style="font-size:15px; font-weight:800; color:#000;">${item.payee || item.Payee || 'General Expense'}</div>
+                <div style="font-size:13px; font-weight:600; color:var(--muted);">${item.description || item.Description || ''}</div>
               </div>`;
           }
           else {
@@ -1257,13 +1301,41 @@
       });
     }
 
+    // Tracks if a Work Order or Cash Expense is being created FROM an Expense Request
+    let pendingExpenseConversionId = null;
+
+    async function deleteRecordDirect(sheetName, pkField, pkVal, refreshViewName) {
+      if(!confirm("Are you sure you want to permanently delete this record?")) return;
+      try {
+        await callApi('deleteRecord', { sheetName: sheetName, pkField: pkField, pkValue: pkVal });
+        refreshData(refreshViewName);
+      } catch(e) { alert("Offline: Cannot delete records without network connection."); }
+    }
+
+    function convertExpense(reqId, targetType) {
+      const req = cache.expenserequests.find(r => r.reqId === reqId || r.ReqId === reqId);
+      if(!req) return;
+      pendingExpenseConversionId = reqId; // Set flag to delete later
+      
+      // Map the Expense Request payload into an editData-like object for prefilling
+      const mappedData = {
+        apt: req.apt || req.Apt,
+        asset: req.asset || req.Asset,
+        amount: req.amount || req.Amount,
+        description: req.job || req.Job, // Mapped to WO description
+      };
+      
+      openModal(targetType, mappedData); // Opens as "New" but pre-filled!
+    }
+
     // UPDATED FOR ASSET TAG FEATURE
     function openModal(type, editData = null) {
       const body = document.getElementById('modalBody'); const submit = document.getElementById('modalSubmit');
       const title = document.getElementById('modalTitle'); const overlay = document.getElementById('modalOverlay');
       const isEdit = !!editData; overlay.style.display = 'flex'; body.innerHTML = ''; submit.disabled = false; submit.style.display = 'block';
       submit.innerText = isEdit ? "Update" : "Save";
-      
+
+      if (!editData) pendingExpenseConversionId = null;
       const largeInput = 'style="font-size: 19px; padding: 12px; margin-bottom: 6px;"';
       const labelStyle = 'style="font-size: 15px; color: var(--text); font-weight:800; display: block; margin-top: 8px; margin-bottom: 2px;"';
       
@@ -1389,6 +1461,69 @@
             archived: document.getElementById('a_status').value === "Archived" ? "Yes" : "No" 
           }).then(() => { closeModal(); refreshData('assets'); });
         };
+        else if (type === 'expenserequest') {
+        const uniqueId = isEdit ? (editData.reqId || editData.ReqId) : "REQ-" + Math.random().toString(36).substr(2, 5).toUpperCase();
+        title.innerText = isEdit ? "Edit Expense Request" : "Lodge Expense Request";
+        body.innerHTML = `
+          <label ${labelStyle}>Date Created</label><input id="er_date" type="date" value="${isEdit ? fromSheetDate(editData.date || editData.Date) : new Date().toISOString().split('T')[0]}" ${largeInput} disabled>
+          <label ${labelStyle}>Unit Node</label><select id="er_apt" ${largeInput}></select>
+          <label ${labelStyle}>Target Asset Tag</label><select id="er_asset" ${largeInput}><option value="">-- No Specific Asset --</option></select>
+          <label ${labelStyle}>Job Narrative</label><textarea id="er_job" rows="3" placeholder="Describe the required job..." ${largeInput}>${isEdit ? (editData.job || editData.Job) : ''}</textarea>
+          <label ${labelStyle}>Estimated Cost (₦)</label><input id="er_amount" type="number" value="${isEdit ? (editData.amount || editData.Amount) : ''}" placeholder="e.g. 50000" ${largeInput}>`;
+        
+        populateUnitDropdown('er_apt', isEdit ? getUnitNumber(editData) : '');
+        
+        const assetSel = document.getElementById('er_asset');
+        const populateAssets = (unitNum) => {
+            assetSel.innerHTML = '<option value="">-- No Specific Asset --</option>';
+            if (!unitNum) return;
+            const related = cache.assets.filter(a => String(getUnitNumber(a)) === String(unitNum) && String(a.status) !== 'Archived');
+            related.forEach(a => {
+                const o = document.createElement('option'); o.value = a.tag || a.Tag; o.innerText = `${a.type || 'Asset'} (${a.tag || a.Tag})`;
+                if (isEdit && String(editData.asset || editData.Asset) === String(o.value)) o.selected = true;
+                assetSel.appendChild(o);
+            });
+        };
+        setTimeout(() => populateAssets(isEdit ? getUnitNumber(editData) : ''), 100);
+        document.getElementById('er_apt').addEventListener('change', (e) => populateAssets(e.target.value));
+
+        submit.onclick = () => {
+          submit.disabled = true;
+          callApi(isEdit ? 'updateExpenseRequest' : 'saveExpenseRequest', {
+            reqId: uniqueId, date: toSheetDate(document.getElementById('er_date').value), apt: document.getElementById('er_apt').value, asset: document.getElementById('er_asset').value, job: document.getElementById('er_job').value, amount: document.getElementById('er_amount').value
+          }).then(() => { closeModal(); refreshData('expenserequests'); });
+        };
+      }
+      else if (type === 'cashexpense') {
+        const uniqueId = isEdit && editData.cashId ? editData.cashId : "CSH-" + Math.random().toString(36).substr(2, 5).toUpperCase();
+        title.innerText = "Cash Expense (Outflow)";
+        body.innerHTML = `
+          <label ${labelStyle}>Disbursement Date</label><input id="ce_date" type="date" value="${new Date().toISOString().split('T')[0]}" ${largeInput}>
+          <label ${labelStyle}>Location / Unit (Optional)</label><select id="ce_apt" ${largeInput}></select>
+          <label ${labelStyle}>Payee / Vendor Entity</label><select id="ce_payee" ${largeInput}></select>
+          <label ${labelStyle}>Expense Category</label><input id="ce_cat" value="" placeholder="e.g. Logistics, Materials" ${largeInput}>
+          <label ${labelStyle}>Outflow Description</label><textarea id="ce_desc" rows="2" ${largeInput}>${editData && editData.description ? editData.description : ''}</textarea>
+          <label ${labelStyle}>Amount Settled (₦)</label><input id="ce_amount" type="number" value="${editData && editData.amount ? editData.amount : ''}" ${largeInput}>`;
+        
+        populateUnitDropdown('ce_apt', editData ? editData.apt : '');
+        
+        const pSel = document.getElementById('ce_payee');
+        pSel.innerHTML = '<option value="">-- Custom Cash Expense --</option>';
+        (cache.vendors || []).forEach(v => { const o=document.createElement('option'); o.value=`${v.company || v.Company}`; o.innerText=`${v.company || v.Company} [Vendor]`; pSel.appendChild(o); });
+        (cache.staff || []).forEach(s => { const o=document.createElement('option'); o.value=`${s.name || s.Name}`; o.innerText=`${s.name || s.Name} [Staff]`; pSel.appendChild(o); });
+
+        submit.onclick = () => {
+          submit.disabled = true;
+          callApi('saveCashExpense', {
+            cashId: uniqueId, date: toSheetDate(document.getElementById('ce_date').value), apt: document.getElementById('ce_apt').value, payee: document.getElementById('ce_payee').value, category: document.getElementById('ce_cat').value, description: document.getElementById('ce_desc').value, amount: document.getElementById('ce_amount').value
+          }).then(() => { 
+            if(pendingExpenseConversionId) {
+              callApi('deleteRecord', { sheetName: 'ExpenseRequests', pkField: 'reqId', pkValue: pendingExpenseConversionId }).then(() => { pendingExpenseConversionId = null; refreshData('expenserequests'); });
+            }
+            closeModal(); refreshData('cashexpenses'); 
+          });
+        };
+      }
       }
       else if (type === 'maintenance') {
         const uniqueTicket = isEdit ? (editData.ticketId || editData.TicketId) : "TKT-" + Math.random().toString(36).substr(2, 5).toUpperCase();
@@ -1494,7 +1629,12 @@
               status: document.getElementById('w_status').value, 
               description: document.getElementById('w_desc').value, 
               notes: document.getElementById('w_notes').value 
-            }).then(() => { closeModal(); refreshData('workorders'); });
+            }).then(() => { 
+              if(pendingExpenseConversionId) {
+                callApi('deleteRecord', { sheetName: 'ExpenseRequests', pkField: 'reqId', pkValue: pendingExpenseConversionId }).then(() => { pendingExpenseConversionId = null; refreshData('expenserequests'); });
+              }
+              closeModal(); refreshData('workorders'); 
+            });
           };
         }
       }
@@ -1835,35 +1975,43 @@
     }
 
     function handleReportProfileSwitch() {
-      const p = document.getElementById('rep-profile-selector').value; const l = document.getElementById('rep-layout-selector');
-      let out = "<option value=''>-- Choose Option Layout --</option>";
-      if (p === "apartments") { 
-        out += `<option value="apt_custom_print">Apartments Manifest</option>
-                <option value="apt_single_isolated_print">Apartment Detailed Dossier</option>`; 
-      } 
-      else if (p === "tickets") { out += `<option value="tkt_status">Group Ledger Manifest Matrix by Target Status</option>`; } 
-      else if (p === "workorders") { out += `<option value="wo_all">All Registered Corporate Work Orders Ledger Statement</option><option value="wo_selected">Isolated Work Order Financial Job Card Template</option>`; }
-      l.innerHTML = out; document.getElementById('rep-dynamic-parameters-frame').innerHTML = "";
-    }
+      const p = document.getElementById('rep-profile-selector').value; const l = document.getElementById('rep-layout-selector');
+      let out = "<option value=''>-- Choose Option Layout --</option>";
+      if (p === "apartments") { 
+        out += `<option value="apt_custom_print">Apartments Manifest</option>
+                <option value="apt_single_isolated_print">Apartment Detailed Dossier</option>`; 
+      } 
+      else if (p === "workorders") { // Legacy ID kept for dropdown value, but UI shows Financials
+        out += `<option value="fin_vendor">1. Vendor Account Analysis</option>
+                <option value="fin_wo">2. Approved Work Orders Ledger</option>
+                <option value="fin_cashexp">3. Cash Expenses (Outflow) Ledger</option>
+                <option value="fin_income">4. Income Accounts Ledger</option>
+                <option value="fin_all">5. Comprehensive Accounts (Income vs Expense)</option>`; 
+      }
+      l.innerHTML = out; document.getElementById('rep-dynamic-parameters-frame').innerHTML = "";
+    }
 
     function handleReportLayoutSwitch() {
-      const layout = document.getElementById('rep-layout-selector').value; const f = document.getElementById('rep-dynamic-parameters-frame'); f.innerHTML = "";
-      if (layout === "wo_selected") {
-        let options = (cache.workorders || []).map(w => {
-          const woId = w.workOrderId || w.WorkOrderId || '';
-          const unit = getUnitNumber(w);
-          return `<option value="${woId}">${woId} (Unit ${unit})</option>`;
-        }).join('');
-        f.innerHTML = `<label>TARGET WORK ORDER ID REFERENCE:</label><select id="rep_p_wo">${options}</select>`;
-      }
-      else if (layout === "apt_single_isolated_print") {
-        let options = (cache.apts || []).map(a => {
-          const uNum = getUnitNumber(a);
-          return `<option value="${uNum}">Unit ${uNum} [${a.type || 'Standard'}]</option>`;
-        }).join('');
-        f.innerHTML = `<label>SELECT TARGET APARTMENT TO PRINT (INCLUDES SERVICES):</label><select id="rep_p_apt">${options}</select>`;
-      }
-    }
+      const layout = document.getElementById('rep-layout-selector').value; const f = document.getElementById('rep-dynamic-parameters-frame'); f.innerHTML = "";
+      
+      const dateRangeUI = `
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:10px;">
+          <div><label>START DATE</label><input type="date" id="rep_start" style="width:100%; padding:10px; border-radius:6px; border:2px solid #000;"></div>
+          <div><label>END DATE</label><input type="date" id="rep_end" style="width:100%; padding:10px; border-radius:6px; border:2px solid #000;"></div>
+        </div>`;
+
+      if (layout === "apt_single_isolated_print") {
+        let options = (cache.apts || []).map(a => `<option value="${getUnitNumber(a)}">Unit ${getUnitNumber(a)} [${a.type || 'Standard'}]</option>`).join('');
+        f.innerHTML = `<label>SELECT TARGET APARTMENT:</label><select id="rep_p_apt" style="width:100%; padding:10px; border-radius:6px; border:2px solid #000;">${options}</select>`;
+      }
+      else if (layout === "fin_vendor") {
+        let options = (cache.vendors || []).map(v => `<option value="${v.company || v.Company}">${v.company || v.Company}</option>`).join('');
+        f.innerHTML = `<label>SELECT VENDOR ENTITY:</label><select id="rep_vendor" style="width:100%; padding:10px; border-radius:6px; border:2px solid #000;">${options}</select>`;
+      }
+      else if (layout.startsWith("fin_")) {
+        f.innerHTML = dateRangeUI;
+      }
+    }
 
     function compileReportPreview() {
   const layout = document.getElementById('rep-layout-selector').value;
@@ -1958,6 +2106,87 @@
         <div style="margin-bottom:15px;"><strong>Interior Captures:</strong><br>${photosHtml}</div>
         <div style="margin-bottom:10px; font-weight:800;">ASSETS:</div>
         ${assetsHtml}`;
+    }
+  }
+      // 3. FINANCIALS REPORTS
+  else if (layout.startsWith("fin_")) {
+    let sDate = document.getElementById('rep_start') ? parseToLocalDateObject(document.getElementById('rep_start').value) : null;
+    let eDate = document.getElementById('rep_end') ? parseToLocalDateObject(document.getElementById('rep_end').value) : null;
+    
+    // Auto-fill dates if missing
+    if (!sDate) { sDate = new Date(); sDate.setDate(1); } // Default to start of month
+    if (!eDate) { eDate = new Date(); }
+    
+    sDate.setHours(0,0,0,0); eDate.setHours(23,59,59,999);
+    const dateRangeLabel = `${sDate.toLocaleDateString()} to ${eDate.toLocaleDateString()}`;
+
+    if (layout === "fin_vendor") {
+      const vName = document.getElementById('rep_vendor').value;
+      const vOrders = cache.workorders.filter(w => String(w.assigned || w.Assigned).includes(vName));
+      const vPayments = cache.cashexpenses.filter(c => String(c.payee || c.Payee).includes(vName));
+      
+      contentHtml = `<h3 style="margin-bottom:15px; text-transform:uppercase;">Vendor Account Analysis: ${vName}</h3>`;
+      
+      let woTotal = 0;
+      contentHtml += `<h4>Work Orders Assigned</h4><table class="print-table"><tr><th>Date</th><th>Ref</th><th>Scope</th><th>Budget (₦)</th></tr>`;
+      vOrders.forEach(w => { woTotal += Number(w.amount||0); contentHtml += `<tr><td>${formatDateForDisplay(w.date)}</td><td>${w.workOrderId}</td><td>${w.description}</td><td>${Number(w.amount||0).toLocaleString()}</td></tr>`; });
+      contentHtml += `<tr><th colspan="3" style="text-align:right;">TOTAL COMMITTED:</th><th>₦${woTotal.toLocaleString()}</th></tr></table>`;
+
+      let payTotal = 0;
+      contentHtml += `<h4 style="margin-top:20px;">Cash Expenses Paid</h4><table class="print-table"><tr><th>Date</th><th>Ref</th><th>Category</th><th>Amount (₦)</th></tr>`;
+      vPayments.forEach(c => { payTotal += Number(c.amount||0); contentHtml += `<tr><td>${formatDateForDisplay(c.date)}</td><td>${c.cashId}</td><td>${c.category}</td><td>${Number(c.amount||0).toLocaleString()}</td></tr>`; });
+      contentHtml += `<tr><th colspan="3" style="text-align:right;">TOTAL PAID:</th><th>₦${payTotal.toLocaleString()}</th></tr></table>`;
+    }
+    
+    else if (layout === "fin_wo") {
+      const daysDiff = (eDate - sDate) / (1000 * 60 * 60 * 24);
+      if (daysDiff > 30) { alert("Work Order reports are strictly limited to a 30-day maximum window."); return; }
+      
+      const wos = cache.workorders.filter(w => {
+         const d = parseToLocalDateObject(w.date || w.Date);
+         return d >= sDate && d <= eDate && String(w.status || w.Status) === 'Approved';
+      });
+      
+      let total = 0;
+      contentHtml = `<h3 style="margin-bottom:5px; text-transform:uppercase;">Approved Work Orders</h3>
+                     <p style="font-weight:800; margin-bottom:15px; font-size:12px;">Period: ${dateRangeLabel}</p>
+                     <table class="print-table"><tr><th>Date</th><th>WO Number</th><th>Scope / Narrative</th><th>Budget (₦)</th></tr>`;
+      wos.forEach(w => { total += Number(w.amount||0); contentHtml += `<tr><td>${formatDateForDisplay(w.date)}</td><td>${w.workOrderId || w.WorkOrderId}</td><td>${w.description || w.Description}</td><td>${Number(w.amount||0).toLocaleString()}</td></tr>`; });
+      contentHtml += `<tr><th colspan="3" style="text-align:right; font-size:16px;">TOTAL AUTHORIZED BUDGET:</th><th style="font-size:16px;">₦${total.toLocaleString()}</th></tr></table>`;
+    }
+
+    else if (layout === "fin_cashexp") {
+      const exp = cache.cashexpenses.filter(c => { const d = parseToLocalDateObject(c.date); return d >= sDate && d <= eDate; });
+      let total = 0;
+      contentHtml = `<h3 style="margin-bottom:5px; text-transform:uppercase;">Cash Expenses (Outflow)</h3><p style="font-weight:800; margin-bottom:15px; font-size:12px;">Period: ${dateRangeLabel}</p>
+                     <table class="print-table"><tr><th>Date</th><th>Ref</th><th>Payee</th><th>Desc</th><th>Amount (₦)</th></tr>`;
+      exp.forEach(c => { total += Number(c.amount||0); contentHtml += `<tr><td>${formatDateForDisplay(c.date)}</td><td>${c.cashId}</td><td>${c.payee}</td><td>${c.description}</td><td>${Number(c.amount||0).toLocaleString()}</td></tr>`; });
+      contentHtml += `<tr><th colspan="4" style="text-align:right;">TOTAL OUTFLOW:</th><th>₦${total.toLocaleString()}</th></tr></table>`;
+    }
+
+    else if (layout === "fin_income") {
+      const inc = cache.payments.filter(p => { const d = parseToLocalDateObject(p.date); return d >= sDate && d <= eDate; });
+      let total = 0;
+      contentHtml = `<h3 style="margin-bottom:5px; text-transform:uppercase;">Income Accounts Ledger</h3><p style="font-weight:800; margin-bottom:15px; font-size:12px;">Period: ${dateRangeLabel}</p>
+                     <table class="print-table"><tr><th>Date</th><th>Unit</th><th>Type</th><th>Ref</th><th>Amount (₦)</th></tr>`;
+      inc.forEach(p => { total += Number(p.amount||0); contentHtml += `<tr><td>${formatDateForDisplay(p.date)}</td><td>Unit ${getUnitNumber(p)}</td><td>${p.type}</td><td>${p.reference}</td><td>${Number(p.amount||0).toLocaleString()}</td></tr>`; });
+      contentHtml += `<tr><th colspan="4" style="text-align:right;">TOTAL INFLOW:</th><th>₦${total.toLocaleString()}</th></tr></table>`;
+    }
+
+    else if (layout === "fin_all") {
+      const inc = cache.payments.filter(p => { const d = parseToLocalDateObject(p.date); return d >= sDate && d <= eDate; });
+      const exp = cache.cashexpenses.filter(c => { const d = parseToLocalDateObject(c.date); return d >= sDate && d <= eDate; });
+      
+      const inTotal = inc.reduce((acc, p) => acc + Number(p.amount||0), 0);
+      const outTotal = exp.reduce((acc, c) => acc + Number(c.amount||0), 0);
+      const net = inTotal - outTotal;
+      
+      contentHtml = `<h3 style="margin-bottom:5px; text-transform:uppercase;">Comprehensive Accounts Ledger</h3><p style="font-weight:800; margin-bottom:15px; font-size:12px;">Period: ${dateRangeLabel}</p>
+                     <table style="width:100%; border-collapse:collapse; margin-bottom:20px; font-size:14px;">
+                       <tr><td style="padding:15px; border:2px solid #000; background:#f0f0f0;"><strong>GROSS INCOME (INFLOW):</strong><br><span style="font-size:24px; color:var(--success);">₦${inTotal.toLocaleString()}</span></td>
+                           <td style="padding:15px; border:2px solid #000; background:#f0f0f0;"><strong>CASH EXPENSES (OUTFLOW):</strong><br><span style="font-size:24px; color:var(--danger);">₦${outTotal.toLocaleString()}</span></td></tr>
+                       <tr><td colspan="2" style="padding:15px; border:2px solid #000; text-align:center;"><strong>NET POSITION:</strong><br><span style="font-size:28px; font-weight:900;">₦${net.toLocaleString()}</span></td></tr>
+                     </table>`;
     }
   }
 
