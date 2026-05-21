@@ -1052,11 +1052,22 @@
               </div>`;
           } 
           else if (p === 'workorders') {
+            const woId = item.workOrderId || item.WorkOrderId;
             return `
-              <div class="card" onclick="openRecordRow('workorder', '${item.workOrderId || item.WorkOrderId}')">
+              <div class="card" onclick="openRecordRow('workorder', '${woId}')">
                 <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:4px;">
-                  <div><strong style="font-size:20px;">Unit ${unitId}</strong><br><small style="color:var(--muted); font-weight:700;">${item.workOrderId || item.WorkOrderId}</small></div>
-                  <span style="padding:4px 10px; border:2px solid #000; border-radius:6px; font-size:12px; font-weight:900; background:${String(item.status || '') === 'Approved' ? 'var(--success)' : String(item.status || '') === 'Declined' ? 'var(--danger)' : '#ffc107'}; color:#fff;">${String(item.status || 'PENDING').toUpperCase()}</span>
+                  <div>
+                    <strong style="font-size:20px;">Unit ${unitId}</strong><br>
+                    <small style="color:var(--muted); font-weight:700;">${woId}</small>
+                  </div>
+                  <div style="display:flex; flex-direction:column; align-items:flex-end; gap:8px;">
+                    <span style="padding:4px 10px; border:2px solid #000; border-radius:6px; font-size:12px; font-weight:900; background:${String(item.status || '') === 'Approved' ? 'var(--success)' : String(item.status || '') === 'Declined' ? 'var(--danger)' : '#ffc107'}; color:#fff; text-align:center;">
+                      ${String(item.status || 'PENDING').toUpperCase()}
+                    </span>
+                    <button onclick="event.stopPropagation(); printSingleWorkOrderDirect('${woId}')" style="background:var(--primary); color:#fff; border:none; padding:6px 12px; border-radius:6px; font-size:11px; font-weight:800; cursor:pointer; text-transform:uppercase;">
+                      <i class="fas fa-print"></i> Print WO
+                    </button>
+                  </div>
                 </div>
                 <div style="font-size:18px; font-weight:900; color:var(--success)">₦${Number(item.amount || 0).toLocaleString()}</div>
                 ${item.assigned ? `<div style="font-size:14px; font-weight:700; color:var(--muted); margin-bottom:4px;"><i class="fas fa-user-check"></i> ${item.assigned} ${item.duration ? `• ${item.duration}` : ''}</div>` : ''}
@@ -1441,8 +1452,7 @@
             <option value="Declined" ${isEdit && String(editData.status || editData.Status)==='Declined'?'selected':''}>Declined</option>
           </select>
           <label ${labelStyle}>Scope / Narrative</label><textarea id="w_desc" rows="3" ${largeInput} ${isApproved ? 'disabled' : ''}>${isEdit ? (editData.description || editData.Description) : ''}</textarea>
-          <label ${labelStyle}>Operational Remarks</label><textarea id="w_notes" rows="2" ${largeInput} ${isApproved ? 'disabled' : ''}>${isEdit ? (editData.notes || editData.Notes) : ''}</textarea>
-          ${canPrint ? `<button class="action-btn" style="background:var(--primary); margin-top:15px;" onclick="printSingleWorkOrderDirect('${uniqueWO}')"><i class="fas fa-print"></i> Print Work Order</button>` : ''}`;
+          <label ${labelStyle}>Operational Remarks</label><textarea id="w_notes" rows="2" ${largeInput} ${isApproved ? 'disabled' : ''}>${isEdit ? (editData.notes || editData.Notes) : ''}</textarea>`;       
         
         populateUnitDropdown('w_apt', isEdit ? getUnitNumber(editData) : '');
         
