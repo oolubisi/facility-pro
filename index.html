@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="wifunction dth=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Facility Pro Mobile</title>
   
   <link rel="manifest" href="manifest.json">
@@ -376,14 +376,21 @@
       </div>
 
       <div id="view-payments" class="page-view">
-        <div class="page-header">
-          <div class="header-group">
-            <button class="home-btn" onclick="showPage('dashboard')"><i class="fas fa-home"></i></button>
-            <h2>Ledger Transactions</h2>
+        <div class="page-header" style="flex-direction: column; align-items: flex-start; gap: 10px; border-bottom: 3px solid var(--text); padding-bottom:15px;">
+          <div style="display:flex; width:100%; justify-content:space-between; align-items:center;">
+            <div class="header-group">
+              <button class="home-btn" onclick="showPage('dashboard')"><i class="fas fa-home"></i></button>
+              <h2>Ledger Transactions</h2>
+            </div>
+            <button class="action-btn" style="width:auto; padding:10px 20px;" onclick="openModal('payment')">Add</button>
           </div>
-          <button class="action-btn" style="width:auto; padding:10px 20px;" onclick="openModal('payment')">Add</button>
         </div>
-        <div id="payment-list"></div>
+        <div id="ledger-balance-card" class="card" style="background:#E8F0FE; border-color:#B3D1FF; margin-bottom:15px;">
+          <h4><i class="fas fa-chart-pie"></i> Net Financial Position</h4>
+          <p style="font-size:14px; font-weight:600; margin-top:4px;">Inflow (Payments) vs. Outflow (Cash Expenses)</p>
+          <div id="s-ledger-balance" style="font-size:26px; font-weight:900; color:var(--text); margin-top:5px;">₦0</div>
+        </div>
+        <div id="payment-list" style="margin-top:15px;"></div>
       </div>
 
       <div id="view-utilities" class="page-view">
@@ -842,6 +849,30 @@
       }
     }
 
+    function renderTotalBalance() {
+      const balEl = document.getElementById('s-ledger-balance');
+      if (!balEl) return;
+      
+      let totalInflow = 0;
+      if (cache.payments) {
+        cache.payments.forEach(p => {
+          totalInflow += parseFloat(p.amount || p.Amount || 0);
+        });
+      }
+      
+      let totalOutflow = 0;
+      if (cache.cashExpenses) {
+        cache.cashExpenses.forEach(c => {
+          totalOutflow += parseFloat(c.amount || c.Amount || 0);
+        });
+      }
+      
+      const netBalance = totalInflow - totalOutflow;
+      
+      balEl.innerText = `${netBalance >= 0 ? '+' : '-'}₦${Math.abs(netBalance).toLocaleString()}`;
+      balEl.style.color = netBalance >= 0 ? 'var(--success)' : 'var(--danger)';
+    }
+
     function updateDashboardCounters() {
       const tenancyCount = cache.apts ? cache.apts.filter(a => {
         var status = String(a.status || a.Status || '').toLowerCase();
@@ -883,11 +914,8 @@
       const target = document.getElementById('view-' + p);
       if (target) { target.classList.add('active-view'); window.scrollTo(0,0); }
       
-      // Update Home button behavior based on where the user came from
       const homeBtn = document.querySelector('.active-view .home-btn');
       if (homeBtn) {
-        // If the current page is a child of the "More" dashboard, 
-        // redirect home button to 'more' instead of 'dashboard'
         const moreChildren = ['serviceunits', 'utilities', 'expenserequests', 'cashexpenses', 'payments', 'staff', 'vendors', 'archived', 'reports', 'settings'];
         homeBtn.onclick = () => showPage(moreChildren.includes(p) ? 'more' : 'dashboard');
       }
@@ -896,6 +924,7 @@
       else if (p === 'reports') { initReportsEngine(); }
       else if (p === 'settings') { syncSettingsInputsToUIFields(); }
       else if (p === 'utilities') { refreshData('utilities'); setTimeout(renderGeneratorEfficiencyLogs, 500); }
+      else if (p === 'payments') { refreshData('payments'); }
       else if (p !== 'more') { refreshData(p); }
     }
 
@@ -986,9 +1015,29 @@
         if (p === 'vendors') { cache.vendors = displayData; displayData = displayData.filter(item => item && String(item.archived || item.Archived || '') !== 'Yes'); }
         if (p === 'utilities') cache.utilities = displayData;
         if (p === 'workorders') cache.workorders = displayData;
-        if (p === 'payments') cache.payments = displayData;
+        if (p === 'payments') {
+            cache.payments = displayData; 
+            if(!cache.cashExpenses || cache.cashExpenses.length === 0) {
+               callApi('getCashExpenses', {}).then(cashData => {
+                 cache.cashExpenses = cashData || [];
+                 renderTotalBalance();
+               });
+            } else {
+               renderTotalBalance();
+            }
+        }
         if (p === 'expenserequests') cache.expenseRequests = displayData;
-        if (p === 'cashexpenses') cache.cashExpenses = displayData;
+        if (p === 'cashexpenses') {
+             cache.cashExpenses = displayData;
+             if(!cache.payments || cache.payments.length === 0) {
+                callApi('getPayments', {}).then(payData => {
+                    cache.payments = payData || [];
+                    renderTotalBalance();
+                });
+             } else {
+                 renderTotalBalance();
+             }
+        }
         if (p === 'inventory') { cache.inventory = displayData; displayData = displayData.filter(item => item && String(item.archived || item.Archived || '') !== 'Yes'); }
     
         if (p === 'assets') {
@@ -1068,12 +1117,11 @@
               </div>`;
           }
           else if (p === 'payments') {
-            const isOut = item.direction === 'OUTFLOW';
             return `
               <div class="card" onclick="openRecordRow('payment', '${item.paymentId || item.PaymentId}')">
                 <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:4px;">
                   <div><strong style="font-size:18px;">${item.party || 'No Party Listed'}</strong><br><small style="color:var(--muted); font-weight:700;">ID: ${item.paymentId || item.PaymentId || ''}</small></div>
-                  <div style="text-align:right;"><span style="font-size:20px; font-weight:900; color:${isOut ? 'var(--danger)' : 'var(--success)'};">${isOut ? '-' : '+'}₦${Number(item.amount || 0).toLocaleString()}</span><br><small style="font-size:11px; font-weight:700; color:var(--muted);">${formatDateForDisplay(item.date)}</small></div>
+                  <div style="text-align:right;"><span style="font-size:20px; font-weight:900; color:var(--success);">+₦${Number(item.amount || 0).toLocaleString()}</span><br><small style="font-size:11px; font-weight:700; color:var(--muted);">${formatDateForDisplay(item.date)}</small></div>
                 </div>
                 <div style="font-size:15px; font-weight:800; color:var(--primary);">${item.type || 'General Record'}</div>
               </div>`;
@@ -1262,8 +1310,7 @@
       currentModalFiles = [];
       currentAvatarPhoto = "";
       
-      // Add this to your openModal function
-    if (type === 'expenserequest') {
+      if (type === 'expenserequest') {
         const uniqueId = isEdit ? (editData.reqId || editData.ReqId) : generateNextId('EXR', cache.expenseRequests, 'reqId');
         title.innerText = isEdit ? "Update Expense Request" : "Draft Expense Request";
         
@@ -1548,7 +1595,6 @@
           <label ${labelStyle}>Transaction Direction</label>
           <select id="p_direction" ${largeInput}>
             <option value="INFLOW" ${isEdit && editData.direction==='INFLOW'?'selected':''}>INFLOW (+ Receivables)</option>
-            <option value="OUTFLOW" ${isEdit && editData.direction==='OUTFLOW'?'selected':''}>OUTFLOW (- Payables)</option>
           </select>
           <label ${labelStyle}>Party / Payer / Payee</label><input id="p_party" value="${isEdit ? (editData.party || '') : ''}" placeholder="Tenant Name, Vendor, or Staff" ${largeInput}>
           <label ${labelStyle}>Classification Note</label><input id="p_type" value="${isEdit ? (editData.type || '') : ''}" placeholder="e.g. Rent, Vendor Payment" ${largeInput}>
