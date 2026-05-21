@@ -1953,12 +1953,18 @@
             <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left; vertical-align:top;">Operational Remarks</th><td style="padding:10px; border:1px solid #000;">${orderItem.notes || orderItem.Notes || 'No operational feedback logged.'}</td></tr>
           </table>
           
-          ${generatePrintAttachmentsHtml(orderItem.attachments || orderItem.Attachments)}
-          
           <div style="margin-top: 40px; font-size: 10px; color: #666; text-align: center; border-top: 1px dashed #ccc; padding-top: 10px;">
             ${appSettings.fmAddress || ''}
           </div>
         </div>`;
+
+      // NEW TOGGLE LOGIC:
+      const includeAttachments = confirm("Would you like to include the photo/PDF attachments in this printout?");
+      
+      if (includeAttachments) {
+        // Find the closing </div> and insert the attachments right before it
+        invoiceLayoutHtml = invoiceLayoutHtml.replace('</div>`', generatePrintAttachmentsHtml(orderItem.attachments || orderItem.Attachments) + '</div>`');
+      }
 
       document.getElementById('report-print-container').innerHTML = invoiceLayoutHtml;
       setTimeout(() => { window.print(); }, 100);
@@ -1988,8 +1994,18 @@
             <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left; vertical-align:top;">Job Scope / Narrative</th><td style="padding:10px; border:1px solid #000;">${orderItem.job || orderItem.Job || 'No description provided.'}</td></tr>
           </table>
           
-          ${generatePrintAttachmentsHtml(orderItem.attachments || orderItem.Attachments)}
+          <div style="margin-top: 40px; font-size: 10px; color: #666; text-align: center; border-top: 1px dashed #ccc; padding-top: 10px;">
+            ${appSettings.fmAddress || ''}
+          </div>
         </div>`;
+
+      // NEW TOGGLE LOGIC:
+      const includeAttachments = confirm("Would you like to include the photo/PDF attachments in this printout?");
+      
+      if (includeAttachments) {
+        // Find the closing </div> and insert the attachments right before it
+        invoiceLayoutHtml = invoiceLayoutHtml.replace('</div>`', generatePrintAttachmentsHtml(orderItem.attachments || orderItem.Attachments) + '</div>`');
+      }
 
       document.getElementById('report-print-container').innerHTML = invoiceLayoutHtml;
       setTimeout(() => { window.print(); }, 100);
@@ -2019,8 +2035,18 @@
             <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left; vertical-align:top;">Description / Justification</th><td style="padding:10px; border:1px solid #000;">${orderItem.description || orderItem.Description || 'No description provided.'}</td></tr>
           </table>
           
-          ${generatePrintAttachmentsHtml(orderItem.attachments || orderItem.Attachments)}
+          <div style="margin-top: 40px; font-size: 10px; color: #666; text-align: center; border-top: 1px dashed #ccc; padding-top: 10px;">
+            ${appSettings.fmAddress || ''}
+          </div>
         </div>`;
+
+      // NEW TOGGLE LOGIC:
+      const includeAttachments = confirm("Would you like to include the photo/PDF attachments in this printout?");
+      
+      if (includeAttachments) {
+        // Find the closing </div> and insert the attachments right before it
+        invoiceLayoutHtml = invoiceLayoutHtml.replace('</div>`', generatePrintAttachmentsHtml(orderItem.attachments || orderItem.Attachments) + '</div>`');
+      }
 
       document.getElementById('report-print-container').innerHTML = invoiceLayoutHtml;
       setTimeout(() => { window.print(); }, 100);
