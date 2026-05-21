@@ -65,7 +65,6 @@
     .nav-card .count { font-size: 38px; font-weight: 900; color: var(--text); line-height: 1.1; } 
     .nav-card small { font-size: 16px; text-transform: uppercase; color: var(--text); font-weight: 800; margin-top: 4px; } 
 
-    /* NEW SMALL DASHBOARD CARDS FOR "MORE" VIEW */
     .nav-card-small {
       background: var(--card); border: 2px solid var(--border); border-radius: 16px; 
       padding: 12px; text-align: center; display: flex; flex-direction: column;
@@ -160,6 +159,10 @@
   </style>
 </head>
 <body>
+
+  <div id="sync-status" style="position:fixed; top:0; right:10px; z-index:9999; font-size:11px; background:rgba(0,0,0,0.7); color:#fff; padding:4px 10px; border-radius:0 0 8px 8px; font-weight:bold; display:none;">
+    <i class="fas fa-sync-alt fa-spin"></i> Syncing Offline Data...
+  </div>
 
   <div class="app">
     <main class="main">
@@ -556,6 +559,8 @@
         queue.push({ action, data, timestamp: Date.now() });
         localStorage.setItem('facility_pro_sync_queue', JSON.stringify(queue));
         
+        // Show sync status indicator globally
+        document.getElementById('sync-status').style.display = 'block';
         alert("Connection lost. Your data was saved locally and will sync automatically when you regain signal.");
         return { status: "queued" };
       }
@@ -581,7 +586,6 @@
 
     function generateNextId(prefix, list, idKey) {
       let maxId = 0;
-      // Make sure the list is actually a valid array before trying to loop
       const safeList = Array.isArray(list) ? list : [];
       
       safeList.forEach(item => {
@@ -1073,6 +1077,9 @@
                   <button onclick="processExpenseAction('CREATE_CASH', '${item.reqId}')" style="flex:1; background:var(--primary); color:#fff; padding:10px; border-radius:8px; font-weight:900; border:none; cursor:pointer;">Cash Exp</button>
                   <button onclick="processExpenseAction('DELETE', '${item.reqId}')" style="background:var(--danger); color:#fff; padding:10px 15px; border-radius:8px; border:none; cursor:pointer;"><i class="fas fa-trash"></i></button>
                 </div>
+                <button onclick="event.stopPropagation(); printSingleExpenseRequestDirect('${item.reqId}')" style="width:100%; margin-top:8px; background:var(--card-light); color:#000; border:2px solid var(--border); padding:10px; border-radius:8px; font-size:12px; font-weight:800; cursor:pointer; text-transform:uppercase;">
+                  <i class="fas fa-print"></i> Print Request
+                </button>
               </div>`;
           }
           else if (p === 'cashexpenses') {
@@ -1080,7 +1087,12 @@
               <div class="card" onclick="openRecordRow('cashexpense', '${item.cashId}')">
                 <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:4px;">
                   <div><strong style="font-size:20px;">Unit ${unitId || 'N/A'}</strong><br><small style="color:var(--muted); font-weight:700;">ID: ${item.cashId}</small></div>
-                  <div style="text-align:right;"><span style="font-size:20px; font-weight:900; color:var(--danger);">-₦${Number(item.amount || 0).toLocaleString()}</span><br><small style="font-size:11px; font-weight:700; color:var(--muted);">${formatDateForDisplay(item.date)}</small></div>
+                  <div style="display:flex; flex-direction:column; align-items:flex-end; gap:8px;">
+                    <div style="text-align:right;"><span style="font-size:20px; font-weight:900; color:var(--danger);">-₦${Number(item.amount || 0).toLocaleString()}</span><br><small style="font-size:11px; font-weight:700; color:var(--muted);">${formatDateForDisplay(item.date)}</small></div>
+                    <button onclick="event.stopPropagation(); printSingleCashExpenseDirect('${item.cashId}')" style="background:var(--primary); color:#fff; border:none; padding:6px 12px; border-radius:6px; font-size:11px; font-weight:800; cursor:pointer; text-transform:uppercase;">
+                      <i class="fas fa-print"></i> Print
+                    </button>
+                  </div>
                 </div>
                 <div style="font-size:15px; font-weight:600; color:#000;">${item.description || ''}</div>
               </div>`;
@@ -1314,9 +1326,9 @@
       currentAvatarPhoto = "";
       
       if (type === 'expenserequest') {
-        // Fallback to empty array if cache is not fully loaded
         const uniqueId = isEdit ? (editData.reqId || editData.ReqId) : generateNextId('EXR', cache.expenseRequests || [], 'reqId');
         title.innerText = isEdit ? "Update Expense Request" : "Draft Expense Request";
+        if (isEdit && (editData.attachments || editData.Attachments)) currentModalFiles = (editData.attachments || editData.Attachments).split(',').filter(Boolean);
         
         body.innerHTML = `
           <label ${labelStyle}>Request ID</label><input type="text" value="${uniqueId}" disabled ${largeInput} style="background:#e9ecef; font-weight:900;">
@@ -1324,12 +1336,19 @@
           <label ${labelStyle}>Target Unit</label><select id="er_apt" ${largeInput}></select>
           <label ${labelStyle}>Asset Tag (Optional)</label><input id="er_asset" value="${isEdit ? (editData.assetTag || '') : ''}" placeholder="e.g. AST-12345" ${largeInput}>
           <label ${labelStyle}>Job Profile / Scope</label><textarea id="er_job" rows="3" placeholder="Multiline description..." ${largeInput}>${isEdit ? (editData.job || '') : ''}</textarea>
-          <label ${labelStyle}>Estimated Cost (₦)</label><input id="er_cost" type="number" value="${isEdit ? (editData.cost || '') : ''}" ${largeInput}>
+          <label ${labelStyle}>Estimated Cost (₦)</label><input id="er_cost" type="number" required placeholder="Amount (₦)" value="${isEdit ? (editData.cost || '') : ''}" ${largeInput}>
+          
+          <label ${labelStyle}>Supporting Attachments</label>
+          <div id="erPreviews" class="modal-preview-grid" style="display:none;"></div>
+          <label class="icon-upload-label"><i class="fas fa-paperclip"></i><input type="file" id="erCameraInput" accept="image/*,application/pdf" multiple style="display:none"></label>
         `;
         
         populateUnitDropdown('er_apt', isEdit ? getUnitNumber(editData) : '');
+        if(isEdit && currentModalFiles.length > 0) populateModalInlineImageGalleryPreviews('erPreviews');
+        document.getElementById('erCameraInput').onchange = (e) => { processIncomingMultiAttachments(e.target.files, 'erPreviews'); };
         
         submit.onclick = () => {
+          if(!document.getElementById('er_cost').value) { alert("Estimated Cost is required."); return; }
           submit.disabled = true;
           callApi(isEdit ? 'updateExpenseRequest' : 'saveExpenseRequest', {
             reqId: uniqueId, 
@@ -1337,33 +1356,42 @@
             apt: document.getElementById('er_apt').value,
             assetTag: document.getElementById('er_asset').value, 
             job: document.getElementById('er_job').value, 
-            cost: document.getElementById('er_cost').value
+            cost: document.getElementById('er_cost').value,
+            attachments: currentModalFiles.join(',')
           }).then(() => { closeModal(); refreshData('expenserequests'); });
         };
     }
     else if (type === 'cashexpense') {
-        // Fallback to empty array if cache is not fully loaded
         const uniqueId = isEdit ? (editData.cashId || editData.CashId) : generateNextId('CSH', cache.cashExpenses || [], 'cashId');
         title.innerText = isEdit ? "Edit Cash Expense" : "Log Cash Expense";
+        if (isEdit && (editData.attachments || editData.Attachments)) currentModalFiles = (editData.attachments || editData.Attachments).split(',').filter(Boolean);
         
         body.innerHTML = `
           <label ${labelStyle}>Cash ID</label><input type="text" value="${uniqueId}" disabled ${largeInput} style="background:#e9ecef; font-weight:900;">
           <label ${labelStyle}>Date</label><input id="ce_date" type="date" value="${isEdit ? fromSheetDate(editData.date) : new Date().toISOString().split('T')[0]}" ${largeInput}>
           <label ${labelStyle}>Target Unit</label><select id="ce_apt" ${largeInput}></select>
-          <label ${labelStyle}>Amount (₦)</label><input id="ce_amount" type="number" value="${isEdit ? (editData.amount || '') : ''}" ${largeInput}>
+          <label ${labelStyle}>Amount (₦)</label><input id="ce_amount" type="number" required placeholder="Amount (₦)" value="${isEdit ? (editData.amount || '') : ''}" ${largeInput}>
           <label ${labelStyle}>Description / Notes</label><textarea id="ce_desc" rows="3" ${largeInput}>${isEdit ? (editData.description || '') : ''}</textarea>
+          
+          <label ${labelStyle}>Supporting Attachments</label>
+          <div id="cePreviews" class="modal-preview-grid" style="display:none;"></div>
+          <label class="icon-upload-label"><i class="fas fa-paperclip"></i><input type="file" id="ceCameraInput" accept="image/*,application/pdf" multiple style="display:none"></label>
         `;
         
         populateUnitDropdown('ce_apt', isEdit ? getUnitNumber(editData) : '');
+        if(isEdit && currentModalFiles.length > 0) populateModalInlineImageGalleryPreviews('cePreviews');
+        document.getElementById('ceCameraInput').onchange = (e) => { processIncomingMultiAttachments(e.target.files, 'cePreviews'); };
 
         submit.onclick = () => {
+          if(!document.getElementById('ce_amount').value) { alert("Amount is required."); return; }
           submit.disabled = true;
           callApi(isEdit ? 'updateCashExpense' : 'saveCashExpense', {
             cashId: uniqueId, 
             date: toSheetDate(document.getElementById('ce_date').value), 
             apt: document.getElementById('ce_apt').value,
             amount: document.getElementById('ce_amount').value, 
-            description: document.getElementById('ce_desc').value
+            description: document.getElementById('ce_desc').value,
+            attachments: currentModalFiles.join(',')
           }).then(() => { closeModal(); refreshData('cashexpenses'); });
         };
     }
@@ -1531,6 +1559,7 @@
         const uniqueWO = isEdit ? (editData.workOrderId || editData.WorkOrderId) : generateNextId('WO', cache.workorders, 'workOrderId');
         title.innerText = isEdit ? "Work Order Portfolio" : "Log Work Order Expense";
         const isApproved = isEdit && String(editData.status || editData.Status) === "Approved";
+        if (isEdit && (editData.attachments || editData.Attachments)) currentModalFiles = (editData.attachments || editData.Attachments).split(',').filter(Boolean);
         
         body.innerHTML = `
           <label ${labelStyle}>Work Order ID</label><input type="text" value="${uniqueWO}" disabled ${largeInput} style="background:#e9ecef; font-weight:900;">
@@ -1539,7 +1568,7 @@
           <label ${labelStyle}>Target Asset (Optional)</label><select id="w_asset" ${largeInput} ${isApproved ? 'disabled' : ''}><option value="">-- No Specific Asset --</option></select>
           <label ${labelStyle}>Assigned</label><select id="w_assigned" ${largeInput} ${isApproved ? 'disabled' : ''}></select>
           <label ${labelStyle}>Duration</label><input id="w_duration" type="text" value="${isEdit ? (editData.duration || editData.Duration || '') : ''}" placeholder="e.g. 3 Days, 1 Week" ${largeInput} ${isApproved ? 'disabled' : ''}>
-          <label ${labelStyle}>Budget (₦)</label><input id="w_amount" type="number" value="${isEdit ? (editData.amount || editData.Amount || '') : ''}" placeholder="Cost allocation entry" ${largeInput} ${isApproved ? 'disabled' : ''}>
+          <label ${labelStyle}>Budget (₦)</label><input id="w_amount" type="number" required placeholder="Cost allocation entry" value="${isEdit ? (editData.amount || editData.Amount || '') : ''}" ${largeInput} ${isApproved ? 'disabled' : ''}>
           <label ${labelStyle}>Authorization Status</label>
           <select id="w_status" ${largeInput} ${isApproved ? 'disabled' : ''}>
             <option value="Pending Approval" ${isEdit && String(editData.status || editData.Status)==='Pending Approval'?'selected':''}>Pending Approval</option>
@@ -1547,7 +1576,12 @@
             <option value="Declined" ${isEdit && String(editData.status || editData.Status)==='Declined'?'selected':''}>Declined</option>
           </select>
           <label ${labelStyle}>Scope / Narrative</label><textarea id="w_desc" rows="3" ${largeInput} ${isApproved ? 'disabled' : ''}>${isEdit ? (editData.description || editData.Description || '') : ''}</textarea>
-          <label ${labelStyle}>Operational Remarks</label><textarea id="w_notes" rows="2" ${largeInput} ${isApproved ? 'disabled' : ''}>${isEdit ? (editData.notes || editData.Notes || '') : ''}</textarea>`;       
+          <label ${labelStyle}>Operational Remarks</label><textarea id="w_notes" rows="2" ${largeInput} ${isApproved ? 'disabled' : ''}>${isEdit ? (editData.notes || editData.Notes || '') : ''}</textarea>
+          
+          <label ${labelStyle}>Supporting Attachments</label>
+          <div id="woPreviews" class="modal-preview-grid" style="display:none;"></div>
+          <label class="icon-upload-label"><i class="fas fa-paperclip"></i><input type="file" id="woCameraInput" accept="image/*,application/pdf" multiple style="display:none" ${isApproved ? 'disabled' : ''}></label>
+        `;       
         
         populateUnitDropdown('w_apt', isEdit ? getUnitNumber(editData) : '');
         
@@ -1572,10 +1606,14 @@
         (cache.staff || []).forEach(s => { const o=document.createElement('option'); o.value=`${s.name || s.Name} (${s.role || s.Role})`; o.innerText=`${s.name || s.Name} [Staff]`; if(isEdit && (editData.assigned || editData.Assigned)===o.value) o.selected=true; asSel.appendChild(o); });
         (cache.vendors || []).forEach(v => { const o=document.createElement('option'); o.value=`${v.company || v.Company} (${v.trade || v.Trade})`; o.innerText=`${v.company || v.Company} [Vendor]`; if(isEdit && (editData.assigned || editData.Assigned)===o.value) o.selected=true; asSel.appendChild(o); });
 
+        if(isEdit && currentModalFiles.length > 0) populateModalInlineImageGalleryPreviews('woPreviews');
+        document.getElementById('woCameraInput').onchange = (e) => { processIncomingMultiAttachments(e.target.files, 'woPreviews'); };
+
         if (isApproved) { 
           submit.style.display = "none"; 
         } else {
           submit.onclick = () => {
+            if(!document.getElementById('w_amount').value) { alert("Budget amount is required."); return; }
             submit.disabled = true;
             callApi(isEdit ? 'updateWorkOrder' : 'saveWorkOrder', { 
               workOrderId: uniqueWO, 
@@ -1587,7 +1625,8 @@
               amount: document.getElementById('w_amount').value, 
               status: document.getElementById('w_status').value, 
               description: document.getElementById('w_desc').value, 
-              notes: document.getElementById('w_notes').value 
+              notes: document.getElementById('w_notes').value,
+              attachments: currentModalFiles.join(',') 
             }).then(() => { closeModal(); refreshData('workorders'); });
           };
         }
@@ -1603,11 +1642,12 @@
           </select>
           <label ${labelStyle}>Party / Payer / Payee</label><input id="p_party" value="${isEdit ? (editData.party || '') : ''}" placeholder="Tenant Name, Vendor, or Staff" ${largeInput}>
           <label ${labelStyle}>Classification Note</label><input id="p_type" value="${isEdit ? (editData.type || '') : ''}" placeholder="e.g. Rent, Vendor Payment" ${largeInput}>
-          <label ${labelStyle}>Amount (₦)</label><input id="p_amount" type="number" value="${isEdit ? (editData.amount || '') : ''}" ${largeInput}>
+          <label ${labelStyle}>Amount (₦)</label><input id="p_amount" type="number" required value="${isEdit ? (editData.amount || '') : ''}" ${largeInput}>
           <label ${labelStyle}>Date</label><input id="p_date" type="date" value="${isEdit ? fromSheetDate(editData.date) : new Date().toISOString().split('T')[0]}" ${largeInput}>
         `;
         
         submit.onclick = () => {
+          if(!document.getElementById('p_amount').value) { alert("Amount is required."); return; }
           submit.disabled = true;
           callApi(isEdit ? 'updatePayment' : 'savePayment', {
             paymentId: uniqueId, direction: document.getElementById('p_direction').value, party: document.getElementById('p_party').value,
@@ -1831,6 +1871,40 @@
       }
     }
 
+    // PRINT FUNCTIONS & RENDERERS
+    function generatePrintAttachmentsHtml(attachmentString) {
+      if (!attachmentString) return '';
+      const files = attachmentString.split(',').filter(Boolean);
+      if (files.length === 0) return '';
+      
+      let images = [];
+      let pdfs = [];
+      files.forEach(url => {
+        if (url.toLowerCase().includes('.pdf') || url.toLowerCase().includes('pdf_')) pdfs.push(url);
+        else images.push(url);
+      });
+      
+      let html = '<div style="margin-top: 30px; page-break-inside: avoid; border-top: 2px solid #000; padding-top: 15px;">';
+      html += '<h4 style="text-transform:uppercase; margin-bottom:10px; font-weight:900;">Attached Documentation</h4>';
+      
+      if (images.length > 0) {
+        html += '<div style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 15px;">';
+        images.forEach(img => {
+          html += `<img src="${getDirectImageUrl(img)}" style="width: 200px; height: 200px; object-fit: cover; border: 1px solid #ccc;">`;
+        });
+        html += '</div>';
+      }
+      if (pdfs.length > 0) {
+        html += '<ul style="font-size: 12px; padding-left: 20px;">';
+        pdfs.forEach((pdf, i) => {
+          html += `<li><a href="${pdf}" target="_blank" style="color:#0056b3; text-decoration:none;"><strong>[PDF Document ${i+1}]</strong> View attached digital file</a></li>`;
+        });
+        html += '</ul>';
+      }
+      html += '</div>';
+      return html;
+    }
+
     function printSingleWorkOrderDirect(woId) {
       const orderItem = cache.workorders.find(w => String(w.workOrderId || w.WorkOrderId) === woId); if(!orderItem) return;
       var unitId = getUnitNumber(orderItem);
@@ -1879,19 +1953,82 @@
             <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left; vertical-align:top;">Operational Remarks</th><td style="padding:10px; border:1px solid #000;">${orderItem.notes || orderItem.Notes || 'No operational feedback logged.'}</td></tr>
           </table>
           
+          ${generatePrintAttachmentsHtml(orderItem.attachments || orderItem.Attachments)}
+          
           <div style="margin-top: 40px; font-size: 10px; color: #666; text-align: center; border-top: 1px dashed #ccc; padding-top: 10px;">
             ${appSettings.fmAddress || ''}
           </div>
         </div>`;
 
       document.getElementById('report-print-container').innerHTML = invoiceLayoutHtml;
-      
-      setTimeout(() => {
-        window.print();
-      }, 100);
+      setTimeout(() => { window.print(); }, 100);
     }
 
-    
+    function printSingleExpenseRequestDirect(reqId) {
+      const orderItem = cache.expenseRequests.find(w => String(w.reqId || w.ReqId) === reqId); if(!orderItem) return;
+      var unitId = getUnitNumber(orderItem);
+      
+      let invoiceLayoutHtml = `
+        <div style="padding: 20px; font-family:'Inter', sans-serif; color:#000; background:#fff;">
+          <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:3px solid #000; padding-bottom:10px; margin-bottom:20px;">
+            <div style="display:flex; align-items:center; gap:12px;">
+              <div>
+                <h2 style="font-size:32px; margin:0; text-transform:uppercase;">${appSettings.estateName || 'Facility Pro'}</h2>
+                <small style="display:block; font-weight:700; color:#444; margin-top:2px;">Expense Request Form</small>
+              </div>
+            </div>
+            <div style="text-align:right; font-size:12px; font-weight:800;">PRINT DATE:<br>${new Date().toLocaleDateString()}</div>
+          </div>
+          
+          <table style="width:100%; border-collapse:collapse; margin-bottom:20px; font-size:14px;">
+            <tr><th style="width:30%; padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Request Reference</th><td style="padding:10px; border:1px solid #000;"><strong>${orderItem.reqId || orderItem.ReqId}</strong></td></tr>
+            <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Date Logged</th><td style="padding:10px; border:1px solid #000;">${formatDateForDisplay(orderItem.date || orderItem.Date)}</td></tr>
+            <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Apt : Asset</th><td style="padding:10px; border:1px solid #000;">Unit ${unitId} : ${orderItem.assetTag || 'N/A'}</td></tr>
+            <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Estimated Cost</th><td style="padding:10px; border:1px solid #000; font-size:18px;"><strong>₦${Number(orderItem.cost || orderItem.Cost || 0).toLocaleString()}</strong></td></tr>
+            <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left; vertical-align:top;">Job Scope / Narrative</th><td style="padding:10px; border:1px solid #000;">${orderItem.job || orderItem.Job || 'No description provided.'}</td></tr>
+          </table>
+          
+          ${generatePrintAttachmentsHtml(orderItem.attachments || orderItem.Attachments)}
+        </div>`;
+
+      document.getElementById('report-print-container').innerHTML = invoiceLayoutHtml;
+      setTimeout(() => { window.print(); }, 100);
+    }
+
+    function printSingleCashExpenseDirect(cashId) {
+      const orderItem = cache.cashExpenses.find(w => String(w.cashId || w.CashId) === cashId); if(!orderItem) return;
+      var unitId = getUnitNumber(orderItem);
+      
+      let invoiceLayoutHtml = `
+        <div style="padding: 20px; font-family:'Inter', sans-serif; color:#000; background:#fff;">
+          <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:3px solid #000; padding-bottom:10px; margin-bottom:20px;">
+            <div style="display:flex; align-items:center; gap:12px;">
+              <div>
+                <h2 style="font-size:32px; margin:0; text-transform:uppercase;">${appSettings.estateName || 'Facility Pro'}</h2>
+                <small style="display:block; font-weight:700; color:#444; margin-top:2px;">Cash Expense Receipt / Voucher</small>
+              </div>
+            </div>
+            <div style="text-align:right; font-size:12px; font-weight:800;">PRINT DATE:<br>${new Date().toLocaleDateString()}</div>
+          </div>
+          
+          <table style="width:100%; border-collapse:collapse; margin-bottom:20px; font-size:14px;">
+            <tr><th style="width:30%; padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Voucher ID</th><td style="padding:10px; border:1px solid #000;"><strong>${orderItem.cashId || orderItem.CashId}</strong></td></tr>
+            <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Transaction Date</th><td style="padding:10px; border:1px solid #000;">${formatDateForDisplay(orderItem.date || orderItem.Date)}</td></tr>
+            <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Associated Unit</th><td style="padding:10px; border:1px solid #000;">Unit ${unitId}</td></tr>
+            <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Total Amount Dispensed</th><td style="padding:10px; border:1px solid #000; font-size:22px;"><strong>₦${Number(orderItem.amount || orderItem.Amount || 0).toLocaleString()}</strong></td></tr>
+            <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left; vertical-align:top;">Description / Justification</th><td style="padding:10px; border:1px solid #000;">${orderItem.description || orderItem.Description || 'No description provided.'}</td></tr>
+          </table>
+          
+          ${generatePrintAttachmentsHtml(orderItem.attachments || orderItem.Attachments)}
+        </div>`;
+
+      document.getElementById('report-print-container').innerHTML = invoiceLayoutHtml;
+      setTimeout(() => { window.print(); }, 100);
+    }
+
+    // ---------------------------------------------------------
+    // COMPRESSION LOGIC
+    // ---------------------------------------------------------
     function compressImageToTargetLimit(base64Str, targetMaxBytes) {
       return new Promise((resolve) => {
         const img = new Image(); img.src = base64Str; img.onload = () => {
@@ -2116,6 +2253,7 @@
     // ---------------------------------------------------------
     
     window.addEventListener('online', async () => {
+      document.getElementById('sync-status').style.display = 'none';
       const queue = JSON.parse(localStorage.getItem('facility_pro_sync_queue') || '[]');
       if (queue.length === 0) return;
 
