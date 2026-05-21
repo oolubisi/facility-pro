@@ -1423,7 +1423,11 @@
         title.innerText = isEdit ? "Work Order Portfolio" : "Log Work Order Expense";
         const isApproved = isEdit && String(editData.status || editData.Status) === "Approved";
         
+        // Always show print button if the order already exists in the system
+        const canPrint = isEdit; 
+        
         body.innerHTML = `
+          <label ${labelStyle}>Date Logged</label><input id="w_date" type="date" value="${isEdit && (editData.date || editData.Date) ? fromSheetDate(editData.date || editData.Date) : new Date().toISOString().split('T')[0]}" ${largeInput} ${isApproved ? 'disabled' : ''}>
           <label ${labelStyle}>Unit</label><select id="w_apt" ${largeInput} ${isApproved ? 'disabled' : ''}></select>
           <label ${labelStyle}>Assigned</label><select id="w_assigned" ${largeInput} ${isApproved ? 'disabled' : ''}></select>
           <label ${labelStyle}>Duration</label><input id="w_duration" type="text" value="${isEdit ? (editData.duration || editData.Duration || '') : ''}" placeholder="e.g. 3 Days, 1 Week" ${largeInput} ${isApproved ? 'disabled' : ''}>
@@ -1436,7 +1440,7 @@
           </select>
           <label ${labelStyle}>Scope / Narrative</label><textarea id="w_desc" rows="3" ${largeInput} ${isApproved ? 'disabled' : ''}>${isEdit ? (editData.description || editData.Description) : ''}</textarea>
           <label ${labelStyle}>Operational Remarks</label><textarea id="w_notes" rows="2" ${largeInput} ${isApproved ? 'disabled' : ''}>${isEdit ? (editData.notes || editData.Notes) : ''}</textarea>
-          ${isApproved ? `<button class="action-btn" style="background:var(--success); margin-top:15px;" onclick="printSingleWorkOrderDirect('${uniqueWO}')"><i class="fas fa-print"></i> Print Work Order</button>` : ''}`;
+          ${canPrint ? `<button class="action-btn" style="background:var(--primary); margin-top:15px;" onclick="printSingleWorkOrderDirect('${uniqueWO}')"><i class="fas fa-print"></i> Print Work Order Form</button>` : ''}`;
         
         populateUnitDropdown('w_apt', isEdit ? getUnitNumber(editData) : '');
         
@@ -1445,12 +1449,14 @@
         (cache.staff || []).forEach(s => { const o=document.createElement('option'); o.value=`${s.name || s.Name} (${s.role || s.Role})`; o.innerText=`${s.name || s.Name} [Staff]`; if(isEdit && (editData.assigned || editData.Assigned)===o.value) o.selected=true; asSel.appendChild(o); });
         (cache.vendors || []).forEach(v => { const o=document.createElement('option'); o.value=`${v.company || v.Company} (${v.trade || v.Trade})`; o.innerText=`${v.company || v.Company} [Vendor]`; if(isEdit && (editData.assigned || editData.Assigned)===o.value) o.selected=true; asSel.appendChild(o); });
 
-        if (isApproved) { submit.style.display = "none"; }
-        else {
+        if (isApproved) { 
+          submit.style.display = "none"; 
+        } else {
           submit.onclick = () => {
             submit.disabled = true;
             callApi(isEdit ? 'updateWorkOrder' : 'saveWorkOrder', { 
               workOrderId: uniqueWO, 
+              date: toSheetDate(document.getElementById('w_date').value),
               apt: document.getElementById('w_apt').value, 
               assigned: asSel.value,
               duration: document.getElementById('w_duration').value,
@@ -1712,39 +1718,49 @@
       var unitId = getUnitNumber(orderItem);
       
       let invoiceLayoutHtml = `
-        <div style="padding: 20px; font-family:'Inter', sans-serif; color:#000;">
+        <div style="padding: 20px; font-family:'Inter', sans-serif; color:#000; background:#fff;">
           <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:3px solid #000; padding-bottom:10px; margin-bottom:20px;">
             <div style="display:flex; align-items:center; gap:12px;">
               <img src="${logoUrl}" style="height:55px; max-width:150px; object-fit:contain;" onerror="this.style.display='none';">
               <div>
-                <h2 style="font-size:32px; margin:0; text-transform:uppercase;">${appSettings.estateName || 'Work Order Authorization Dossier'}</h2>
+                <h2 style="font-size:32px; margin:0; text-transform:uppercase;">${appSettings.estateName || 'Work Order Dossier'}</h2>
                 <small style="display:block; font-weight:700; color:#444; margin-top:4px;">${appSettings.estateAddress || ''}</small>
                 <small style="display:block; font-weight:700; color:#444; margin-top:2px;">Managed by: ${appSettings.fmName || 'Facility Pro Engine'}</small>
               </div>
             </div>
             <div style="text-align:right; font-size:12px; font-weight:800;">PRINT DATE:<br>${new Date().toLocaleDateString()}</div>
           </div>
-          <table class="print-table">
-            <tr><th>Work Order Reference</th><td><code>${orderItem.workOrderId || orderItem.WorkOrderId}</code></td></tr>
-            <tr><th>Assigned Node Location</th><td>Unit ${unitId}</td></tr>
-            <tr><th>Assigned Participant</th><td>${orderItem.assigned || orderItem.Assigned || 'Unassigned'}</td></tr>
-            <tr><th>Project Duration</th><td>${orderItem.duration || orderItem.Duration || 'Not Specified'}</td></tr>
-            <tr><th>Financial Budget Tariff</th><td><strong>₦${Number(orderItem.amount || orderItem.Amount || 0).toLocaleString()}</strong></td></tr>
-            <tr><th>Lifecycle Auth Status</th><td>${String(orderItem.status || orderItem.Status || 'PENDING').toUpperCase()}</td></tr>
-            <tr><th>Scope / Narrative</th><td>${orderItem.description || orderItem.Description || 'No description provided.'}</td></tr>
-            <tr><th>Operational Remarks</th><td>${orderItem.notes || orderItem.Notes || 'No operational feedback logged.'}</td></tr>
+          
+          <h3 style="text-transform: uppercase; margin-bottom: 15px;">Work Order Authorization Form</h3>
+          
+          <table style="width:100%; border-collapse:collapse; margin-bottom:20px; font-size:14px;">
+            <tr><th style="width:30%; padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Work Order Reference</th><td style="padding:10px; border:1px solid #000;"><strong>${orderItem.workOrderId || orderItem.WorkOrderId}</strong></td></tr>
+            <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Date Logged</th><td style="padding:10px; border:1px solid #000;">${formatDateForDisplay(orderItem.date || orderItem.Date)}</td></tr>
+            <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Assigned Node Location</th><td style="padding:10px; border:1px solid #000;">Unit ${unitId}</td></tr>
+            <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Assigned Participant</th><td style="padding:10px; border:1px solid #000;">${orderItem.assigned || orderItem.Assigned || 'Unassigned'}</td></tr>
+            <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Project Duration</th><td style="padding:10px; border:1px solid #000;">${orderItem.duration || orderItem.Duration || 'Not Specified'}</td></tr>
+            <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Financial Budget Tariff</th><td style="padding:10px; border:1px solid #000; font-size:18px;"><strong>₦${Number(orderItem.amount || orderItem.Amount || 0).toLocaleString()}</strong></td></tr>
+            <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Lifecycle Auth Status</th><td style="padding:10px; border:1px solid #000;"><strong>${String(orderItem.status || orderItem.Status || 'PENDING').toUpperCase()}</strong></td></tr>
+            <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left; vertical-align:top;">Scope / Narrative</th><td style="padding:10px; border:1px solid #000;">${orderItem.description || orderItem.Description || 'No description provided.'}</td></tr>
+            <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left; vertical-align:top;">Operational Remarks</th><td style="padding:10px; border:1px solid #000;">${orderItem.notes || orderItem.Notes || 'No operational feedback logged.'}</td></tr>
           </table>
+          
           <div style="margin-top:50px; display:grid; grid-template-columns:1fr 1fr; gap:40px; text-align:center; font-size:12px; font-weight:800;">
-            <div><div style="border-bottom:1px solid #000; margin-bottom:5px; height:30px;"></div>FIELD DISPATCH SIGNATURE</div>
-            <div><div style="border-bottom:1px solid #000; margin-bottom:5px; height:30px;"></div>EXECUTIVE APPROVAL CLEARANCE</div>
+            <div><div style="border-bottom:1px solid #000; margin-bottom:5px; height:40px;"></div>FIELD DISPATCH SIGNATURE</div>
+            <div><div style="border-bottom:1px solid #000; margin-bottom:5px; height:40px;"></div>EXECUTIVE APPROVAL CLEARANCE</div>
           </div>
-          <div style="margin-top: 30px; font-size: 10px; color: #666; text-align: center; border-top: 1px dashed #ccc; padding-top: 10px;">
+          
+          <div style="margin-top: 40px; font-size: 10px; color: #666; text-align: center; border-top: 1px dashed #ccc; padding-top: 10px;">
             ${appSettings.fmAddress || ''}
           </div>
         </div>`;
 
       document.getElementById('report-print-container').innerHTML = invoiceLayoutHtml;
-      window.print();
+      
+      // Allow slight delay for images/logo to load before triggering native print dialog
+      setTimeout(() => {
+        window.print();
+      }, 100);
     }
 
     function compressImageToTargetLimit(base64Str, targetMaxBytes) {
