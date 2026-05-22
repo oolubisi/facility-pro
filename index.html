@@ -584,6 +584,40 @@
       bootstrapDataRegistriesPipeline(); 
     };
 
+        // --- FORMATTING HELPERS ---
+    function formatMoney(amount) {
+      return Number(amount || 0).toLocaleString('en-US', { 
+        minimumFractionDigits: 2, 
+        maximumFractionDigits: 2 
+      });
+    }
+    
+    function convertAmountToWords(amount) {
+      const val = parseFloat(amount);
+      if (isNaN(val) || val === 0) return "Zero Naira Only";
+    
+      const a = ['','One ','Two ','Three ','Four ','Five ','Six ','Seven ','Eight ','Nine ','Ten ','Eleven ','Twelve ','Thirteen ','Fourteen ','Fifteen ','Sixteen ','Seventeen ','Eighteen ','Nineteen '];
+      const b = ['', '', 'Twenty ','Thirty ','Forty ','Fifty ','Sixty ','Seventy ','Eighty ','Ninety '];
+    
+      const toWords = (num) => {
+        if (num === 0) return '';
+        if (num < 20) return a[num];
+        if (num < 100) return b[Math.floor(num / 10)] + a[num % 10];
+        if (num < 1000) return a[Math.floor(num / 100)] + "Hundred " + (num % 100 > 0 ? "and " + toWords(num % 100) : "");
+        if (num < 1000000) return toWords(Math.floor(num / 1000)) + "Thousand " + toWords(num % 1000);
+        if (num < 1000000000) return toWords(Math.floor(num / 1000000)) + "Million " + toWords(num % 1000000);
+        return toWords(Math.floor(num / 1000000000)) + "Billion " + toWords(num % 1000000000);
+      };
+    
+      const naira = Math.floor(val);
+      const kobo = Math.round((val - naira) * 100);
+    
+      let result = toWords(naira).trim() + " Naira";
+      if (kobo > 0) result += " and " + toWords(kobo).trim() + " Kobo";
+      
+      return result + " Only";
+    }
+    // --------------------------
     function generateNextId(prefix, list, idKey) {
       let maxId = 0;
       const safeList = Array.isArray(list) ? list : [];
@@ -1906,152 +1940,141 @@
     }
 
     function printSingleWorkOrderDirect(woId) {
-      const orderItem = cache.workorders.find(w => String(w.workOrderId || w.WorkOrderId) === woId); if(!orderItem) return;
-      var unitId = getUnitNumber(orderItem);
-      
-      let assetInfo = "N/A";
-      if (orderItem.asset || orderItem.Asset) {
-          const ast = cache.assets.find(a => String(a.tag || a.Tag) === String(orderItem.asset || orderItem.Asset));
-          if (ast) {
-              assetInfo = `${ast.tag || 'N/A'}; ${ast.type || 'N/A'}; ${ast.specs || 'N/A'}; ${ast.loc || ast.Loc || 'N/A'}`;
-          } else {
-              assetInfo = orderItem.asset || orderItem.Asset;
-          }
-      }
-      
-      let aptType = "Standard";
-      if (unitId) {
-          const aptRecord = cache.apts.find(a => String(getUnitNumber(a)) === String(unitId));
-          if (aptRecord) aptType = aptRecord.type || aptRecord.Type || 'Standard';
-      }
-      
-      let invoiceLayoutHtml = `
-        <div style="padding: 20px; font-family:'Inter', sans-serif; color:#000; background:#fff;">
-          <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:3px solid #000; padding-bottom:10px; margin-bottom:20px;">
-            <div style="display:flex; align-items:center; gap:12px;">
-              <div>
-                <h2 style="font-size:32px; margin:0; text-transform:uppercase;">${appSettings.estateName || 'Work Order Dossier'}</h2>
-                <small style="display:block; font-weight:700; color:#444; margin-top:4px;">${appSettings.estateAddress || ''}</small>
-                <small style="display:block; font-weight:700; color:#444; margin-top:2px;">Managed by: ${appSettings.fmName || 'Facility Pro Engine'}</small>
-              </div>
-            </div>
-            <div style="text-align:right; font-size:12px; font-weight:800;">PRINT DATE:<br>${new Date().toLocaleDateString()}</div>
+  const orderItem = cache.workorders.find(w => String(w.workOrderId || w.WorkOrderId) === woId); if(!orderItem) return;
+  var unitId = getUnitNumber(orderItem);
+  
+  let assetInfo = "N/A";
+  if (orderItem.asset || orderItem.Asset) {
+      const ast = cache.assets.find(a => String(a.tag || a.Tag) === String(orderItem.asset || orderItem.Asset));
+      assetInfo = ast ? `${ast.tag || 'N/A'}; ${ast.type || 'N/A'}; ${ast.specs || 'N/A'}; ${ast.loc || ast.Loc || 'N/A'}` : (orderItem.asset || orderItem.Asset);
+  }
+  
+  let aptType = "Standard";
+  if (unitId) {
+      const aptRecord = cache.apts.find(a => String(getUnitNumber(a)) === String(unitId));
+      if (aptRecord) aptType = aptRecord.type || aptRecord.Type || 'Standard';
+  }
+  
+  let invoiceLayoutHtml = `
+    <div style="padding: 20px; font-family:'Inter', sans-serif; color:#000; background:#fff;">
+      <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:3px solid #000; padding-bottom:10px; margin-bottom:20px;">
+        <div style="display:flex; align-items:center; gap:12px;">
+          <div>
+            <h2 style="font-size:32px; margin:0; text-transform:uppercase;">${appSettings.estateName || 'Work Order Dossier'}</h2>
+            <small style="display:block; font-weight:700; color:#444; margin-top:4px;">${appSettings.estateAddress || ''}</small>
+            <small style="display:block; font-weight:700; color:#444; margin-top:2px;">Managed by: ${appSettings.fmName || 'Facility Pro Engine'}</small>
           </div>
-          
-          <h3 style="text-transform: uppercase; margin-bottom: 15px;">Work Order Authorization Form</h3>
-          
-          <table style="width:100%; border-collapse:collapse; margin-bottom:20px; font-size:14px;">
-            <tr><th style="width:30%; padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Work Order Reference</th><td style="padding:10px; border:1px solid #000;"><strong>${orderItem.workOrderId || orderItem.WorkOrderId}</strong></td></tr>
-            <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Date Logged</th><td style="padding:10px; border:1px solid #000;">${formatDateForDisplay(orderItem.date || orderItem.Date)}</td></tr>
-            <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Apt : Type</th><td style="padding:10px; border:1px solid #000;">Unit ${unitId} : ${aptType}</td></tr>
-            <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Target Asset Data</th><td style="padding:10px; border:1px solid #000;">${assetInfo}</td></tr>
-            <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Assigned Participant</th><td style="padding:10px; border:1px solid #000;">${orderItem.assigned || orderItem.Assigned || 'Unassigned'}</td></tr>
-            <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Project Duration</th><td style="padding:10px; border:1px solid #000;">${orderItem.duration || orderItem.Duration || 'Not Specified'}</td></tr>
-            <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Financial Budget Tariff</th><td style="padding:10px; border:1px solid #000; font-size:18px;"><strong>₦${Number(orderItem.amount || orderItem.Amount || 0).toLocaleString()}</strong></td></tr>
-            <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Lifecycle Auth Status</th><td style="padding:10px; border:1px solid #000;"><strong>${String(orderItem.status || orderItem.Status || 'PENDING').toUpperCase()}</strong></td></tr>
-            <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left; vertical-align:top;">Scope / Narrative</th><td style="padding:10px; border:1px solid #000;">${orderItem.description || orderItem.Description || 'No description provided.'}</td></tr>
-            <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left; vertical-align:top;">Operational Remarks</th><td style="padding:10px; border:1px solid #000;">${orderItem.notes || orderItem.Notes || 'No operational feedback logged.'}</td></tr>
-          </table>
-          
-          <div style="margin-top: 40px; font-size: 10px; color: #666; text-align: center; border-top: 1px dashed #ccc; padding-top: 10px;">
-            ${appSettings.fmAddress || ''}
-          </div>
-        </div>`;
-
-      // NEW TOGGLE LOGIC:
-      const includeAttachments = confirm("Would you like to include the photo/PDF attachments in this printout?");
+        </div>
+        <div style="text-align:right; font-size:12px; font-weight:800;">PRINT DATE:<br>${new Date().toLocaleDateString()}</div>
+      </div>
       
-      if (includeAttachments) {
-        // Find the closing </div> and insert the attachments right before it
-        invoiceLayoutHtml = invoiceLayoutHtml.replace('</div>`', generatePrintAttachmentsHtml(orderItem.attachments || orderItem.Attachments) + '</div>`');
-      }
-
-      document.getElementById('report-print-container').innerHTML = invoiceLayoutHtml;
-      setTimeout(() => { window.print(); }, 100);
-    }
-
-    function printSingleExpenseRequestDirect(reqId) {
-      const orderItem = cache.expenseRequests.find(w => String(w.reqId || w.ReqId) === reqId); if(!orderItem) return;
-      var unitId = getUnitNumber(orderItem);
+      <h3 style="text-transform: uppercase; margin-bottom: 15px;">Work Order Authorization Form</h3>
       
-      let invoiceLayoutHtml = `
-        <div style="padding: 20px; font-family:'Inter', sans-serif; color:#000; background:#fff;">
-          <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:3px solid #000; padding-bottom:10px; margin-bottom:20px;">
-            <div style="display:flex; align-items:center; gap:12px;">
-              <div>
-                <h2 style="font-size:32px; margin:0; text-transform:uppercase;">${appSettings.estateName || 'Facility Pro'}</h2>
-                <small style="display:block; font-weight:700; color:#444; margin-top:2px;">Expense Request Form</small>
-              </div>
-            </div>
-            <div style="text-align:right; font-size:12px; font-weight:800;">PRINT DATE:<br>${new Date().toLocaleDateString()}</div>
-          </div>
-          
-          <table style="width:100%; border-collapse:collapse; margin-bottom:20px; font-size:14px;">
-            <tr><th style="width:30%; padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Request Reference</th><td style="padding:10px; border:1px solid #000;"><strong>${orderItem.reqId || orderItem.ReqId}</strong></td></tr>
-            <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Date Logged</th><td style="padding:10px; border:1px solid #000;">${formatDateForDisplay(orderItem.date || orderItem.Date)}</td></tr>
-            <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Apt : Asset</th><td style="padding:10px; border:1px solid #000;">Unit ${unitId} : ${orderItem.assetTag || 'N/A'}</td></tr>
-            <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Estimated Cost</th><td style="padding:10px; border:1px solid #000; font-size:18px;"><strong>₦${Number(orderItem.cost || orderItem.Cost || 0).toLocaleString()}</strong></td></tr>
-            <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left; vertical-align:top;">Job Scope / Narrative</th><td style="padding:10px; border:1px solid #000;">${orderItem.job || orderItem.Job || 'No description provided.'}</td></tr>
-          </table>
-          
-          <div style="margin-top: 40px; font-size: 10px; color: #666; text-align: center; border-top: 1px dashed #ccc; padding-top: 10px;">
-            ${appSettings.fmAddress || ''}
-          </div>
-        </div>`;
-
-      // NEW TOGGLE LOGIC:
-      const includeAttachments = confirm("Would you like to include the photo/PDF attachments in this printout?");
+      <table style="width:100%; border-collapse:collapse; margin-bottom:20px; font-size:14px;">
+        <tr><th style="width:30%; padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Work Order Reference</th><td style="padding:10px; border:1px solid #000;"><strong>${orderItem.workOrderId || orderItem.WorkOrderId}</strong></td></tr>
+        <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Date Logged</th><td style="padding:10px; border:1px solid #000;">${formatDateForDisplay(orderItem.date || orderItem.Date)}</td></tr>
+        <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Apt : Type</th><td style="padding:10px; border:1px solid #000;">Unit ${unitId} : ${aptType}</td></tr>
+        <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Target Asset Data</th><td style="padding:10px; border:1px solid #000;">${assetInfo}</td></tr>
+        <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Assigned Participant</th><td style="padding:10px; border:1px solid #000;">${orderItem.assigned || orderItem.Assigned || 'Unassigned'}</td></tr>
+        <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Project Duration</th><td style="padding:10px; border:1px solid #000;">${orderItem.duration || orderItem.Duration || 'Not Specified'}</td></tr>
+        
+        <tr><th style="padding:10px; border:1px solid #000; background:#e8f4fd; text-align:left;">Financial Budget Tariff</th><td style="padding:10px; border:1px solid #000; background:#e8f4fd; font-size:18px;"><strong>₦${formatMoney(orderItem.amount || orderItem.Amount)}</strong></td></tr>
+        <tr><th style="padding:10px; border:1px solid #000; background:#f9f9f9; text-align:left;">Amount in Words</th><td style="padding:10px; border:1px solid #000; font-style:italic;"><strong>${convertAmountToWords(orderItem.amount || orderItem.Amount)}</strong></td></tr>
+        
+        <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Lifecycle Auth Status</th><td style="padding:10px; border:1px solid #000;"><strong>${String(orderItem.status || orderItem.Status || 'PENDING').toUpperCase()}</strong></td></tr>
+        <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left; vertical-align:top;">Scope / Narrative</th><td style="padding:10px; border:1px solid #000;">${orderItem.description || orderItem.Description || 'No description provided.'}</td></tr>
+        <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left; vertical-align:top;">Operational Remarks</th><td style="padding:10px; border:1px solid #000;">${orderItem.notes || orderItem.Notes || 'No operational feedback logged.'}</td></tr>
+      </table>
       
-      if (includeAttachments) {
-        // Find the closing </div> and insert the attachments right before it
-        invoiceLayoutHtml = invoiceLayoutHtml.replace('</div>`', generatePrintAttachmentsHtml(orderItem.attachments || orderItem.Attachments) + '</div>`');
-      }
+      <div style="margin-top: 40px; font-size: 10px; color: #666; text-align: center; border-top: 1px dashed #ccc; padding-top: 10px;">
+        ${appSettings.fmAddress || ''}
+      </div>
+    </div>`;
 
-      document.getElementById('report-print-container').innerHTML = invoiceLayoutHtml;
-      setTimeout(() => { window.print(); }, 100);
-    }
+  if (confirm("Would you like to include the photo/PDF attachments in this printout?")) {
+    invoiceLayoutHtml = invoiceLayoutHtml.replace('</div>`', generatePrintAttachmentsHtml(orderItem.attachments || orderItem.Attachments) + '</div>`');
+  }
+  document.getElementById('report-print-container').innerHTML = invoiceLayoutHtml;
+  setTimeout(() => { window.print(); }, 100);
+}
 
-    function printSingleCashExpenseDirect(cashId) {
-      const orderItem = cache.cashExpenses.find(w => String(w.cashId || w.CashId) === cashId); if(!orderItem) return;
-      var unitId = getUnitNumber(orderItem);
-      
-      let invoiceLayoutHtml = `
-        <div style="padding: 20px; font-family:'Inter', sans-serif; color:#000; background:#fff;">
-          <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:3px solid #000; padding-bottom:10px; margin-bottom:20px;">
-            <div style="display:flex; align-items:center; gap:12px;">
-              <div>
-                <h2 style="font-size:32px; margin:0; text-transform:uppercase;">${appSettings.estateName || 'Facility Pro'}</h2>
-                <small style="display:block; font-weight:700; color:#444; margin-top:2px;">Cash Expense Receipt / Voucher</small>
-              </div>
-            </div>
-            <div style="text-align:right; font-size:12px; font-weight:800;">PRINT DATE:<br>${new Date().toLocaleDateString()}</div>
+function printSingleExpenseRequestDirect(reqId) {
+  const orderItem = cache.expenseRequests.find(w => String(w.reqId || w.ReqId) === reqId); if(!orderItem) return;
+  var unitId = getUnitNumber(orderItem);
+  
+  let invoiceLayoutHtml = `
+    <div style="padding: 20px; font-family:'Inter', sans-serif; color:#000; background:#fff;">
+      <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:3px solid #000; padding-bottom:10px; margin-bottom:20px;">
+        <div style="display:flex; align-items:center; gap:12px;">
+          <div>
+            <h2 style="font-size:32px; margin:0; text-transform:uppercase;">${appSettings.estateName || 'Facility Pro'}</h2>
+            <small style="display:block; font-weight:700; color:#444; margin-top:2px;">Expense Request Form</small>
           </div>
-          
-          <table style="width:100%; border-collapse:collapse; margin-bottom:20px; font-size:14px;">
-            <tr><th style="width:30%; padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Voucher ID</th><td style="padding:10px; border:1px solid #000;"><strong>${orderItem.cashId || orderItem.CashId}</strong></td></tr>
-            <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Transaction Date</th><td style="padding:10px; border:1px solid #000;">${formatDateForDisplay(orderItem.date || orderItem.Date)}</td></tr>
-            <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Associated Unit</th><td style="padding:10px; border:1px solid #000;">Unit ${unitId}</td></tr>
-            <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Total Amount Dispensed</th><td style="padding:10px; border:1px solid #000; font-size:22px;"><strong>₦${Number(orderItem.amount || orderItem.Amount || 0).toLocaleString()}</strong></td></tr>
-            <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left; vertical-align:top;">Description / Justification</th><td style="padding:10px; border:1px solid #000;">${orderItem.description || orderItem.Description || 'No description provided.'}</td></tr>
-          </table>
-          
-          <div style="margin-top: 40px; font-size: 10px; color: #666; text-align: center; border-top: 1px dashed #ccc; padding-top: 10px;">
-            ${appSettings.fmAddress || ''}
-          </div>
-        </div>`;
-
-      // NEW TOGGLE LOGIC:
-      const includeAttachments = confirm("Would you like to include the photo/PDF attachments in this printout?");
+        </div>
+        <div style="text-align:right; font-size:12px; font-weight:800;">PRINT DATE:<br>${new Date().toLocaleDateString()}</div>
+      </div>
       
-      if (includeAttachments) {
-        // Find the closing </div> and insert the attachments right before it
-        invoiceLayoutHtml = invoiceLayoutHtml.replace('</div>`', generatePrintAttachmentsHtml(orderItem.attachments || orderItem.Attachments) + '</div>`');
-      }
+      <table style="width:100%; border-collapse:collapse; margin-bottom:20px; font-size:14px;">
+        <tr><th style="width:30%; padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Request Reference</th><td style="padding:10px; border:1px solid #000;"><strong>${orderItem.reqId || orderItem.ReqId}</strong></td></tr>
+        <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Date Logged</th><td style="padding:10px; border:1px solid #000;">${formatDateForDisplay(orderItem.date || orderItem.Date)}</td></tr>
+        <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Apt : Asset</th><td style="padding:10px; border:1px solid #000;">Unit ${unitId} : ${orderItem.assetTag || 'N/A'}</td></tr>
+        
+        <tr><th style="padding:10px; border:1px solid #000; background:#e8f4fd; text-align:left;">Estimated Cost</th><td style="padding:10px; border:1px solid #000; background:#e8f4fd; font-size:18px;"><strong>₦${formatMoney(orderItem.cost || orderItem.Cost)}</strong></td></tr>
+        <tr><th style="padding:10px; border:1px solid #000; background:#f9f9f9; text-align:left;">Amount in Words</th><td style="padding:10px; border:1px solid #000; font-style:italic;"><strong>${convertAmountToWords(orderItem.cost || orderItem.Cost)}</strong></td></tr>
+        
+        <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left; vertical-align:top;">Job Scope / Narrative</th><td style="padding:10px; border:1px solid #000;">${orderItem.job || orderItem.Job || 'No description provided.'}</td></tr>
+      </table>
+      
+      <div style="margin-top: 40px; font-size: 10px; color: #666; text-align: center; border-top: 1px dashed #ccc; padding-top: 10px;">
+        ${appSettings.fmAddress || ''}
+      </div>
+    </div>`;
 
-      document.getElementById('report-print-container').innerHTML = invoiceLayoutHtml;
-      setTimeout(() => { window.print(); }, 100);
-    }
+  if (confirm("Would you like to include the photo/PDF attachments in this printout?")) {
+    invoiceLayoutHtml = invoiceLayoutHtml.replace('</div>`', generatePrintAttachmentsHtml(orderItem.attachments || orderItem.Attachments) + '</div>`');
+  }
+  document.getElementById('report-print-container').innerHTML = invoiceLayoutHtml;
+  setTimeout(() => { window.print(); }, 100);
+}
 
+function printSingleCashExpenseDirect(cashId) {
+  const orderItem = cache.cashExpenses.find(w => String(w.cashId || w.CashId) === cashId); if(!orderItem) return;
+  var unitId = getUnitNumber(orderItem);
+  
+  let invoiceLayoutHtml = `
+    <div style="padding: 20px; font-family:'Inter', sans-serif; color:#000; background:#fff;">
+      <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:3px solid #000; padding-bottom:10px; margin-bottom:20px;">
+        <div style="display:flex; align-items:center; gap:12px;">
+          <div>
+            <h2 style="font-size:32px; margin:0; text-transform:uppercase;">${appSettings.estateName || 'Facility Pro'}</h2>
+            <small style="display:block; font-weight:700; color:#444; margin-top:2px;">Cash Expense Receipt / Voucher</small>
+          </div>
+        </div>
+        <div style="text-align:right; font-size:12px; font-weight:800;">PRINT DATE:<br>${new Date().toLocaleDateString()}</div>
+      </div>
+      
+      <table style="width:100%; border-collapse:collapse; margin-bottom:20px; font-size:14px;">
+        <tr><th style="width:30%; padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Voucher ID</th><td style="padding:10px; border:1px solid #000;"><strong>${orderItem.cashId || orderItem.CashId}</strong></td></tr>
+        <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Transaction Date</th><td style="padding:10px; border:1px solid #000;">${formatDateForDisplay(orderItem.date || orderItem.Date)}</td></tr>
+        <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Associated Unit</th><td style="padding:10px; border:1px solid #000;">Unit ${unitId}</td></tr>
+        
+        <tr><th style="padding:10px; border:1px solid #000; background:#e8f4fd; text-align:left;">Total Amount Dispensed</th><td style="padding:10px; border:1px solid #000; background:#e8f4fd; font-size:22px;"><strong>₦${formatMoney(orderItem.amount || orderItem.Amount)}</strong></td></tr>
+        <tr><th style="padding:10px; border:1px solid #000; background:#f9f9f9; text-align:left;">Amount in Words</th><td style="padding:10px; border:1px solid #000; font-style:italic;"><strong>${convertAmountToWords(orderItem.amount || orderItem.Amount)}</strong></td></tr>
+        
+        <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left; vertical-align:top;">Description / Justification</th><td style="padding:10px; border:1px solid #000;">${orderItem.description || orderItem.Description || 'No description provided.'}</td></tr>
+      </table>
+      
+      <div style="margin-top: 40px; font-size: 10px; color: #666; text-align: center; border-top: 1px dashed #ccc; padding-top: 10px;">
+        ${appSettings.fmAddress || ''}
+      </div>
+    </div>`;
+
+  if (confirm("Would you like to include the photo/PDF attachments in this printout?")) {
+    invoiceLayoutHtml = invoiceLayoutHtml.replace('</div>`', generatePrintAttachmentsHtml(orderItem.attachments || orderItem.Attachments) + '</div>`');
+  }
+  document.getElementById('report-print-container').innerHTML = invoiceLayoutHtml;
+  setTimeout(() => { window.print(); }, 100);
+}
     // ---------------------------------------------------------
     // COMPRESSION LOGIC
     // ---------------------------------------------------------
