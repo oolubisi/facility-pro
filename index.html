@@ -8,6 +8,10 @@
   <link rel="manifest" href="manifest.json">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     
@@ -149,13 +153,6 @@
     .active-view { display: block; }
 
     #report-print-container { display: none; }
-    @media print {
-      body * { visibility: hidden; }
-      #report-print-container, #report-print-container * { visibility: visible; }
-      #report-print-container { display: block !important; position: absolute; left: 0; top: 0; width: 100%; }
-      @page { size: A4; margin: 15mm; }
-      .page-break { page-break-before: always; }
-    }
   </style>
 </head>
 <body>
@@ -391,7 +388,7 @@
         <div id="ledger-balance-card" class="card" style="background:#E8F0FE; border-color:#B3D1FF; margin-bottom:15px;">
           <h4><i class="fas fa-chart-pie"></i> Net Financial Position</h4>
           <p style="font-size:14px; font-weight:600; margin-top:4px;">Inflow (Payments) vs. Outflow (Cash Expenses)</p>
-          <div id="s-ledger-balance" style="font-size:26px; font-weight:900; color:var(--text); margin-top:5px;">₦0</div>
+          <div id="s-ledger-balance" style="font-size:26px; font-weight:900; color:var(--text); margin-top:5px;">₦0.00</div>
         </div>
         <div id="payment-list" style="margin-top:15px;"></div>
       </div>
@@ -479,7 +476,7 @@
         <div id="report-onscreen-preview-card" class="card" style="display:none; border:3px dashed var(--text);">
           <h4 style="text-transform:uppercase; font-weight:800; margin-bottom:10px;"><i class="fas fa-eye"></i> Layout Print Preview</h4>
           <div id="report-preview-viewport" style="max-height:320px; overflow-y:auto; font-size:12px; background:#ffffff; border:1px solid var(--border); padding:10px;"></div>
-          <button class="action-btn" style="margin-top:15px; background:var(--success);" onclick="window.print()"><i class="fas fa-print"></i> Dispatch To A4 Print</button>
+          <button class="action-btn" style="margin-top:15px; background:var(--success);" onclick="downloadCurrentReportPDF()"><i class="fas fa-file-pdf"></i> Download Master PDF</button>
         </div>
       </div>
 
@@ -532,6 +529,128 @@
     // REPLACE THIS URL WITH YOUR ACTUAL APP SCRIPT URL
     const GAS_URL = "https://script.google.com/macros/s/AKfycbz2Mgm-8O5yMivikqt1WwXf6msezVQcUNFMOoRjHpI4nDNHEevrucIfpNiKShcRG7_-/exec"; 
                        
+    // --- FORMATTING HELPERS ---
+    function formatMoney(amount) {
+      return Number(amount || 0).toLocaleString('en-US', { 
+        minimumFractionDigits: 2, 
+        maximumFractionDigits: 2 
+      });
+    }
+
+    function convertAmountToWords(amount) {
+      const val = parseFloat(amount);
+      if (isNaN(val) || val === 0) return "Zero Naira Only";
+
+      const a = ['','One ','Two ','Three ','Four ','Five ','Six ','Seven ','Eight ','Nine ','Ten ','Eleven ','Twelve ','Thirteen ','Fourteen ','Fifteen ','Sixteen ','Seventeen ','Eighteen ','Nineteen '];
+      const b = ['', '', 'Twenty ','Thirty ','Forty ','Fifty ','Sixty ','Seventy ','Eighty ','Ninety '];
+
+      const toWords = (num) => {
+        if (num === 0) return '';
+        if (num < 20) return a[num];
+        if (num < 100) return b[Math.floor(num / 10)] + a[num % 10];
+        if (num < 1000) return a[Math.floor(num / 100)] + "Hundred " + (num % 100 > 0 ? "and " + toWords(num % 100) : "");
+        if (num < 1000000) return toWords(Math.floor(num / 1000)) + "Thousand " + toWords(num % 1000);
+        if (num < 1000000000) return toWords(Math.floor(num / 1000000)) + "Million " + toWords(num % 1000000);
+        return toWords(Math.floor(num / 1000000000)) + "Billion " + toWords(num % 1000000000);
+      };
+
+      const naira = Math.floor(val);
+      const kobo = Math.round((val - naira) * 100);
+
+      let result = toWords(naira).trim() + " Naira";
+      if (kobo > 0) result += " and " + toWords(kobo).trim() + " Kobo";
+      
+      return result + " Only";
+    }
+
+    // --- UNIFIED PDF COMPILER ENGINE ---
+    function extractDriveFileId(url) {
+      if (!url) return null;
+      const match = url.match(/\/d\/(.+?)\//) || url.match(/id=(.+?)(&|$)/);
+      return match ? match[1] : null;
+    }
+
+    async function compileAndDownloadUnifiedPDF(htmlContent, attachmentUrls, filename) {
+      // 1. Mount UI Blocking Loader
+      const loader = document.createElement('div');
+      loader.id = 'pdf-compiler-loader';
+      loader.innerHTML = `
+        <div style="position:fixed; inset:0; background:rgba(255,255,255,0.95); z-index:9999; display:flex; flex-direction:column; justify-content:center; align-items:center; color:var(--text);">
+          <i class="fas fa-cog fa-spin" style="font-size:50px; color:var(--primary); margin-bottom:20px;"></i>
+          <h2 style="font-weight:900; text-transform:uppercase;">Compiling PDF Master</h2>
+          <p style="font-weight:700; color:var(--muted); text-align:center;">Fetching attachments and merging pages.<br>Please do not close this window.</p>
+        </div>`;
+      document.body.appendChild(loader);
+
+      try {
+        // 2. Convert Base HTML to PDF ArrayBuffer
+        const opt = {
+          margin: 15, filename: filename,
+          image: { type: 'jpeg', quality: 0.98 },
+          html2canvas: { scale: 2, useCORS: true },
+          jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        };
+        const htmlPdfBuffer = await html2pdf().set(opt).from(htmlContent).output('arraybuffer');
+        
+        // 3. Initialize PDF-Lib and Load the Base Document
+        const { PDFDocument } = PDFLib;
+        const masterPdf = await PDFDocument.load(htmlPdfBuffer);
+
+        // 4. Fetch and Merge External Attachments
+        if (attachmentUrls && attachmentUrls.length > 0) {
+          for (let url of attachmentUrls) {
+            const fileId = extractDriveFileId(url);
+            if (!fileId) continue;
+            
+            // Bypass CORS by asking Apps Script backend for the raw Base64 bytes
+            const fileData = await callApi('getFileBase64', { id: fileId });
+            if (!fileData || fileData.status !== 'success') continue;
+            
+            const fileBytes = Uint8Array.from(atob(fileData.base64), c => c.charCodeAt(0));
+            
+            if (fileData.mimeType === 'application/pdf') {
+              // Merge PDF Pages
+              const extPdf = await PDFDocument.load(fileBytes);
+              const copiedPages = await masterPdf.copyPages(extPdf, extPdf.getPageIndices());
+              copiedPages.forEach(page => masterPdf.addPage(page));
+            } else if (fileData.mimeType.startsWith('image/')) {
+              // Render Image as a new PDF Page
+              const image = fileData.mimeType === 'image/png' ? await masterPdf.embedPng(fileBytes) : await masterPdf.embedJpg(fileBytes);
+              const page = masterPdf.addPage();
+              const { width, height } = page.getSize();
+              
+              // Scale to fit A4 page
+              const imgDims = image.scale(1);
+              const scaleRatio = Math.min((width - 40) / imgDims.width, (height - 40) / imgDims.height);
+              const finalDims = image.scale(scaleRatio < 1 ? scaleRatio : 1);
+              
+              page.drawImage(image, {
+                x: width / 2 - finalDims.width / 2,
+                y: height / 2 - finalDims.height / 2,
+                width: finalDims.width, height: finalDims.height
+              });
+            }
+          }
+        }
+
+        // 5. Package and Trigger Download
+        const finalPdfBytes = await masterPdf.save();
+        const blob = new Blob([finalPdfBytes], { type: 'application/pdf' });
+        const blobUrl = URL.createObjectURL(blob);
+        
+        const link = document.createElement('a');
+        link.href = blobUrl; link.download = filename + '.pdf';
+        link.click();
+        URL.revokeObjectURL(blobUrl);
+
+      } catch (err) {
+        console.error("PDF Compilation Failed:", err);
+        alert("An error occurred while compiling the unified PDF.");
+      } finally {
+        document.getElementById('pdf-compiler-loader').remove();
+      }
+    }
+
     async function callApi(action, data = {}) {
       try {
         const response = await fetch(GAS_URL, { method: "POST", body: JSON.stringify({ action: action, data: data }) });
@@ -584,40 +703,6 @@
       bootstrapDataRegistriesPipeline(); 
     };
 
-        // --- FORMATTING HELPERS ---
-    function formatMoney(amount) {
-      return Number(amount || 0).toLocaleString('en-US', { 
-        minimumFractionDigits: 2, 
-        maximumFractionDigits: 2 
-      });
-    }
-    
-    function convertAmountToWords(amount) {
-      const val = parseFloat(amount);
-      if (isNaN(val) || val === 0) return "Zero Naira Only";
-    
-      const a = ['','One ','Two ','Three ','Four ','Five ','Six ','Seven ','Eight ','Nine ','Ten ','Eleven ','Twelve ','Thirteen ','Fourteen ','Fifteen ','Sixteen ','Seventeen ','Eighteen ','Nineteen '];
-      const b = ['', '', 'Twenty ','Thirty ','Forty ','Fifty ','Sixty ','Seventy ','Eighty ','Ninety '];
-    
-      const toWords = (num) => {
-        if (num === 0) return '';
-        if (num < 20) return a[num];
-        if (num < 100) return b[Math.floor(num / 10)] + a[num % 10];
-        if (num < 1000) return a[Math.floor(num / 100)] + "Hundred " + (num % 100 > 0 ? "and " + toWords(num % 100) : "");
-        if (num < 1000000) return toWords(Math.floor(num / 1000)) + "Thousand " + toWords(num % 1000);
-        if (num < 1000000000) return toWords(Math.floor(num / 1000000)) + "Million " + toWords(num % 1000000);
-        return toWords(Math.floor(num / 1000000000)) + "Billion " + toWords(num % 1000000000);
-      };
-    
-      const naira = Math.floor(val);
-      const kobo = Math.round((val - naira) * 100);
-    
-      let result = toWords(naira).trim() + " Naira";
-      if (kobo > 0) result += " and " + toWords(kobo).trim() + " Kobo";
-      
-      return result + " Only";
-    }
-    // --------------------------
     function generateNextId(prefix, list, idKey) {
       let maxId = 0;
       const safeList = Array.isArray(list) ? list : [];
@@ -910,7 +995,7 @@
       
       const netBalance = totalInflow - totalOutflow;
       
-      balEl.innerText = `${netBalance >= 0 ? '+' : '-'}₦${Math.abs(netBalance).toLocaleString()}`;
+      balEl.innerText = `${netBalance >= 0 ? '+' : '-'}₦${formatMoney(Math.abs(netBalance))}`;
       balEl.style.color = netBalance >= 0 ? 'var(--success)' : 'var(--danger)';
     }
 
@@ -1103,7 +1188,7 @@
               <div class="card">
                 <div style="display:flex; justify-content:space-between; align-items:start;" onclick="openRecordRow('expenserequest', '${item.reqId}')">
                   <div><strong style="font-size:20px;">Unit ${unitId}</strong><br><small style="color:var(--muted); font-weight:700;">${item.reqId}</small></div>
-                  <div style="font-size:20px; font-weight:900; color:var(--primary)">₦${Number(item.cost || 0).toLocaleString()}</div>
+                  <div style="font-size:20px; font-weight:900; color:var(--primary)">₦${formatMoney(item.cost)}</div>
                 </div>
                 <div style="font-size:15px; margin:8px 0; font-weight:600; color:#000;">${item.job || ''}</div>
                 <div style="display:flex; gap:8px; margin-top:10px;">
@@ -1122,7 +1207,7 @@
                 <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:4px;">
                   <div><strong style="font-size:20px;">Unit ${unitId || 'N/A'}</strong><br><small style="color:var(--muted); font-weight:700;">ID: ${item.cashId}</small></div>
                   <div style="display:flex; flex-direction:column; align-items:flex-end; gap:8px;">
-                    <div style="text-align:right;"><span style="font-size:20px; font-weight:900; color:var(--danger);">-₦${Number(item.amount || 0).toLocaleString()}</span><br><small style="font-size:11px; font-weight:700; color:var(--muted);">${formatDateForDisplay(item.date)}</small></div>
+                    <div style="text-align:right;"><span style="font-size:20px; font-weight:900; color:var(--danger);">-₦${formatMoney(item.amount)}</span><br><small style="font-size:11px; font-weight:700; color:var(--muted);">${formatDateForDisplay(item.date)}</small></div>
                     <button onclick="event.stopPropagation(); printSingleCashExpenseDirect('${item.cashId}')" style="background:var(--primary); color:#fff; border:none; padding:6px 12px; border-radius:6px; font-size:11px; font-weight:800; cursor:pointer; text-transform:uppercase;">
                       <i class="fas fa-print"></i> Print
                     </button>
@@ -1160,7 +1245,7 @@
                     </button>
                   </div>
                 </div>
-                <div style="font-size:18px; font-weight:900; color:var(--success)">₦${Number(item.amount || 0).toLocaleString()}</div>
+                <div style="font-size:18px; font-weight:900; color:var(--success)">₦${formatMoney(item.amount)}</div>
                 ${item.assigned ? `<div style="font-size:14px; font-weight:700; color:var(--muted); margin-bottom:4px;"><i class="fas fa-user-check"></i> ${item.assigned} ${item.duration ? `• ${item.duration}` : ''}</div>` : ''}
                 <div style="font-size:15px; font-weight:600; color:#000;">${item.description || item.Description || ''}</div>
               </div>`;
@@ -1170,7 +1255,7 @@
               <div class="card" onclick="openRecordRow('payment', '${item.paymentId || item.PaymentId}')">
                 <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:4px;">
                   <div><strong style="font-size:18px;">${item.party || 'No Party Listed'}</strong><br><small style="color:var(--muted); font-weight:700;">ID: ${item.paymentId || item.PaymentId || ''}</small></div>
-                  <div style="text-align:right;"><span style="font-size:20px; font-weight:900; color:var(--success);">+₦${Number(item.amount || 0).toLocaleString()}</span><br><small style="font-size:11px; font-weight:700; color:var(--muted);">${formatDateForDisplay(item.date)}</small></div>
+                  <div style="text-align:right;"><span style="font-size:20px; font-weight:900; color:var(--success);">+₦${formatMoney(item.amount)}</span><br><small style="font-size:11px; font-weight:700; color:var(--muted);">${formatDateForDisplay(item.date)}</small></div>
                 </div>
                 <div style="font-size:15px; font-weight:800; color:var(--primary);">${item.type || 'General Record'}</div>
               </div>`;
@@ -1905,176 +1990,105 @@
       }
     }
 
-    // PRINT FUNCTIONS & RENDERERS
-    function generatePrintAttachmentsHtml(attachmentString) {
-      if (!attachmentString) return '';
-      const files = attachmentString.split(',').filter(Boolean);
-      if (files.length === 0) return '';
+    // --- PDF PRINT LAYOUT ENGINE ---
+    function printSingleWorkOrderDirect(woId) {
+      const orderItem = cache.workorders.find(w => String(w.workOrderId || w.WorkOrderId) === woId); if(!orderItem) return;
+      var unitId = getUnitNumber(orderItem);
       
-      let images = [];
-      let pdfs = [];
-      files.forEach(url => {
-        if (url.toLowerCase().includes('.pdf') || url.toLowerCase().includes('pdf_')) pdfs.push(url);
-        else images.push(url);
-      });
-      
-      let html = '<div style="margin-top: 30px; page-break-inside: avoid; border-top: 2px solid #000; padding-top: 15px;">';
-      html += '<h4 style="text-transform:uppercase; margin-bottom:10px; font-weight:900;">Attached Documentation</h4>';
-      
-      if (images.length > 0) {
-        html += '<div style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 15px;">';
-        images.forEach(img => {
-          html += `<img src="${getDirectImageUrl(img)}" style="width: 200px; height: 200px; object-fit: cover; border: 1px solid #ccc;">`;
-        });
-        html += '</div>';
+      let assetInfo = "N/A";
+      if (orderItem.asset || orderItem.Asset) {
+          const ast = cache.assets.find(a => String(a.tag || a.Tag) === String(orderItem.asset || orderItem.Asset));
+          assetInfo = ast ? `${ast.tag || 'N/A'}; ${ast.type || 'N/A'}; ${ast.specs || 'N/A'}; ${ast.loc || ast.Loc || 'N/A'}` : (orderItem.asset || orderItem.Asset);
       }
-      if (pdfs.length > 0) {
-        html += '<ul style="font-size: 12px; padding-left: 20px;">';
-        pdfs.forEach((pdf, i) => {
-          html += `<li><a href="${pdf}" target="_blank" style="color:#0056b3; text-decoration:none;"><strong>[PDF Document ${i+1}]</strong> View attached digital file</a></li>`;
-        });
-        html += '</ul>';
+      
+      let invoiceLayoutHtml = `
+        <div style="padding: 20px; font-family:'Inter', sans-serif; color:#000; background:#fff;">
+          <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:3px solid #000; padding-bottom:10px; margin-bottom:20px;">
+            <div>
+              <h2 style="font-size:32px; margin:0; text-transform:uppercase;">${appSettings.estateName || 'Work Order Dossier'}</h2>
+              <small style="display:block; font-weight:700; color:#444; margin-top:2px;">Managed by: ${appSettings.fmName || 'Facility Pro Engine'}</small>
+            </div>
+            <div style="text-align:right; font-size:12px; font-weight:800;">PRINT DATE:<br>${new Date().toLocaleDateString()}</div>
+          </div>
+          
+          <h3 style="text-transform: uppercase; margin-bottom: 15px;">Work Order Authorization Form</h3>
+          <table style="width:100%; border-collapse:collapse; margin-bottom:20px; font-size:14px;">
+            <tr><th style="width:30%; padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Work Order Ref</th><td style="padding:10px; border:1px solid #000;"><strong>${orderItem.workOrderId || orderItem.WorkOrderId}</strong></td></tr>
+            <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Target Node</th><td style="padding:10px; border:1px solid #000;">Unit ${unitId} | Asset: ${assetInfo}</td></tr>
+            <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Assigned</th><td style="padding:10px; border:1px solid #000;">${orderItem.assigned || orderItem.Assigned || 'Unassigned'}</td></tr>
+            <tr><th style="padding:10px; border:1px solid #000; background:#e8f4fd; text-align:left;">Financial Budget</th><td style="padding:10px; border:1px solid #000; background:#e8f4fd; font-size:18px;"><strong>₦${formatMoney(orderItem.amount || orderItem.Amount)}</strong></td></tr>
+            <tr><th style="padding:10px; border:1px solid #000; background:#f9f9f9; text-align:left;">Amount in Words</th><td style="padding:10px; border:1px solid #000; font-style:italic;"><strong>${convertAmountToWords(orderItem.amount || orderItem.Amount)}</strong></td></tr>
+            <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left; vertical-align:top;">Scope / Narrative</th><td style="padding:10px; border:1px solid #000;">${orderItem.description || orderItem.Description || 'No description provided.'}</td></tr>
+          </table>
+        </div>`;
+
+      let attachmentsArr = [];
+      if (orderItem.attachments || orderItem.Attachments) {
+          attachmentsArr = (orderItem.attachments || orderItem.Attachments).split(',').filter(Boolean);
       }
-      html += '</div>';
-      return html;
+      compileAndDownloadUnifiedPDF(invoiceLayoutHtml, attachmentsArr, `WorkOrder_${woId}`);
     }
 
-    function printSingleWorkOrderDirect(woId) {
-  const orderItem = cache.workorders.find(w => String(w.workOrderId || w.WorkOrderId) === woId); if(!orderItem) return;
-  var unitId = getUnitNumber(orderItem);
-  
-  let assetInfo = "N/A";
-  if (orderItem.asset || orderItem.Asset) {
-      const ast = cache.assets.find(a => String(a.tag || a.Tag) === String(orderItem.asset || orderItem.Asset));
-      assetInfo = ast ? `${ast.tag || 'N/A'}; ${ast.type || 'N/A'}; ${ast.specs || 'N/A'}; ${ast.loc || ast.Loc || 'N/A'}` : (orderItem.asset || orderItem.Asset);
-  }
-  
-  let aptType = "Standard";
-  if (unitId) {
-      const aptRecord = cache.apts.find(a => String(getUnitNumber(a)) === String(unitId));
-      if (aptRecord) aptType = aptRecord.type || aptRecord.Type || 'Standard';
-  }
-  
-  let invoiceLayoutHtml = `
-    <div style="padding: 20px; font-family:'Inter', sans-serif; color:#000; background:#fff;">
-      <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:3px solid #000; padding-bottom:10px; margin-bottom:20px;">
-        <div style="display:flex; align-items:center; gap:12px;">
-          <div>
-            <h2 style="font-size:32px; margin:0; text-transform:uppercase;">${appSettings.estateName || 'Work Order Dossier'}</h2>
-            <small style="display:block; font-weight:700; color:#444; margin-top:4px;">${appSettings.estateAddress || ''}</small>
-            <small style="display:block; font-weight:700; color:#444; margin-top:2px;">Managed by: ${appSettings.fmName || 'Facility Pro Engine'}</small>
+    function printSingleExpenseRequestDirect(reqId) {
+      const orderItem = cache.expenseRequests.find(w => String(w.reqId || w.ReqId) === reqId); if(!orderItem) return;
+      var unitId = getUnitNumber(orderItem);
+      
+      let invoiceLayoutHtml = `
+        <div style="padding: 20px; font-family:'Inter', sans-serif; color:#000; background:#fff;">
+          <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:3px solid #000; padding-bottom:10px; margin-bottom:20px;">
+            <div>
+              <h2 style="font-size:32px; margin:0; text-transform:uppercase;">${appSettings.estateName || 'Facility Pro'}</h2>
+              <small style="display:block; font-weight:700; color:#444; margin-top:2px;">Expense Request Form</small>
+            </div>
+            <div style="text-align:right; font-size:12px; font-weight:800;">PRINT DATE:<br>${new Date().toLocaleDateString()}</div>
           </div>
-        </div>
-        <div style="text-align:right; font-size:12px; font-weight:800;">PRINT DATE:<br>${new Date().toLocaleDateString()}</div>
-      </div>
-      
-      <h3 style="text-transform: uppercase; margin-bottom: 15px;">Work Order Authorization Form</h3>
-      
-      <table style="width:100%; border-collapse:collapse; margin-bottom:20px; font-size:14px;">
-        <tr><th style="width:30%; padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Work Order Reference</th><td style="padding:10px; border:1px solid #000;"><strong>${orderItem.workOrderId || orderItem.WorkOrderId}</strong></td></tr>
-        <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Date Logged</th><td style="padding:10px; border:1px solid #000;">${formatDateForDisplay(orderItem.date || orderItem.Date)}</td></tr>
-        <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Apt : Type</th><td style="padding:10px; border:1px solid #000;">Unit ${unitId} : ${aptType}</td></tr>
-        <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Target Asset Data</th><td style="padding:10px; border:1px solid #000;">${assetInfo}</td></tr>
-        <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Assigned Participant</th><td style="padding:10px; border:1px solid #000;">${orderItem.assigned || orderItem.Assigned || 'Unassigned'}</td></tr>
-        <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Project Duration</th><td style="padding:10px; border:1px solid #000;">${orderItem.duration || orderItem.Duration || 'Not Specified'}</td></tr>
-        
-        <tr><th style="padding:10px; border:1px solid #000; background:#e8f4fd; text-align:left;">Financial Budget Tariff</th><td style="padding:10px; border:1px solid #000; background:#e8f4fd; font-size:18px;"><strong>₦${formatMoney(orderItem.amount || orderItem.Amount)}</strong></td></tr>
-        <tr><th style="padding:10px; border:1px solid #000; background:#f9f9f9; text-align:left;">Amount in Words</th><td style="padding:10px; border:1px solid #000; font-style:italic;"><strong>${convertAmountToWords(orderItem.amount || orderItem.Amount)}</strong></td></tr>
-        
-        <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Lifecycle Auth Status</th><td style="padding:10px; border:1px solid #000;"><strong>${String(orderItem.status || orderItem.Status || 'PENDING').toUpperCase()}</strong></td></tr>
-        <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left; vertical-align:top;">Scope / Narrative</th><td style="padding:10px; border:1px solid #000;">${orderItem.description || orderItem.Description || 'No description provided.'}</td></tr>
-        <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left; vertical-align:top;">Operational Remarks</th><td style="padding:10px; border:1px solid #000;">${orderItem.notes || orderItem.Notes || 'No operational feedback logged.'}</td></tr>
-      </table>
-      
-      <div style="margin-top: 40px; font-size: 10px; color: #666; text-align: center; border-top: 1px dashed #ccc; padding-top: 10px;">
-        ${appSettings.fmAddress || ''}
-      </div>
-    </div>`;
+          
+          <table style="width:100%; border-collapse:collapse; margin-bottom:20px; font-size:14px;">
+            <tr><th style="width:30%; padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Request Ref</th><td style="padding:10px; border:1px solid #000;"><strong>${orderItem.reqId || orderItem.ReqId}</strong></td></tr>
+            <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Apt : Asset</th><td style="padding:10px; border:1px solid #000;">Unit ${unitId} : ${orderItem.assetTag || 'N/A'}</td></tr>
+            <tr><th style="padding:10px; border:1px solid #000; background:#e8f4fd; text-align:left;">Estimated Cost</th><td style="padding:10px; border:1px solid #000; background:#e8f4fd; font-size:18px;"><strong>₦${formatMoney(orderItem.cost || orderItem.Cost)}</strong></td></tr>
+            <tr><th style="padding:10px; border:1px solid #000; background:#f9f9f9; text-align:left;">Amount in Words</th><td style="padding:10px; border:1px solid #000; font-style:italic;"><strong>${convertAmountToWords(orderItem.cost || orderItem.Cost)}</strong></td></tr>
+            <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left; vertical-align:top;">Job Scope</th><td style="padding:10px; border:1px solid #000;">${orderItem.job || orderItem.Job || 'No description provided.'}</td></tr>
+          </table>
+        </div>`;
 
-  if (confirm("Would you like to include the photo/PDF attachments in this printout?")) {
-    invoiceLayoutHtml = invoiceLayoutHtml.replace('</div>`', generatePrintAttachmentsHtml(orderItem.attachments || orderItem.Attachments) + '</div>`');
-  }
-  document.getElementById('report-print-container').innerHTML = invoiceLayoutHtml;
-  setTimeout(() => { window.print(); }, 100);
-}
+      let attachmentsArr = [];
+      if (orderItem.attachments || orderItem.Attachments) {
+          attachmentsArr = (orderItem.attachments || orderItem.Attachments).split(',').filter(Boolean);
+      }
+      compileAndDownloadUnifiedPDF(invoiceLayoutHtml, attachmentsArr, `ExpenseReq_${reqId}`);
+    }
 
-function printSingleExpenseRequestDirect(reqId) {
-  const orderItem = cache.expenseRequests.find(w => String(w.reqId || w.ReqId) === reqId); if(!orderItem) return;
-  var unitId = getUnitNumber(orderItem);
-  
-  let invoiceLayoutHtml = `
-    <div style="padding: 20px; font-family:'Inter', sans-serif; color:#000; background:#fff;">
-      <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:3px solid #000; padding-bottom:10px; margin-bottom:20px;">
-        <div style="display:flex; align-items:center; gap:12px;">
-          <div>
-            <h2 style="font-size:32px; margin:0; text-transform:uppercase;">${appSettings.estateName || 'Facility Pro'}</h2>
-            <small style="display:block; font-weight:700; color:#444; margin-top:2px;">Expense Request Form</small>
+    function printSingleCashExpenseDirect(cashId) {
+      const orderItem = cache.cashExpenses.find(w => String(w.cashId || w.CashId) === cashId); if(!orderItem) return;
+      var unitId = getUnitNumber(orderItem);
+      
+      let invoiceLayoutHtml = `
+        <div style="padding: 20px; font-family:'Inter', sans-serif; color:#000; background:#fff;">
+          <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:3px solid #000; padding-bottom:10px; margin-bottom:20px;">
+            <div>
+              <h2 style="font-size:32px; margin:0; text-transform:uppercase;">${appSettings.estateName || 'Facility Pro'}</h2>
+              <small style="display:block; font-weight:700; color:#444; margin-top:2px;">Cash Expense Voucher</small>
+            </div>
+            <div style="text-align:right; font-size:12px; font-weight:800;">PRINT DATE:<br>${new Date().toLocaleDateString()}</div>
           </div>
-        </div>
-        <div style="text-align:right; font-size:12px; font-weight:800;">PRINT DATE:<br>${new Date().toLocaleDateString()}</div>
-      </div>
-      
-      <table style="width:100%; border-collapse:collapse; margin-bottom:20px; font-size:14px;">
-        <tr><th style="width:30%; padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Request Reference</th><td style="padding:10px; border:1px solid #000;"><strong>${orderItem.reqId || orderItem.ReqId}</strong></td></tr>
-        <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Date Logged</th><td style="padding:10px; border:1px solid #000;">${formatDateForDisplay(orderItem.date || orderItem.Date)}</td></tr>
-        <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Apt : Asset</th><td style="padding:10px; border:1px solid #000;">Unit ${unitId} : ${orderItem.assetTag || 'N/A'}</td></tr>
-        
-        <tr><th style="padding:10px; border:1px solid #000; background:#e8f4fd; text-align:left;">Estimated Cost</th><td style="padding:10px; border:1px solid #000; background:#e8f4fd; font-size:18px;"><strong>₦${formatMoney(orderItem.cost || orderItem.Cost)}</strong></td></tr>
-        <tr><th style="padding:10px; border:1px solid #000; background:#f9f9f9; text-align:left;">Amount in Words</th><td style="padding:10px; border:1px solid #000; font-style:italic;"><strong>${convertAmountToWords(orderItem.cost || orderItem.Cost)}</strong></td></tr>
-        
-        <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left; vertical-align:top;">Job Scope / Narrative</th><td style="padding:10px; border:1px solid #000;">${orderItem.job || orderItem.Job || 'No description provided.'}</td></tr>
-      </table>
-      
-      <div style="margin-top: 40px; font-size: 10px; color: #666; text-align: center; border-top: 1px dashed #ccc; padding-top: 10px;">
-        ${appSettings.fmAddress || ''}
-      </div>
-    </div>`;
+          
+          <table style="width:100%; border-collapse:collapse; margin-bottom:20px; font-size:14px;">
+            <tr><th style="width:30%; padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Voucher ID</th><td style="padding:10px; border:1px solid #000;"><strong>${orderItem.cashId || orderItem.CashId}</strong></td></tr>
+            <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Associated Unit</th><td style="padding:10px; border:1px solid #000;">Unit ${unitId}</td></tr>
+            <tr><th style="padding:10px; border:1px solid #000; background:#e8f4fd; text-align:left;">Amount Dispensed</th><td style="padding:10px; border:1px solid #000; background:#e8f4fd; font-size:22px;"><strong>₦${formatMoney(orderItem.amount || orderItem.Amount)}</strong></td></tr>
+            <tr><th style="padding:10px; border:1px solid #000; background:#f9f9f9; text-align:left;">Amount in Words</th><td style="padding:10px; border:1px solid #000; font-style:italic;"><strong>${convertAmountToWords(orderItem.amount || orderItem.Amount)}</strong></td></tr>
+            <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left; vertical-align:top;">Justification</th><td style="padding:10px; border:1px solid #000;">${orderItem.description || orderItem.Description || 'No description provided.'}</td></tr>
+          </table>
+        </div>`;
 
-  if (confirm("Would you like to include the photo/PDF attachments in this printout?")) {
-    invoiceLayoutHtml = invoiceLayoutHtml.replace('</div>`', generatePrintAttachmentsHtml(orderItem.attachments || orderItem.Attachments) + '</div>`');
-  }
-  document.getElementById('report-print-container').innerHTML = invoiceLayoutHtml;
-  setTimeout(() => { window.print(); }, 100);
-}
+      let attachmentsArr = [];
+      if (orderItem.attachments || orderItem.Attachments) {
+          attachmentsArr = (orderItem.attachments || orderItem.Attachments).split(',').filter(Boolean);
+      }
+      compileAndDownloadUnifiedPDF(invoiceLayoutHtml, attachmentsArr, `CashVoucher_${cashId}`);
+    }
 
-function printSingleCashExpenseDirect(cashId) {
-  const orderItem = cache.cashExpenses.find(w => String(w.cashId || w.CashId) === cashId); if(!orderItem) return;
-  var unitId = getUnitNumber(orderItem);
-  
-  let invoiceLayoutHtml = `
-    <div style="padding: 20px; font-family:'Inter', sans-serif; color:#000; background:#fff;">
-      <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:3px solid #000; padding-bottom:10px; margin-bottom:20px;">
-        <div style="display:flex; align-items:center; gap:12px;">
-          <div>
-            <h2 style="font-size:32px; margin:0; text-transform:uppercase;">${appSettings.estateName || 'Facility Pro'}</h2>
-            <small style="display:block; font-weight:700; color:#444; margin-top:2px;">Cash Expense Receipt / Voucher</small>
-          </div>
-        </div>
-        <div style="text-align:right; font-size:12px; font-weight:800;">PRINT DATE:<br>${new Date().toLocaleDateString()}</div>
-      </div>
-      
-      <table style="width:100%; border-collapse:collapse; margin-bottom:20px; font-size:14px;">
-        <tr><th style="width:30%; padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Voucher ID</th><td style="padding:10px; border:1px solid #000;"><strong>${orderItem.cashId || orderItem.CashId}</strong></td></tr>
-        <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Transaction Date</th><td style="padding:10px; border:1px solid #000;">${formatDateForDisplay(orderItem.date || orderItem.Date)}</td></tr>
-        <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Associated Unit</th><td style="padding:10px; border:1px solid #000;">Unit ${unitId}</td></tr>
-        
-        <tr><th style="padding:10px; border:1px solid #000; background:#e8f4fd; text-align:left;">Total Amount Dispensed</th><td style="padding:10px; border:1px solid #000; background:#e8f4fd; font-size:22px;"><strong>₦${formatMoney(orderItem.amount || orderItem.Amount)}</strong></td></tr>
-        <tr><th style="padding:10px; border:1px solid #000; background:#f9f9f9; text-align:left;">Amount in Words</th><td style="padding:10px; border:1px solid #000; font-style:italic;"><strong>${convertAmountToWords(orderItem.amount || orderItem.Amount)}</strong></td></tr>
-        
-        <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left; vertical-align:top;">Description / Justification</th><td style="padding:10px; border:1px solid #000;">${orderItem.description || orderItem.Description || 'No description provided.'}</td></tr>
-      </table>
-      
-      <div style="margin-top: 40px; font-size: 10px; color: #666; text-align: center; border-top: 1px dashed #ccc; padding-top: 10px;">
-        ${appSettings.fmAddress || ''}
-      </div>
-    </div>`;
-
-  if (confirm("Would you like to include the photo/PDF attachments in this printout?")) {
-    invoiceLayoutHtml = invoiceLayoutHtml.replace('</div>`', generatePrintAttachmentsHtml(orderItem.attachments || orderItem.Attachments) + '</div>`');
-  }
-  document.getElementById('report-print-container').innerHTML = invoiceLayoutHtml;
-  setTimeout(() => { window.print(); }, 100);
-}
     // ---------------------------------------------------------
     // COMPRESSION LOGIC
     // ---------------------------------------------------------
@@ -2112,142 +2126,143 @@ function printSingleCashExpenseDirect(cashId) {
     }
 
     function handleReportProfileSwitch() {
-  const p = document.getElementById('rep-profile-selector').value; 
-  const l = document.getElementById('rep-layout-selector');
-  let out = "<option value=''>-- Choose Option Layout --</option>";
-  
-  if (p === "apartments") { 
-    // Removed the detailed apartment profile option
-    out += `<option value="apt_custom_print">Apartments Manifest</option>`; 
-  } 
-  else if (p === "financials") { 
-    out += `
-      <option value="fin_vendor">Vendor Account Ledger</option>
-      <option value="fin_wo">Approved Work Orders (Time Period)</option>
-      <option value="fin_cash">Cash Expenses (Time Period)</option>
-      <option value="fin_income">Income Accounts (Inflows)</option>
-      <option value="fin_pl">Full Account (Income & Expense)</option>`; 
-  }
-  l.innerHTML = out; 
-  document.getElementById('rep-dynamic-parameters-frame').innerHTML = "";
-}
+      const p = document.getElementById('rep-profile-selector').value; 
+      const l = document.getElementById('rep-layout-selector');
+      let out = "<option value=''>-- Choose Option Layout --</option>";
+      
+      if (p === "apartments") { 
+        out += `<option value="apt_custom_print">Apartments Manifest</option>`; 
+      } 
+      else if (p === "financials") { 
+        out += `
+          <option value="fin_vendor">Vendor Account Ledger</option>
+          <option value="fin_wo">Approved Work Orders (Time Period)</option>
+          <option value="fin_cash">Cash Expenses (Time Period)</option>
+          <option value="fin_income">Income Accounts (Inflows)</option>
+          <option value="fin_pl">Full Account (Income & Expense)</option>`; 
+      }
+      l.innerHTML = out; 
+      document.getElementById('rep-dynamic-parameters-frame').innerHTML = "";
+    }
 
-function handleReportLayoutSwitch() {
-  const layout = document.getElementById('rep-layout-selector').value; 
-  const f = document.getElementById('rep-dynamic-parameters-frame'); 
-  f.innerHTML = "";
-  
-  // Removed the 'apt_single_isolated_print' logic block
-  
-  if (layout === "fin_wo" || layout === "fin_cash" || layout === "fin_pl" || layout === "fin_income") {
-    f.innerHTML = `
-      <label>START DATE:</label><input type="date" id="rep_start_date" style="font-size: 16px; padding: 10px; margin-bottom: 6px; width: 100%;">
-      <label>END DATE:</label><input type="date" id="rep_end_date" style="font-size: 16px; padding: 10px; margin-bottom: 15px; width: 100%;">
-    `;
-  }
-}
+    function handleReportLayoutSwitch() {
+      const layout = document.getElementById('rep-layout-selector').value; 
+      const f = document.getElementById('rep-dynamic-parameters-frame'); 
+      f.innerHTML = "";
+      
+      if (layout === "fin_wo" || layout === "fin_cash" || layout === "fin_pl" || layout === "fin_income") {
+        f.innerHTML = `
+          <label>START DATE:</label><input type="date" id="rep_start_date" style="font-size: 16px; padding: 10px; margin-bottom: 6px; width: 100%;">
+          <label>END DATE:</label><input type="date" id="rep_end_date" style="font-size: 16px; padding: 10px; margin-bottom: 15px; width: 100%;">
+        `;
+      }
+    }
 
-function compileReportPreview() {
-  const layout = document.getElementById('rep-layout-selector').value;
-  if (!layout) return;
-  
-  let headerStr = `<div style="display: flex; align-items: center; justify-content: space-between; padding-bottom: 12px; border-bottom: 3px solid #000; margin-bottom: 20px;">
-    <div style="display: flex; align-items: center; gap: 14px;">
-      <div style="text-align: left;">
-        <h2 style="font-size: 32px; font-weight: 800; margin: 0; line-height: 1.2; text-transform:uppercase;">${appSettings.estateName || 'FACILITY OPERATIONS REPORT'}</h2>
-        <small style="display: block; font-weight: 700; color: #444; margin-top: 4px;">${appSettings.estateAddress || ''}</small>
-        <small style="display: block; font-weight: 700; color: #444; margin-top: 2px;">Managed by: ${appSettings.fmName || 'Facility Pro Engine'}</small>
-      </div>
-    </div>
-    <div style="text-align: right; font-size: 11px; font-weight: 800; white-space: nowrap;">RUN DATE:<br><span>${new Date().toLocaleDateString()}</span></div>
-  </div>`;
+    function compileReportPreview() {
+      const layout = document.getElementById('rep-layout-selector').value;
+      if (!layout) return;
+      
+      let headerStr = `<div style="display: flex; align-items: center; justify-content: space-between; padding-bottom: 12px; border-bottom: 3px solid #000; margin-bottom: 20px;">
+        <div style="display: flex; align-items: center; gap: 14px;">
+          <div style="text-align: left;">
+            <h2 style="font-size: 32px; font-weight: 800; margin: 0; line-height: 1.2; text-transform:uppercase;">${appSettings.estateName || 'FACILITY OPERATIONS REPORT'}</h2>
+            <small style="display: block; font-weight: 700; color: #444; margin-top: 4px;">${appSettings.estateAddress || ''}</small>
+            <small style="display: block; font-weight: 700; color: #444; margin-top: 2px;">Managed by: ${appSettings.fmName || 'Facility Pro Engine'}</small>
+          </div>
+        </div>
+        <div style="text-align: right; font-size: 11px; font-weight: 800; white-space: nowrap;">RUN DATE:<br><span>${new Date().toLocaleDateString()}</span></div>
+      </div>`;
 
-  let contentHtml = "";
+      let contentHtml = "";
 
-  if (layout === "apt_custom_print") {
-    const filteredApts = cache.apts.filter(a => String(a.type || a.Type || '').toLowerCase() !== 'services');
-    contentHtml = `<h3 style="margin-bottom: 15px; text-transform: uppercase;">APARTMENTS MANIFEST</h3>`;
+      if (layout === "apt_custom_print") {
+        const filteredApts = cache.apts.filter(a => String(a.type || a.Type || '').toLowerCase() !== 'services');
+        contentHtml = `<h3 style="margin-bottom: 15px; text-transform: uppercase;">APARTMENTS MANIFEST</h3>`;
 
-    filteredApts.forEach((a) => {
-      const uNum = getUnitNumber(a);
-      let meterNo = a.meterNo || a.MeterNo || ((cache.utilities || []).find(u => String(getUnitNumber(u)) === String(uNum) && String(u.type) === 'Electricity') || {}).meterNo || 'N/A';
-      const relatedAssets = cache.assets.filter(ast => String(getUnitNumber(ast)) === String(uNum) && String(ast.status || ast.Status || '') !== 'Archived');
+        filteredApts.forEach((a) => {
+          const uNum = getUnitNumber(a);
+          let meterNo = a.meterNo || a.MeterNo || ((cache.utilities || []).find(u => String(getUnitNumber(u)) === String(uNum) && String(u.type) === 'Electricity') || {}).meterNo || 'N/A';
+          const relatedAssets = cache.assets.filter(ast => String(getUnitNumber(ast)) === String(uNum) && String(ast.status || ast.Status || '') !== 'Archived');
 
-      let assetRows = "";
-      for (let i = 0; i < relatedAssets.length; i += 2) {
-        assetRows += "<tr>";
-        for (let j = 0; j < 2; j++) {
-          const ast = relatedAssets[i + j];
-          assetRows += ast ? `<td style="width: 50%; padding: 3px; border: 1px dashed #ccc;">• <strong>${ast.type || 'Asset'}</strong> (${ast.tag || ''}) - ${ast.specs || ''}</td>` : `<td style="width: 50%;"></td>`;
-        }
-        assetRows += "</tr>";
+          let assetRows = "";
+          for (let i = 0; i < relatedAssets.length; i += 2) {
+            assetRows += "<tr>";
+            for (let j = 0; j < 2; j++) {
+              const ast = relatedAssets[i + j];
+              assetRows += ast ? `<td style="width: 50%; padding: 3px; border: 1px dashed #ccc;">• <strong>${ast.type || 'Asset'}</strong> (${ast.tag || ''}) - ${ast.specs || ''}</td>` : `<td style="width: 50%;"></td>`;
+            }
+            assetRows += "</tr>";
+          }
+
+          contentHtml += `
+            <div style="margin-bottom: 25px; padding-bottom: 20px; border-bottom: 4px solid #333; page-break-inside: avoid;">
+              <table style="width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 8px;">
+                <tr><td style="padding: 4px; border: 1px solid #999; font-weight: 800; background: #f0f0f0;">Unit</td><td style="padding: 4px; border: 1px solid #999;">${uNum}</td><td style="padding: 4px; border: 1px solid #999; font-weight: 800; background: #f0f0f0;">Tenant</td><td style="padding: 4px; border: 1px solid #999;">${a.tenant || a.Tenant || 'VACANT'}</td></tr>
+                <tr><td style="padding: 4px; border: 1px solid #999; font-weight: 800; background: #f0f0f0;">Type</td><td style="padding: 4px; border: 1px solid #999;">${a.type || a.Type || 'Standard'}</td><td style="padding: 4px; border: 1px solid #999; font-weight: 800; background: #f0f0f0;">Meter No</td><td style="padding: 4px; border: 1px solid #999;">${meterNo}</td></tr>
+              </table>
+              <div style="font-weight: 800; font-size: 11px; text-transform: uppercase; margin-bottom: 4px;">REGISTERED ASSETS:</div>
+              <table style="width: 100%; border-collapse: collapse; font-size: 10px;">${assetRows}</table>
+            </div>`;
+        });
+      }
+      else if (layout === "fin_wo") {
+        const startDate = new Date(document.getElementById('rep_start_date').value);
+        const endDate = new Date(document.getElementById('rep_end_date').value);
+        
+        if (isNaN(startDate) || isNaN(endDate)) { alert("Please select a valid date range."); return; }
+        
+        const diffDays = (endDate - startDate) / (1000 * 60 * 60 * 24);
+        if (diffDays > 30) { alert("Report period cannot exceed 30 days for this table."); return; }
+
+        const filteredWOs = (cache.workorders || []).filter(w => {
+          const wDate = parseToLocalDateObject(w.date || w.Date);
+          const isApproved = String(w.status || w.Status) === "Approved";
+          return isApproved && wDate >= startDate && wDate <= endDate;
+        });
+
+        let totalBudget = 0;
+        let rows = filteredWOs.map(w => {
+          const amt = parseFloat(w.amount || w.Amount || 0);
+          totalBudget += amt;
+          return `<tr>
+            <td style="padding:8px; border:1px solid #000;">${w.workOrderId || w.WorkOrderId}</td>
+            <td style="padding:8px; border:1px solid #000;">${formatDateForDisplay(w.date)}</td>
+            <td style="padding:8px; border:1px solid #000;">${w.description || w.Description || ''}</td>
+            <td style="padding:8px; border:1px solid #000; font-weight:800; text-align:right;">₦${formatMoney(amt)}</td>
+          </tr>`;
+        }).join('');
+
+        contentHtml = `
+          <h3 style="margin-bottom: 15px; text-transform: uppercase;">Approved Work Orders Ledger</h3>
+          <p style="font-weight:700; margin-bottom:15px;">Period: ${startDate.toLocaleDateString()} to ${endDate.toLocaleDateString()}</p>
+          <table style="width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 15px;">
+            <tr style="background:#f0f0f0;">
+              <th style="padding:8px; border:1px solid #000; text-align:left;">WO #</th>
+              <th style="padding:8px; border:1px solid #000; text-align:left;">Date</th>
+              <th style="padding:8px; border:1px solid #000; text-align:left;">Scope</th>
+              <th style="padding:8px; border:1px solid #000; text-align:right;">Budget (₦)</th>
+            </tr>
+            ${rows}
+            <tr>
+              <td colspan="3" style="padding:10px; border:1px solid #000; font-weight:900; text-align:right;">TOTAL BUDGET EXPENDITURE:</td>
+              <td style="padding:10px; border:1px solid #000; font-weight:900; font-size:16px; text-align:right;">₦${formatMoney(totalBudget)}</td>
+            </tr>
+          </table>`;
+      }
+      else {
+          contentHtml = `<p>This specific financial report layout is under construction. Please use the Work Orders layout to test the date filters.</p>`;
       }
 
-      contentHtml += `
-        <div style="margin-bottom: 25px; padding-bottom: 20px; border-bottom: 4px solid #333; page-break-inside: avoid;">
-          <table style="width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 8px;">
-            <tr><td style="padding: 4px; border: 1px solid #999; font-weight: 800; background: #f0f0f0;">Unit</td><td style="padding: 4px; border: 1px solid #999;">${uNum}</td><td style="padding: 4px; border: 1px solid #999; font-weight: 800; background: #f0f0f0;">Tenant</td><td style="padding: 4px; border: 1px solid #999;">${a.tenant || a.Tenant || 'VACANT'}</td></tr>
-            <tr><td style="padding: 4px; border: 1px solid #999; font-weight: 800; background: #f0f0f0;">Type</td><td style="padding: 4px; border: 1px solid #999;">${a.type || a.Type || 'Standard'}</td><td style="padding: 4px; border: 1px solid #999; font-weight: 800; background: #f0f0f0;">Meter No</td><td style="padding: 4px; border: 1px solid #999;">${meterNo}</td></tr>
-          </table>
-          <div style="font-weight: 800; font-size: 11px; text-transform: uppercase; margin-bottom: 4px;">REGISTERED ASSETS:</div>
-          <table style="width: 100%; border-collapse: collapse; font-size: 10px;">${assetRows}</table>
-        </div>`;
-    });
-  }
-  // Removed the 'apt_single_isolated_print' rendering block entirely
-  else if (layout === "fin_wo") {
-    const startDate = new Date(document.getElementById('rep_start_date').value);
-    const endDate = new Date(document.getElementById('rep_end_date').value);
-    
-    if (isNaN(startDate) || isNaN(endDate)) { alert("Please select a valid date range."); return; }
-    
-    const diffDays = (endDate - startDate) / (1000 * 60 * 60 * 24);
-    if (diffDays > 30) { alert("Report period cannot exceed 30 days for this table."); return; }
+      const out = headerStr + contentHtml;
+      document.getElementById('report-preview-viewport').innerHTML = out;
+      document.getElementById('report-print-container').innerHTML = out;
+      document.getElementById('report-onscreen-preview-card').style.display = "block";
+    }
 
-    const filteredWOs = (cache.workorders || []).filter(w => {
-      const wDate = parseToLocalDateObject(w.date || w.Date);
-      const isApproved = String(w.status || w.Status) === "Approved";
-      return isApproved && wDate >= startDate && wDate <= endDate;
-    });
-
-    let totalBudget = 0;
-    let rows = filteredWOs.map(w => {
-      const amt = parseFloat(w.amount || w.Amount || 0);
-      totalBudget += amt;
-      return `<tr>
-        <td style="padding:8px; border:1px solid #000;">${w.workOrderId || w.WorkOrderId}</td>
-        <td style="padding:8px; border:1px solid #000;">${formatDateForDisplay(w.date)}</td>
-        <td style="padding:8px; border:1px solid #000;">${w.description || w.Description || ''}</td>
-        <td style="padding:8px; border:1px solid #000; font-weight:800; text-align:right;">₦${amt.toLocaleString()}</td>
-      </tr>`;
-    }).join('');
-
-    contentHtml = `
-      <h3 style="margin-bottom: 15px; text-transform: uppercase;">Approved Work Orders Ledger</h3>
-      <p style="font-weight:700; margin-bottom:15px;">Period: ${startDate.toLocaleDateString()} to ${endDate.toLocaleDateString()}</p>
-      <table style="width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 15px;">
-        <tr style="background:#f0f0f0;">
-          <th style="padding:8px; border:1px solid #000; text-align:left;">WO #</th>
-          <th style="padding:8px; border:1px solid #000; text-align:left;">Date</th>
-          <th style="padding:8px; border:1px solid #000; text-align:left;">Scope</th>
-          <th style="padding:8px; border:1px solid #000; text-align:right;">Budget (₦)</th>
-        </tr>
-        ${rows}
-        <tr>
-          <td colspan="3" style="padding:10px; border:1px solid #000; font-weight:900; text-align:right;">TOTAL BUDGET EXPENDITURE:</td>
-          <td style="padding:10px; border:1px solid #000; font-weight:900; font-size:16px; text-align:right;">₦${totalBudget.toLocaleString()}</td>
-        </tr>
-      </table>`;
-  }
-  else {
-      contentHtml = `<p>This specific financial report layout is under construction. Please use the Work Orders layout to test the date filters.</p>`;
-  }
-
-  const out = headerStr + contentHtml;
-  document.getElementById('report-preview-viewport').innerHTML = out;
-  document.getElementById('report-print-container').innerHTML = out;
-  document.getElementById('report-onscreen-preview-card').style.display = "block";
-}
+    function downloadCurrentReportPDF() {
+      const htmlData = document.getElementById('report-preview-viewport').innerHTML;
+      compileAndDownloadUnifiedPDF(htmlData, [], "Facility_Report_" + new Date().getTime());
+    }
     
     // ---------------------------------------------------------
     // OFFLINE SYNC & PWA REGISTRATION
