@@ -566,12 +566,14 @@
     // --- UNIFIED PDF COMPILER ENGINE ---
     function extractDriveFileId(url) {
       if (!url) return null;
-      const match = url.match(/\/d\/(.+?)\//) || url.match(/id=(.+?)(&|$)/);
-      return match ? match[1] : null;
+      let match = url.match(/\/d\/(.+?)(\/|$)/);
+      if (match) return match[1];
+      match = url.match(/id=(.+?)(&|$)/);
+      if (match) return match[1];
+      return null;
     }
 
     async function compileAndDownloadUnifiedPDF(htmlContent, attachmentUrls, filename) {
-      // 1. Mount UI Blocking Loader
       const loader = document.createElement('div');
       loader.id = 'pdf-compiler-loader';
       loader.innerHTML = `
@@ -583,7 +585,6 @@
       document.body.appendChild(loader);
 
       try {
-        // 2. Convert Base HTML to PDF ArrayBuffer
         const opt = {
           margin: 15, filename: filename,
           image: { type: 'jpeg', quality: 0.98 },
@@ -592,48 +593,54 @@
         };
         const htmlPdfBuffer = await html2pdf().set(opt).from(htmlContent).output('arraybuffer');
         
-        // 3. Initialize PDF-Lib and Load the Base Document
         const { PDFDocument } = PDFLib;
         const masterPdf = await PDFDocument.load(htmlPdfBuffer);
 
-        // 4. Fetch and Merge External Attachments
         if (attachmentUrls && attachmentUrls.length > 0) {
           for (let url of attachmentUrls) {
             const fileId = extractDriveFileId(url);
             if (!fileId) continue;
             
-            // Bypass CORS by asking Apps Script backend for the raw Base64 bytes
-            const fileData = await callApi('getFileBase64', { id: fileId });
-            if (!fileData || fileData.status !== 'success') continue;
-            
-            const fileBytes = Uint8Array.from(atob(fileData.base64), c => c.charCodeAt(0));
-            
-            if (fileData.mimeType === 'application/pdf') {
-              // Merge PDF Pages
-              const extPdf = await PDFDocument.load(fileBytes);
-              const copiedPages = await masterPdf.copyPages(extPdf, extPdf.getPageIndices());
-              copiedPages.forEach(page => masterPdf.addPage(page));
-            } else if (fileData.mimeType.startsWith('image/')) {
-              // Render Image as a new PDF Page
-              const image = fileData.mimeType === 'image/png' ? await masterPdf.embedPng(fileBytes) : await masterPdf.embedJpg(fileBytes);
-              const page = masterPdf.addPage();
-              const { width, height } = page.getSize();
+            try {
+              const fileData = await callApi('getFileBase64', { id: fileId });
+              if (!fileData || fileData.status !== 'success') {
+                console.warn("Backend failed to fetch attachment. Did you deploy Code.gs as a NEW version?", fileData);
+                continue; 
+              }
               
-              // Scale to fit A4 page
-              const imgDims = image.scale(1);
-              const scaleRatio = Math.min((width - 40) / imgDims.width, (height - 40) / imgDims.height);
-              const finalDims = image.scale(scaleRatio < 1 ? scaleRatio : 1);
+              // Safe Base64 decoding
+              const base64Cleaned = fileData.base64.replace(/\s/g, '');
+              const byteCharacters = atob(base64Cleaned);
+              const byteNumbers = new Array(byteCharacters.length);
+              for (let i = 0; i < byteCharacters.length; i++) {
+                  byteNumbers[i] = byteCharacters.charCodeAt(i);
+              }
+              const fileBytes = new Uint8Array(byteNumbers);
               
-              page.drawImage(image, {
-                x: width / 2 - finalDims.width / 2,
-                y: height / 2 - finalDims.height / 2,
-                width: finalDims.width, height: finalDims.height
-              });
+              if (fileData.mimeType === 'application/pdf') {
+                const extPdf = await PDFDocument.load(fileBytes);
+                const copiedPages = await masterPdf.copyPages(extPdf, extPdf.getPageIndices());
+                copiedPages.forEach(page => masterPdf.addPage(page));
+              } else if (fileData.mimeType.startsWith('image/')) {
+                const image = fileData.mimeType === 'image/png' ? await masterPdf.embedPng(fileBytes) : await masterPdf.embedJpg(fileBytes);
+                const page = masterPdf.addPage();
+                const { width, height } = page.getSize();
+                const imgDims = image.scale(1);
+                const scaleRatio = Math.min((width - 40) / imgDims.width, (height - 40) / imgDims.height);
+                const finalDims = image.scale(scaleRatio < 1 ? scaleRatio : 1);
+                
+                page.drawImage(image, {
+                  x: width / 2 - finalDims.width / 2,
+                  y: height / 2 - finalDims.height / 2,
+                  width: finalDims.width, height: finalDims.height
+                });
+              }
+            } catch (mergeErr) {
+              console.error("Failed to merge specific attachment:", mergeErr);
             }
           }
         }
 
-        // 5. Package and Trigger Download
         const finalPdfBytes = await masterPdf.save();
         const blob = new Blob([finalPdfBytes], { type: 'application/pdf' });
         const blobUrl = URL.createObjectURL(blob);
@@ -650,7 +657,7 @@
         document.getElementById('pdf-compiler-loader').remove();
       }
     }
-
+    
     async function callApi(action, data = {}) {
       try {
         const response = await fetch(GAS_URL, { method: "POST", body: JSON.stringify({ action: action, data: data }) });
@@ -2014,11 +2021,17 @@
           <h3 style="text-transform: uppercase; margin-bottom: 15px;">Work Order Authorization Form</h3>
           <table style="width:100%; border-collapse:collapse; margin-bottom:20px; font-size:14px;">
             <tr><th style="width:30%; padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Work Order Ref</th><td style="padding:10px; border:1px solid #000;"><strong>${orderItem.workOrderId || orderItem.WorkOrderId}</strong></td></tr>
+            <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Date Logged</th><td style="padding:10px; border:1px solid #000;">${formatDateForDisplay(orderItem.date || orderItem.Date)}</td></tr>
             <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Target Node</th><td style="padding:10px; border:1px solid #000;">Unit ${unitId} | Asset: ${assetInfo}</td></tr>
             <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Assigned</th><td style="padding:10px; border:1px solid #000;">${orderItem.assigned || orderItem.Assigned || 'Unassigned'}</td></tr>
+            <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Project Duration</th><td style="padding:10px; border:1px solid #000;">${orderItem.duration || orderItem.Duration || 'Not Specified'}</td></tr>
+            
             <tr><th style="padding:10px; border:1px solid #000; background:#e8f4fd; text-align:left;">Financial Budget</th><td style="padding:10px; border:1px solid #000; background:#e8f4fd; font-size:18px;"><strong>₦${formatMoney(orderItem.amount || orderItem.Amount)}</strong></td></tr>
             <tr><th style="padding:10px; border:1px solid #000; background:#f9f9f9; text-align:left;">Amount in Words</th><td style="padding:10px; border:1px solid #000; font-style:italic;"><strong>${convertAmountToWords(orderItem.amount || orderItem.Amount)}</strong></td></tr>
+            
+            <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Lifecycle Auth Status</th><td style="padding:10px; border:1px solid #000;"><strong>${String(orderItem.status || orderItem.Status || 'PENDING').toUpperCase()}</strong></td></tr>
             <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left; vertical-align:top;">Scope / Narrative</th><td style="padding:10px; border:1px solid #000;">${orderItem.description || orderItem.Description || 'No description provided.'}</td></tr>
+            <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left; vertical-align:top;">Operational Remarks</th><td style="padding:10px; border:1px solid #000;">${orderItem.notes || orderItem.Notes || 'No operational feedback logged.'}</td></tr>
           </table>
         </div>`;
 
@@ -2028,7 +2041,6 @@
       }
       compileAndDownloadUnifiedPDF(invoiceLayoutHtml, attachmentsArr, `WorkOrder_${woId}`);
     }
-
     function printSingleExpenseRequestDirect(reqId) {
       const orderItem = cache.expenseRequests.find(w => String(w.reqId || w.ReqId) === reqId); if(!orderItem) return;
       var unitId = getUnitNumber(orderItem);
