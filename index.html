@@ -640,105 +640,110 @@
     }
 
     async function compileAndDownloadUnifiedPDF(htmlContent, attachmentUrls, filename) {
-      // 1. Clean up any stuck layers
-      if(document.getElementById('pdf-render-box')) document.getElementById('pdf-render-box').remove();
-      if(document.getElementById('pdf-toast')) document.getElementById('pdf-toast').remove();
+  // 1. Bulletproof Cleanup: Remove ALL stuck layers from previous failed runs
+  document.querySelectorAll('#pdf-render-box, #pdf-toast').forEach(el => el.remove());
 
-      // 2. THE "PRINT PREVIEW" FIX: Show it actively on screen!
-      const renderBox = document.createElement('div');
-      renderBox.id = 'pdf-render-box';
-      renderBox.style.cssText = 'position:fixed; top:0; left:0; width:100vw; height:100vh; background:#e9ecef; z-index:99998; overflow:auto; display:block; text-align:center; padding-top:20px;';
-      
-      // Wrap the HTML in an 800px card so html2canvas captures a perfect rectangle
-      renderBox.innerHTML = `
-        <div id="pdf-capture-target" style="width:800px; background:#ffffff; margin:0 auto 40px auto; text-align:left; box-shadow:0 5px 15px rgba(0,0,0,0.1);">
-           ${htmlContent}
-        </div>
-      `;
-      document.body.appendChild(renderBox);
+  // 2. THE "PRINT PREVIEW" FIX: Show it actively on screen!
+  const renderBox = document.createElement('div');
+  renderBox.id = 'pdf-render-box';
+  renderBox.style.cssText = 'position:fixed; top:0; left:0; width:100vw; height:100vh; background:#e9ecef; z-index:99998; overflow:auto; display:block; text-align:center; padding-top:20px;';
+  
+  // Wrap the HTML in an 800px card so html2canvas captures a perfect rectangle
+  renderBox.innerHTML = `
+    <div id="pdf-capture-target" style="width:800px; background:#ffffff; margin:0 auto 40px auto; text-align:left; box-shadow:0 5px 15px rgba(0,0,0,0.1);">
+       ${htmlContent}
+    </div>
+  `;
+  document.body.appendChild(renderBox);
 
-      // 3. UI Toast for feedback (instead of a full screen mask)
-      const toast = document.createElement('div');
-      toast.id = 'pdf-toast';
-      toast.style.cssText = 'position:fixed; bottom:30px; left:50%; transform:translateX(-50%); background:#212529; color:#ffffff; padding:16px 32px; border-radius:50px; font-weight:800; font-size:16px; z-index:99999; box-shadow:0 10px 20px rgba(0,0,0,0.3); display:flex; align-items:center; gap:12px; white-space:nowrap;';
-      toast.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating Document...';
-      document.body.appendChild(toast);
+  // 3. UI Toast for feedback
+  const toast = document.createElement('div');
+  toast.id = 'pdf-toast';
+  toast.style.cssText = 'position:fixed; bottom:30px; left:50%; transform:translateX(-50%); background:#212529; color:#ffffff; padding:16px 32px; border-radius:50px; font-weight:800; font-size:16px; z-index:99999; box-shadow:0 10px 20px rgba(0,0,0,0.3); display:flex; align-items:center; gap:12px; white-space:nowrap;';
+  toast.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating Document...';
+  document.body.appendChild(toast);
 
-      // 4. Force browser GPU to paint the document
-      await new Promise(resolve => setTimeout(resolve, 800));
+  // 4. Force browser GPU to paint the document
+  await new Promise(resolve => setTimeout(resolve, 800));
 
-      try {
-        const target = document.getElementById('pdf-capture-target');
-        
-        const opt = {
-          margin: [15, 0, 15, 0],
-          filename: filename,
-          image: { type: 'jpeg', quality: 0.98 },
-          html2canvas: { scale: 2, useCORS: true, logging: false },
-          jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-        };
+  try {
+    const target = document.getElementById('pdf-capture-target');
+    
+    const opt = {
+      margin: [15, 0, 15, 0],
+      filename: filename,
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { 
+        scale: 2, 
+        useCORS: true, 
+        logging: false,
+        scrollY: 0, // <-- FIX: Anchors capture to the absolute top
+        scrollX: 0, // <-- FIX: Prevents horizontal shifts
+        windowY: 0  // <-- FIX: Resets virtual window offset
+      },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
 
-        // 5. Native Promise resolution for the ArrayBuffer
-        const htmlPdfBuffer = await html2pdf().set(opt).from(target).output('arraybuffer');
-        
-        // 6. Merge Attachments
-        const { PDFDocument } = PDFLib;
-        const masterPdf = await PDFDocument.load(htmlPdfBuffer);
+    // 5. Native Promise resolution for the ArrayBuffer
+    const htmlPdfBuffer = await html2pdf().set(opt).from(target).output('arraybuffer');
+    
+    // 6. Merge Attachments
+    const { PDFDocument } = PDFLib;
+    const masterPdf = await PDFDocument.load(htmlPdfBuffer);
 
-        if (attachmentUrls && attachmentUrls.length > 0) {
-          toast.innerHTML = '<i class="fas fa-cog fa-spin"></i> Stitching Attachments...';
-          for (let url of attachmentUrls) {
-            const fileId = extractDriveFileId(url);
-            if (!fileId) continue;
-            try {
-              const fileData = await callApi('getFileBase64', { id: fileId });
-              if (fileData?.status === 'success') {
-                const bytes = Uint8Array.from(atob(fileData.base64.replace(/\s/g, '')), c => c.charCodeAt(0));
-                if (fileData.mimeType === 'application/pdf') {
-                  const extPdf = await PDFDocument.load(bytes);
-                  const pages = await masterPdf.copyPages(extPdf, extPdf.getPageIndices());
-                  pages.forEach(p => masterPdf.addPage(p));
-                } else if (fileData.mimeType.startsWith('image/')) {
-                  const img = fileData.mimeType === 'image/png' ? await masterPdf.embedPng(bytes) : await masterPdf.embedJpg(bytes);
-                  const p = masterPdf.addPage();
-                  const dims = img.scale(0.5);
-                  p.drawImage(img, { x: 50, y: 50, width: dims.width, height: dims.height });
-                }
-              }
-            } catch (e) { console.error("Attachment error", e); }
+    if (attachmentUrls && attachmentUrls.length > 0) {
+      toast.innerHTML = '<i class="fas fa-cog fa-spin"></i> Stitching Attachments...';
+      for (let url of attachmentUrls) {
+        const fileId = extractDriveFileId(url);
+        if (!fileId) continue;
+        try {
+          const fileData = await callApi('getFileBase64', { id: fileId });
+          if (fileData?.status === 'success') {
+            const bytes = Uint8Array.from(atob(fileData.base64.replace(/\s/g, '')), c => c.charCodeAt(0));
+            if (fileData.mimeType === 'application/pdf') {
+              const extPdf = await PDFDocument.load(bytes);
+              const pages = await masterPdf.copyPages(extPdf, extPdf.getPageIndices());
+              pages.forEach(p => masterPdf.addPage(p));
+            } else if (fileData.mimeType.startsWith('image/')) {
+              const img = fileData.mimeType === 'image/png' ? await masterPdf.embedPng(bytes) : await masterPdf.embedJpg(bytes);
+              const p = masterPdf.addPage();
+              const dims = img.scale(0.5);
+              p.drawImage(img, { x: 50, y: 50, width: dims.width, height: dims.height });
+            }
           }
-        }
-
-        // 7. Finalize & Share/Download
-        toast.innerHTML = '<i class="fas fa-check-circle" style="color:var(--success)"></i> Finalizing...';
-        const finalPdfBytes = await masterPdf.save();
-        const blob = new Blob([finalPdfBytes], { type: 'application/pdf' });
-        const file = new File([finalPdfBytes], filename + '.pdf', { type: 'application/pdf' });
-
-        // Native Web Share Fallback Logic
-        if (navigator.canShare && navigator.canShare({ files: [file] })) {
-          toast.innerHTML = '<i class="fas fa-share-nodes"></i> Opening Share Sheet...';
-          await navigator.share({
-            title: filename,
-            files: [file]
-          });
-        } else {
-          toast.innerHTML = '<i class="fas fa-download"></i> Downloading...';
-          const link = document.createElement('a');
-          link.href = URL.createObjectURL(blob);
-          link.download = filename + '.pdf';
-          link.click();
-        }
-
-      } catch (err) {
-        console.error("PDF Fail:", err);
-        alert("PDF Generation Failed. Check console.");
-      } finally {
-        // 8. Cleanup and return to dashboard
-        if (document.getElementById('pdf-render-box')) document.getElementById('pdf-render-box').remove();
-        if (document.getElementById('pdf-toast')) document.getElementById('pdf-toast').remove();
+        } catch (e) { console.error("Attachment error", e); }
       }
     }
+
+    // 7. Finalize & Share/Download
+    toast.innerHTML = '<i class="fas fa-check-circle" style="color:var(--success)"></i> Finalizing...';
+    const finalPdfBytes = await masterPdf.save();
+    const blob = new Blob([finalPdfBytes], { type: 'application/pdf' });
+    const file = new File([finalPdfBytes], filename + '.pdf', { type: 'application/pdf' });
+
+    // Native Web Share Fallback Logic
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      toast.innerHTML = '<i class="fas fa-share-nodes"></i> Opening Share Sheet...';
+      await navigator.share({
+        title: filename,
+        files: [file]
+      });
+    } else {
+      toast.innerHTML = '<i class="fas fa-download"></i> Downloading...';
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = filename + '.pdf';
+      link.click();
+    }
+
+  } catch (err) {
+    console.error("PDF Fail:", err);
+    alert("PDF Generation Failed. Check console.");
+  } finally {
+    // 8. Bulletproof Cleanup: Ensure all layers are destroyed on exit
+    document.querySelectorAll('#pdf-render-box, #pdf-toast').forEach(el => el.remove());
+  }
+}
     
     async function callApi(action, data = {}) {
       try {
