@@ -604,7 +604,7 @@
     }
 
     async function compileAndDownloadUnifiedPDF(htmlContent, attachmentUrls, filename) {
-      // 1. Show UI Loader (Covers the screen so we can build the document safely behind it)
+      // 1. Show UI Loader
       const loader = document.createElement('div');
       loader.id = 'pdf-compiler-loader';
       loader.innerHTML = `
@@ -615,7 +615,7 @@
         </div>`;
       document.body.appendChild(loader);
 
-      // 2. Temporarily remove the mobile viewport wall so it doesn't cut in half
+      // 2. Temporarily remove the mobile viewport wall
       const originalOverflowX = document.body.style.overflowX;
       document.body.style.overflowX = 'visible';
 
@@ -623,10 +623,10 @@
       const anchor = document.createElement('div');
       anchor.style.width = '800px';
       anchor.style.position = 'absolute';
-      anchor.style.top = window.scrollY + 'px'; // Anchors to your current scroll position!
+      anchor.style.top = window.scrollY + 'px'; 
       anchor.style.left = '0';
       anchor.style.backgroundColor = '#ffffff';
-      anchor.style.zIndex = '9998'; // Hides directly behind the loading screen
+      anchor.style.zIndex = '9998'; 
       anchor.innerHTML = htmlContent;
       document.body.appendChild(anchor);
 
@@ -639,19 +639,17 @@
           margin: [15, 0, 15, 0], 
           filename: filename,
           image: { type: 'jpeg', quality: 0.98 },
-          // Removed the forced X/Y/Scroll parameters so the engine auto-detects the box bounds
           html2canvas: { scale: 2, useCORS: true }, 
           jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
         };
         
-        // Pass the actual DOM element, not a string, ensuring perfect translation
         const htmlPdfBuffer = await html2pdf().set(opt).from(anchor).output('arraybuffer');
         
         // 5. Initialize PDF-Lib to stitch pages
         const { PDFDocument } = PDFLib;
         const masterPdf = await PDFDocument.load(htmlPdfBuffer);
 
-        // 6. Fetch and Merge Attachments (Bypassing CORS)
+        // 6. Fetch and Merge Attachments
         if (attachmentUrls && attachmentUrls.length > 0) {
           for (let url of attachmentUrls) {
             const fileId = extractDriveFileId(url);
@@ -711,35 +709,15 @@
         console.error("PDF Compilation Failed:", err);
         alert("An error occurred while compiling the unified PDF.");
       } finally {
-        // --- CLEAN UP ---
+        // --- SAFE CLEAN UP ---
         document.body.style.overflowX = originalOverflowX;
-        document.body.removeChild(anchor);
-        if(document.getElementById('pdf-compiler-loader')) document.getElementById('pdf-compiler-loader').remove();
-      }
-    }
-        // 5. Package into one file and force the browser/device to download it
-        const finalPdfBytes = await masterPdf.save();
-        const blob = new Blob([finalPdfBytes], { type: 'application/pdf' });
-        const blobUrl = URL.createObjectURL(blob);
-        
-        const link = document.createElement('a');
-        link.href = blobUrl; 
-        link.download = filename + '.pdf';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(blobUrl);
-
-      } catch (err) {
-        console.error("PDF Compilation Failed:", err);
-        alert("An error occurred while compiling the unified PDF.");
-      } finally {
-        // --- RESTORE THE MOBILE VIEWPORT UI ---
-        // Instantly revert the phone back to standard app mode
-        document.body.style.width = originalBodyWidth;
-        document.body.style.overflowX = originalOverflowX;
-        document.body.removeChild(anchor); // Remove the rendering element
-        if(document.getElementById('pdf-compiler-loader')) document.getElementById('pdf-compiler-loader').remove();
+        if (document.body.contains(anchor)) {
+          document.body.removeChild(anchor);
+        }
+        const loaderEl = document.getElementById('pdf-compiler-loader');
+        if (loaderEl) {
+          loaderEl.remove();
+        }
       }
     }
     
