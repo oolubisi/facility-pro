@@ -181,7 +181,43 @@
     .active-view { display: block; }
 
     #report-print-container { display: none; }
+    /* ========================================= */
+    /* PRINT & PDF GENERATION STYLES             */
+    /* ========================================= */
+    @media print {
+      /* 1. Completely collapse the main app so it takes ZERO space */
+      .app, .modal-overlay, #sync-status, #pdf-toast { 
+        display: none !important; 
+      }
+      
+      /* 2. Strip background colors from the body */
+      body {
+        background: #ffffff !important;
+        margin: 0;
+        padding: 0;
+      }
 
+      /* 3. Let the print container flow naturally (No position: absolute!) */
+      #report-print-container { 
+        display: block !important; 
+        position: relative !important;
+        left: auto;
+        top: auto;
+        width: 100%; 
+      }
+      
+      /* 4. Ensure your colored tags and headers print beautifully */
+      #report-print-container * {
+        visibility: visible;
+        -webkit-print-color-adjust: exact !important; 
+        print-color-adjust: exact !important;
+      }
+
+      @page { 
+        size: A4 portrait; 
+        margin: 15mm; 
+      }
+    }
    
   </style>
 </head>
