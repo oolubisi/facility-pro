@@ -1,4 +1,4 @@
-const CACHE_NAME = 'facility-pro-v2'; // Bumped version to force phone to update
+const CACHE_NAME = 'facility-pro-v3'; // Bumped version to force a fresh install
 
 // 1. Static assets to cache immediately upon installation
 const STATIC_ASSETS = [
@@ -9,13 +9,24 @@ const STATIC_ASSETS = [
   'https://fonts.googleapis.com/css2?family=Inter:wght=400;500;600;700;800&display=swap'
 ];
 
-// 2. Install Event: Cache static assets
+// 2. Install Event: Cache static assets safely
 self.addEventListener('install', (event) => {
   self.skipWaiting(); 
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
+    caches.open(CACHE_NAME).then(async (cache) => {
       console.log('SW: Opened cache and caching App Shell');
-      return cache.addAll(STATIC_ASSETS);
+      
+      // Loop through assets individually to prevent one CORS error from breaking the whole cache
+      for (let url of STATIC_ASSETS) {
+        try {
+          // If the URL is external (like Google Fonts or CDN), use 'no-cors' to bypass strict security blocks
+          const requestMode = (url.startsWith('http') && !url.includes(self.location.origin)) ? 'no-cors' : 'cors';
+          const request = new Request(url, { mode: requestMode });
+          await cache.add(request);
+        } catch (error) {
+          console.warn('SW: Failed to cache specific resource:', url, error);
+        }
+      }
     })
   );
 });
