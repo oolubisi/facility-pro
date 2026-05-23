@@ -618,9 +618,10 @@
       try {
         // 2. Generate Base Invoice PDF from HTML
         const opt = {
-          margin: 15, filename: filename,
+          margin: [15, 0, 15, 0], // Top, Right, Bottom, Left
+          filename: filename,
           image: { type: 'jpeg', quality: 0.98 },
-          html2canvas: { scale: 2, useCORS: true },
+          html2canvas: { scale: 2, useCORS: true, windowWidth: 800 }, // Forces desktop width on mobile
           jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
         };
         const htmlPdfBuffer = await html2pdf().set(opt).from(htmlContent).output('arraybuffer');
