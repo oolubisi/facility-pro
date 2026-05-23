@@ -9,12 +9,12 @@
   "orientation": "portrait",
   "icons": [
     {
-      "src": "https://via.placeholder.com/192",
+      "src": "/facility-pro/logo.png",
       "sizes": "192x192",
       "type": "image/png"
     },
     {
-      "src": "https://via.placeholder.com/512",
+      "src": "/facility-pro/logo.png",
       "sizes": "512x512",
       "type": "image/png"
     }
