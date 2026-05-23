@@ -607,34 +607,44 @@
       // 1. Show UI Loader
       const loader = document.createElement('div');
       loader.id = 'pdf-compiler-loader';
-      loader.innerHTML = `<div style="position:fixed; inset:0; background:rgba(255,255,255,1); z-index:9999; display:flex; flex-direction:column; justify-content:center; align-items:center;">
-          <h2 style="font-weight:900;">Generating PDF...</h2>
+      loader.innerHTML = `<div style="position:fixed; inset:0; background:rgba(255,255,255,1); z-index:9999; display:flex; flex-direction:column; justify-content:center; align-items:center; color:var(--text);">
+          <i class="fas fa-file-pdf fa-bounce" style="font-size:50px; color:var(--danger); margin-bottom:20px;"></i>
+          <h2 style="font-weight:900; text-transform:uppercase;">Generating PDF...</h2>
       </div>`;
       document.body.appendChild(loader);
 
-      // 2. Use the existing DOM container instead of creating a new one
+      // 2. STABLE ANCHOR: Put it at 0,0 but hide it behind the loader using z-index
       const printContainer = document.getElementById('report-print-container');
       printContainer.innerHTML = htmlContent;
       printContainer.style.display = 'block';
       printContainer.style.width = '800px';
       printContainer.style.position = 'absolute';
-      printContainer.style.top = '-9999px'; // Move off-screen but keep it in DOM
+      printContainer.style.top = '0'; 
+      printContainer.style.left = '0';
+      printContainer.style.zIndex = '-9999'; // Hide behind the loader, but keep in DOM
+      printContainer.style.opacity = '1';    // Must be 1 so browser renders it
+      printContainer.style.pointerEvents = 'none';
 
-      // Allow 500ms for browser to "paint" the HTML
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // 3. Force the browser to paint
+      await new Promise(resolve => setTimeout(resolve, 800));
 
       try {
         const opt = {
           margin: [15, 0, 15, 0],
           filename: filename,
           image: { type: 'jpeg', quality: 0.98 },
-          html2canvas: { scale: 2, useCORS: true, windowWidth: 800 },
+          html2canvas: { 
+            scale: 2, 
+            useCORS: true, 
+            windowWidth: 800,
+            allowTaint: true
+          },
           jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
         };
         
         const htmlPdfBuffer = await html2pdf().set(opt).from(printContainer).output('arraybuffer');
         
-        // 3. Merge Attachments
+        // 4. Merge Attachments
         const { PDFDocument } = PDFLib;
         const masterPdf = await PDFDocument.load(htmlPdfBuffer);
 
@@ -646,7 +656,6 @@
               const fileData = await callApi('getFileBase64', { id: fileId });
               if (fileData?.status === 'success') {
                 const bytes = Uint8Array.from(atob(fileData.base64.replace(/\s/g, '')), c => c.charCodeAt(0));
-                
                 if (fileData.mimeType === 'application/pdf') {
                   const extPdf = await PDFDocument.load(bytes);
                   const pages = await masterPdf.copyPages(extPdf, extPdf.getPageIndices());
@@ -662,7 +671,7 @@
           }
         }
 
-        // 4. Download
+        // 5. Download
         const finalPdfBytes = await masterPdf.save();
         const blob = new Blob([finalPdfBytes], { type: 'application/pdf' });
         const link = document.createElement('a');
@@ -672,9 +681,7 @@
 
       } catch (err) {
         console.error("PDF Fail:", err);
-        alert("PDF Generation Failed. Check console for details.");
       } finally {
-        // 5. Reset the container
         printContainer.style.display = 'none';
         if(document.getElementById('pdf-compiler-loader')) document.getElementById('pdf-compiler-loader').remove();
       }
