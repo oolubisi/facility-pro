@@ -574,54 +574,94 @@
     }
 
     async function compileAndDownloadUnifiedPDF(htmlContent, attachmentUrls, filename) {
+      // 1. Show UI Loader
       const loader = document.createElement('div');
       loader.id = 'pdf-compiler-loader';
       loader.innerHTML = `
         <div style="position:fixed; inset:0; background:rgba(255,255,255,0.95); z-index:9999; display:flex; flex-direction:column; justify-content:center; align-items:center; color:var(--text);">
-          <i class="fas fa-folder-open fa-bounce" style="font-size:50px; color:var(--primary); margin-bottom:20px;"></i>
-          <h2 style="font-weight:900; text-transform:uppercase;">Packaging Dossier</h2>
-          <p style="font-weight:700; color:var(--muted); text-align:center; padding:0 20px;">Compiling Master PDF and organizing attachments into a secure Drive folder...<br>Please wait.</p>
+          <i class="fas fa-file-pdf fa-bounce" style="font-size:50px; color:var(--danger); margin-bottom:20px;"></i>
+          <h2 style="font-weight:900; text-transform:uppercase;">Merging Single PDF</h2>
+          <p style="font-weight:700; color:var(--muted); text-align:center;">Compiling invoice and stitching attachments into one document.<br>Please do not close this window.</p>
         </div>`;
       document.body.appendChild(loader);
 
       try {
-        // 1. Generate the Master PDF from the HTML layout
+        // 2. Generate Base Invoice PDF from HTML
         const opt = {
           margin: 15, filename: filename,
           image: { type: 'jpeg', quality: 0.98 },
           html2canvas: { scale: 2, useCORS: true },
           jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
         };
+        const htmlPdfBuffer = await html2pdf().set(opt).from(htmlContent).output('arraybuffer');
         
-        // Output base64 directly from html2pdf
-        const pdfBase64Data = await html2pdf().set(opt).from(htmlContent).output('datauristring');
-        
-        // 2. Extract attachment Drive IDs
-        let attachmentIds = [];
+        // 3. Initialize PDF-Lib to stitch pages
+        const { PDFDocument } = PDFLib;
+        const masterPdf = await PDFDocument.load(htmlPdfBuffer);
+
+        // 4. Fetch and Merge Attachments (Bypassing CORS via your fixed backend)
         if (attachmentUrls && attachmentUrls.length > 0) {
-           attachmentUrls.forEach(url => {
-              const fileId = extractDriveFileId(url);
-              if (fileId) attachmentIds.push(fileId);
-           });
+          for (let url of attachmentUrls) {
+            const fileId = extractDriveFileId(url);
+            if (!fileId) continue;
+            
+            try {
+              const fileData = await callApi('getFileBase64', { id: fileId });
+              if (!fileData || fileData.status !== 'success') continue;
+              
+              // Decode base64 safely into raw bytes
+              const base64Cleaned = fileData.base64.replace(/\s/g, '');
+              const byteCharacters = atob(base64Cleaned);
+              const byteNumbers = new Array(byteCharacters.length);
+              for (let i = 0; i < byteCharacters.length; i++) {
+                  byteNumbers[i] = byteCharacters.charCodeAt(i);
+              }
+              const fileBytes = new Uint8Array(byteNumbers);
+              
+              if (fileData.mimeType === 'application/pdf') {
+                // If attachment is a PDF, append all its pages
+                const extPdf = await PDFDocument.load(fileBytes);
+                const copiedPages = await masterPdf.copyPages(extPdf, extPdf.getPageIndices());
+                copiedPages.forEach(page => masterPdf.addPage(page));
+              } else if (fileData.mimeType.startsWith('image/')) {
+                // If attachment is an image, draw it onto a new PDF page
+                const image = fileData.mimeType === 'image/png' ? await masterPdf.embedPng(fileBytes) : await masterPdf.embedJpg(fileBytes);
+                const page = masterPdf.addPage();
+                const { width, height } = page.getSize();
+                
+                // Scale image to fit A4 page
+                const imgDims = image.scale(1);
+                const scaleRatio = Math.min((width - 40) / imgDims.width, (height - 40) / imgDims.height);
+                const finalDims = image.scale(scaleRatio < 1 ? scaleRatio : 1);
+                
+                page.drawImage(image, {
+                  x: width / 2 - finalDims.width / 2,
+                  y: height / 2 - finalDims.height / 2,
+                  width: finalDims.width, height: finalDims.height
+                });
+              }
+            } catch (mergeErr) {
+              console.error("Failed to merge specific attachment:", mergeErr);
+            }
+          }
         }
 
-        // 3. Call backend to create folder, save PDF, and copy attachments
-        const res = await callApi('packageReportToFolder', {
-            reportName: filename,
-            pdfBase64: pdfBase64Data,
-            attachmentIds: attachmentIds
-        });
-
-        if (res && res.status === 'success' && res.folderUrl) {
-           alert("Dossier successfully packaged! Opening your secure folder now.");
-           window.open(res.folderUrl, '_blank');
-        } else {
-           throw new Error(res.message || "Failed to package folder on the backend.");
-        }
+        // 5. Package into one file and force the browser/device to download it
+        const finalPdfBytes = await masterPdf.save();
+        const blob = new Blob([finalPdfBytes], { type: 'application/pdf' });
+        const blobUrl = URL.createObjectURL(blob);
+        
+        const link = document.createElement('a');
+        link.href = blobUrl; 
+        link.download = filename + '.pdf';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(blobUrl);
 
       } catch (err) {
-        console.error("Folder Packaging Failed:", err);
-        alert("An error occurred while compiling the folder. Please ensure you are connected to the internet.");
+        console.error("PDF Compilation Failed:", err);
+        alert("An error occurred while compiling the unified PDF.");
       } finally {
         if(document.getElementById('pdf-compiler-loader')) document.getElementById('pdf-compiler-loader').remove();
       }
