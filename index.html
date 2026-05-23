@@ -607,40 +607,34 @@
       // 1. Show UI Loader
       const loader = document.createElement('div');
       loader.id = 'pdf-compiler-loader';
-      loader.innerHTML = `<div style="position:fixed; inset:0; background:rgba(255,255,255,1); z-index:9999; display:flex; flex-direction:column; justify-content:center; align-items:center; color:var(--text);">
-          <i class="fas fa-file-pdf fa-bounce" style="font-size:50px; color:var(--danger); margin-bottom:20px;"></i>
-          <h2 style="font-weight:900; text-transform:uppercase;">Rendering Layout...</h2>
+      loader.innerHTML = `<div style="position:fixed; inset:0; background:rgba(255,255,255,1); z-index:9999; display:flex; flex-direction:column; justify-content:center; align-items:center;">
+          <h2 style="font-weight:900;">Generating PDF...</h2>
       </div>`;
       document.body.appendChild(loader);
 
-      // 2. Create the element and append it to DOM so it actually "exists" to be measured
-      const anchor = document.createElement('div');
-      anchor.style.cssText = "width:800px; position:absolute; top:0; left:0; z-index:-1000; background:#ffffff;";
-      anchor.innerHTML = htmlContent;
-      document.body.appendChild(anchor);
+      // 2. Use the existing DOM container instead of creating a new one
+      const printContainer = document.getElementById('report-print-container');
+      printContainer.innerHTML = htmlContent;
+      printContainer.style.display = 'block';
+      printContainer.style.width = '800px';
+      printContainer.style.position = 'absolute';
+      printContainer.style.top = '-9999px'; // Move off-screen but keep it in DOM
+
+      // Allow 500ms for browser to "paint" the HTML
+      await new Promise(resolve => setTimeout(resolve, 500));
 
       try {
-        // 3. Force the PDF Engine to wait until the document is fully cloned and ready
         const opt = {
           margin: [15, 0, 15, 0],
           filename: filename,
           image: { type: 'jpeg', quality: 0.98 },
-          html2canvas: { 
-            scale: 2, 
-            useCORS: true,
-            windowWidth: 800,
-            // The magic fix: wait for the clone to be fully painted
-            onclone: (doc) => {
-              const element = doc.querySelector('div');
-              return new Promise(resolve => setTimeout(resolve, 500));
-            }
-          },
+          html2canvas: { scale: 2, useCORS: true, windowWidth: 800 },
           jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
         };
         
-        const htmlPdfBuffer = await html2pdf().set(opt).from(anchor).output('arraybuffer');
+        const htmlPdfBuffer = await html2pdf().set(opt).from(printContainer).output('arraybuffer');
         
-        // 4. Merge Attachments (Using same logic as before)
+        // 3. Merge Attachments
         const { PDFDocument } = PDFLib;
         const masterPdf = await PDFDocument.load(htmlPdfBuffer);
 
@@ -652,28 +646,37 @@
               const fileData = await callApi('getFileBase64', { id: fileId });
               if (fileData?.status === 'success') {
                 const bytes = Uint8Array.from(atob(fileData.base64.replace(/\s/g, '')), c => c.charCodeAt(0));
+                
                 if (fileData.mimeType === 'application/pdf') {
                   const extPdf = await PDFDocument.load(bytes);
                   const pages = await masterPdf.copyPages(extPdf, extPdf.getPageIndices());
                   pages.forEach(p => masterPdf.addPage(p));
+                } else if (fileData.mimeType.startsWith('image/')) {
+                  const img = fileData.mimeType === 'image/png' ? await masterPdf.embedPng(bytes) : await masterPdf.embedJpg(bytes);
+                  const p = masterPdf.addPage();
+                  const dims = img.scale(0.5);
+                  p.drawImage(img, { x: 50, y: 50, width: dims.width, height: dims.height });
                 }
               }
-            } catch (e) { console.error("Attachment merge error", e); }
+            } catch (e) { console.error("Attachment error", e); }
           }
         }
 
-        // 5. Download
+        // 4. Download
         const finalPdfBytes = await masterPdf.save();
+        const blob = new Blob([finalPdfBytes], { type: 'application/pdf' });
         const link = document.createElement('a');
-        link.href = URL.createObjectURL(new Blob([finalPdfBytes], { type: 'application/pdf' }));
+        link.href = URL.createObjectURL(blob);
         link.download = filename + '.pdf';
         link.click();
 
       } catch (err) {
-        console.error("Critical PDF Failure:", err);
+        console.error("PDF Fail:", err);
+        alert("PDF Generation Failed. Check console for details.");
       } finally {
-        if (document.body.contains(anchor)) document.body.removeChild(anchor);
-        if (document.getElementById('pdf-compiler-loader')) document.getElementById('pdf-compiler-loader').remove();
+        // 5. Reset the container
+        printContainer.style.display = 'none';
+        if(document.getElementById('pdf-compiler-loader')) document.getElementById('pdf-compiler-loader').remove();
       }
     }
     
