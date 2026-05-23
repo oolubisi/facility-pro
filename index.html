@@ -2,7 +2,15 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  
+  <meta name="theme-color" content="#F1F3F5">
+
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Facility Pro">
+  
+  <link rel="apple-touch-icon" href="https://via.placeholder.com/192">
   <title>Facility Pro Mobile</title>
   
   <link rel="manifest" href="manifest.json">
@@ -13,18 +21,12 @@
   <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
 
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    
-    :root {
-      --bg: #FFFFFF;           
-      --card: #F1F3F5;        
-      --card-light: #E9ECEF;
-      --primary: #0056b3;     
-      --text: #000000;        
-      --muted: #495057;       
-      --danger: #C00000;      
-      --success: #157347;     
-      --border: #ADB5BD;      
+    * { 
+      margin: 0; 
+      padding: 0; 
+      box-sizing: border-box; 
+      /* Stop blue tap highlights on mobile */
+      -webkit-tap-highlight-color: transparent; 
     }
 
     body { 
@@ -34,6 +36,20 @@
       width: 100%; 
       overflow-x: hidden; 
       line-height: 1.5;
+      /* Stop the "pull-to-refresh" browser bounce effect */
+      overscroll-behavior-y: none; 
+      /* Stop users from accidentally highlighting text while tapping */
+      -webkit-user-select: none; 
+      user-select: none; 
+      /* Support for iPhone Notch Safe Areas */
+      padding-top: env(safe-area-inset-top);
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+
+    /* Re-enable text selection ONLY for input fields so users can type and edit */
+    input, textarea, select {
+      -webkit-user-select: auto;
+      user-select: auto;
     }
     
     .main { 
