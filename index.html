@@ -629,7 +629,7 @@
       return result + " Only";
     }
 
-    // --- UNIFIED PDF COMPILER ENGINE (UPGRADED WITH SHARE API) ---
+    // --- UNIFIED PDF COMPILER ENGINE ---
     function extractDriveFileId(url) {
       if (!url) return null;
       let match = url.match(/\/d\/(.+?)(\/|$)/);
@@ -645,6 +645,7 @@
       if(document.getElementById('pdf-toast')) document.getElementById('pdf-toast').remove();
 
       // 2. THE "PRINT PREVIEW" FIX: Show it actively on screen!
+      // By putting the target visibly on screen, we defeat Chrome and Safari's "Occlusion Culling".
       const renderBox = document.createElement('div');
       renderBox.id = 'pdf-render-box';
       renderBox.style.cssText = 'position:fixed; top:0; left:0; width:100vw; height:100vh; background:#e9ecef; z-index:99998; overflow:auto; display:block; text-align:center; padding-top:20px;';
@@ -709,26 +710,14 @@
           }
         }
 
-        // 7. Finalize & Share/Download
+        // 7. Finalize & Download
         toast.innerHTML = '<i class="fas fa-check-circle" style="color:var(--success)"></i> Finalizing...';
         const finalPdfBytes = await masterPdf.save();
         const blob = new Blob([finalPdfBytes], { type: 'application/pdf' });
-        const file = new File([finalPdfBytes], filename + '.pdf', { type: 'application/pdf' });
-
-        // Native Web Share Fallback Logic
-        if (navigator.canShare && navigator.canShare({ files: [file] })) {
-          toast.innerHTML = '<i class="fas fa-share-nodes"></i> Opening Share Sheet...';
-          await navigator.share({
-            title: filename,
-            files: [file]
-          });
-        } else {
-          toast.innerHTML = '<i class="fas fa-download"></i> Downloading...';
-          const link = document.createElement('a');
-          link.href = URL.createObjectURL(blob);
-          link.download = filename + '.pdf';
-          link.click();
-        }
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = filename + '.pdf';
+        link.click();
 
       } catch (err) {
         console.error("PDF Fail:", err);
@@ -778,7 +767,6 @@
     
     let currentModalFiles = [];
     let currentAvatarPhoto = "";
-    let currentSelectedRecord = null;
     
     let appSettings = {
       estateName: "Facility Pro Estate",
@@ -808,41 +796,6 @@
         }
       });
       return `${prefix}-${String(maxId + 1).padStart(4, '0')}`;
-    }
-
-    // ==========================================
-    // COMMUNICATION ENGINE (WHATSAPP & EMAIL)
-    // ==========================================
-    function dispatchVendorWhatsApp() {
-      if (!currentSelectedRecord) return;
-      const wo = currentSelectedRecord;
-      const woId = wo.workOrderId || wo.WorkOrderId;
-      const status = wo.status || wo.Status || 'PENDING';
-      const vendor = wo.assigned || wo.Assigned || 'Unassigned';
-      const node = getUnitNumber(wo);
-      const title = wo.description || wo.Description || 'General Work Order';
-      const budget = formatMoney(wo.amount || wo.Amount || 0);
-
-      const text = `*${(appSettings.fmName || 'FACILITY MANAGEMENT').toUpperCase()}*\n\n*WORK ORDER:* ${woId}\n*STATUS:* ${status}\n\n*Vendor:* ${vendor}\n*Site:* ${appSettings.estateName || 'Estate'} (Unit ${node})\n*Task:* ${title}\n\n*Approved Budget:* ₦${budget}\n\nPlease proceed according to the SLA guidelines. Let us know if you require site access clearance.`;
-
-      window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
-    }
-
-    function dispatchVendorEmail() {
-      if (!currentSelectedRecord) return;
-      const wo = currentSelectedRecord;
-      const woId = wo.workOrderId || wo.WorkOrderId;
-      const status = wo.status || wo.Status || 'PENDING';
-      const vendor = wo.assigned || wo.Assigned || 'Unassigned';
-      const node = getUnitNumber(wo);
-      const title = wo.description || wo.Description || 'General Work Order';
-      const budget = formatMoney(wo.amount || wo.Amount || 0);
-      const notes = wo.notes || wo.Notes || 'N/A';
-
-      const subject = `Work Order Update: ${woId}`;
-      const body = `${(appSettings.fmName || 'FACILITY MANAGEMENT').toUpperCase()}\n\nWork Order Reference: ${woId}\nCurrent Status: ${status}\n\nVendor: ${vendor}\nLocation: ${appSettings.estateName || 'Estate'} (Unit ${node})\nApproved Budget: ₦${budget}\n\nNotes: ${notes}\n\n---\nGenerated via Facility Pro System`;
-
-      window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     }
 
     async function loadApplicationSettingsData() {
@@ -1234,7 +1187,7 @@
         'expenserequests': 'expense-req-list', 'cashexpenses': 'cash-expense-list'
       };
       const listEl = document.getElementById(idMap[p]); if (!listEl) return;
-      
+    
       const isMaint = (p === 'maintenance' || p === 'maint');
       
       let apiCmd = p === 'assets' ? 'getAssets' : 
@@ -1568,7 +1521,6 @@
       
       currentModalFiles = [];
       currentAvatarPhoto = "";
-      currentSelectedRecord = editData; // SET ACTIVE RECORD FOR SHARING
       
       if (type === 'expenserequest') {
         const uniqueId = isEdit ? (editData.reqId || editData.ReqId) : generateNextId('EXR', cache.expenseRequests || [], 'reqId');
@@ -1806,23 +1758,8 @@
         const isApproved = isEdit && String(editData.status || editData.Status) === "Approved";
         if (isEdit && (editData.attachments || editData.Attachments)) currentModalFiles = (editData.attachments || editData.Attachments).split(',').filter(Boolean);
         
-        const communicationButtons = isEdit ? `
-          <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-top:15px; margin-bottom:15px; border-top:2px solid var(--border); padding-top:15px; border-bottom:2px solid var(--border); padding-bottom:15px;">
-            <button type="button" onclick="dispatchVendorWhatsApp()" style="background:#25D366; color:#fff; border:none; padding:12px; border-radius:8px; font-weight:700; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:4px; font-size:11px; text-transform:uppercase; box-shadow:0 2px 4px rgba(0,0,0,0.1);">
-              <i class="fab fa-whatsapp" style="font-size:18px;"></i> WhatsApp
-            </button>
-            <button type="button" onclick="dispatchVendorEmail()" style="background:#0F172A; color:#fff; border:none; padding:12px; border-radius:8px; font-weight:700; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:4px; font-size:11px; text-transform:uppercase; box-shadow:0 2px 4px rgba(0,0,0,0.1);">
-              <i class="fas fa-envelope" style="font-size:18px;"></i> Email
-            </button>
-            <button type="button" onclick="printSingleWorkOrderDirect('${uniqueWO}')" style="background:#0D6EFD; color:#fff; border:none; padding:12px; border-radius:8px; font-weight:700; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:4px; font-size:11px; text-transform:uppercase; box-shadow:0 2px 4px rgba(0,0,0,0.1);">
-              <i class="fas fa-file-pdf" style="font-size:18px;"></i> Share PDF
-            </button>
-          </div>
-        ` : '';
-
         body.innerHTML = `
           <label ${labelStyle}>Work Order ID</label><input type="text" value="${uniqueWO}" disabled ${largeInput} style="background:#e9ecef; font-weight:900;">
-          ${communicationButtons}
           <label ${labelStyle}>Date Logged</label><input id="w_date" type="date" value="${isEdit && (editData.date || editData.Date) ? fromSheetDate(editData.date || editData.Date) : new Date().toISOString().split('T')[0]}" ${largeInput} ${isApproved ? 'disabled' : ''}>
           <label ${labelStyle}>Unit Node</label><select id="w_apt" ${largeInput} ${isApproved ? 'disabled' : ''}></select>
           <label ${labelStyle}>Target Asset (Optional)</label><select id="w_asset" ${largeInput} ${isApproved ? 'disabled' : ''}><option value="">-- No Specific Asset --</option></select>
@@ -2175,7 +2112,6 @@
       }
       compileAndDownloadUnifiedPDF(invoiceLayoutHtml, attachmentsArr, `WorkOrder_${woId}`);
     }
-    
     function printSingleExpenseRequestDirect(reqId) {
       const orderItem = cache.expenseRequests.find(w => String(w.reqId || w.ReqId) === reqId); if(!orderItem) return;
       var unitId = getUnitNumber(orderItem);
