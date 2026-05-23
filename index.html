@@ -641,7 +641,7 @@
           },
           jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
         };
-        
+        console.log("Container Height:", printContainer.offsetHeight);
         const htmlPdfBuffer = await html2pdf().set(opt).from(printContainer).output('arraybuffer');
         
         // 4. Merge Attachments
