@@ -640,7 +640,7 @@
     }
 
     async function compileAndDownloadUnifiedPDF(htmlContent, attachmentUrls, filename) {
-  // 1. Bulletproof Cleanup: Remove ALL stuck layers from previous failed runs
+  // 1. Bulletproof Cleanup: Remove ALL stuck layers from previous runs
   document.querySelectorAll('#pdf-render-box, #pdf-toast').forEach(el => el.remove());
 
   // 2. THE "PRINT PREVIEW" FIX: Show it actively on screen!
@@ -677,9 +677,9 @@
         scale: 2, 
         useCORS: true, 
         logging: false,
-        scrollY: 0, // <-- FIX: Anchors capture to the absolute top
-        scrollX: 0, // <-- FIX: Prevents horizontal shifts
-        windowY: 0  // <-- FIX: Resets virtual window offset
+        scrollY: 0, // Anchors capture to the top
+        scrollX: 0, 
+        windowY: 0  
       },
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
@@ -716,27 +716,23 @@
     }
 
     // 7. Finalize & Direct Download
-        toast.innerHTML = '<i class="fas fa-download"></i> Saving to device...';
-        const finalPdfBytes = await masterPdf.save();
-        const blob = new Blob([finalPdfBytes], { type: 'application/pdf' });
+    toast.innerHTML = '<i class="fas fa-download"></i> Saving to device...';
+    const finalPdfBytes = await masterPdf.save();
+    const blob = new Blob([finalPdfBytes], { type: 'application/pdf' });
 
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        link.download = filename + '.pdf';
-        
-        // Append, click, and remove to ensure maximum browser compatibility
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = filename + '.pdf';
+    
+    // Append, click, and remove for maximum browser compatibility
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
 
-      } catch (err) {
-        console.error("PDF Fail:", err);
-        alert("PDF Generation Failed. Check console.");
-      } finally {
-        // 8. Bulletproof Cleanup
-        document.querySelectorAll('#pdf-render-box, #pdf-toast').forEach(el => el.remove());
-      }
-      
+  } catch (err) {
+    console.error("PDF Fail:", err);
+    alert("PDF Generation Failed. Check console.");
+  } finally {
     // 8. Bulletproof Cleanup: Ensure all layers are destroyed on exit
     document.querySelectorAll('#pdf-render-box, #pdf-toast').forEach(el => el.remove());
   }
