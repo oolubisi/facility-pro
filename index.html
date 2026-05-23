@@ -604,37 +604,60 @@
     }
 
     async function compileAndDownloadUnifiedPDF(htmlContent, attachmentUrls, filename) {
-      // 1. Show UI Loader
+      // 1. Show UI Loader (This fixed screen covers up the background layout shifting)
       const loader = document.createElement('div');
       loader.id = 'pdf-compiler-loader';
       loader.innerHTML = `
-        <div style="position:fixed; inset:0; background:rgba(255,255,255,0.95); z-index:9999; display:flex; flex-direction:column; justify-content:center; align-items:center; color:var(--text);">
+        <div style="position:fixed; inset:0; background:rgba(255,255,255,0.98); z-index:9999; display:flex; flex-direction:column; justify-content:center; align-items:center; color:var(--text);">
           <i class="fas fa-file-pdf fa-bounce" style="font-size:50px; color:var(--danger); margin-bottom:20px;"></i>
           <h2 style="font-weight:900; text-transform:uppercase;">Merging Single PDF</h2>
           <p style="font-weight:700; color:var(--muted); text-align:center;">Compiling invoice and stitching attachments into one document.<br>Please do not close this window.</p>
         </div>`;
       document.body.appendChild(loader);
 
-      // --- CRITICAL FIX: Temporarily remove the mobile horizontal cutoff wall ---
+      // --- THE BULLETPROOF MOBILE FIX ---
+      // Force the physical DOM body to become a desktop-width canvas momentarily.
+      // This completely eliminates the auto-centering negative-margin cutoff bug.
+      const originalBodyWidth = document.body.style.width;
+      const originalOverflowX = document.body.style.overflowX;
+      document.body.style.width = '800px';
       document.body.style.overflowX = 'visible';
+      window.scrollTo(0, 0); // Lock scroll to 0,0 to prevent offset clipping
+
+      // Create a physical anchor container explicitly locked to the top-left edge
+      const anchor = document.createElement('div');
+      anchor.style.width = '800px';
+      anchor.style.position = 'absolute';
+      anchor.style.top = '0';
+      anchor.style.left = '0';
+      anchor.innerHTML = htmlContent;
+      document.body.appendChild(anchor);
 
       try {
-        // 2. Generate Base Invoice PDF from HTML
+        // 2. Generate Base Invoice PDF from the anchored Element (NOT the string)
         const opt = {
           margin: [15, 0, 15, 0], // Top, Right, Bottom, Left
           filename: filename,
           image: { type: 'jpeg', quality: 0.98 },
-          // Added explicitly declared 'width: 800' to force the camera frame size
-          html2canvas: { scale: 2, useCORS: true, windowWidth: 800, width: 800 }, 
+          html2canvas: { 
+            scale: 2, 
+            useCORS: true, 
+            width: 800,
+            windowWidth: 800,
+            x: 0,          // Force camera to absolute left
+            y: 0,          // Force camera to absolute top
+            scrollX: 0,    // Ignore mobile horizontal scrolling
+            scrollY: 0     // Ignore mobile vertical scrolling
+          }, 
           jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
         };
-        const htmlPdfBuffer = await html2pdf().set(opt).from(htmlContent).output('arraybuffer');
+        const htmlPdfBuffer = await html2pdf().set(opt).from(anchor).output('arraybuffer');
         
         // 3. Initialize PDF-Lib to stitch pages
         const { PDFDocument } = PDFLib;
         const masterPdf = await PDFDocument.load(htmlPdfBuffer);
 
-        // 4. Fetch and Merge Attachments (Bypassing CORS via your fixed backend)
+        // 4. Fetch and Merge Attachments (Bypassing CORS)
         if (attachmentUrls && attachmentUrls.length > 0) {
           for (let url of attachmentUrls) {
             const fileId = extractDriveFileId(url);
@@ -654,17 +677,15 @@
               const fileBytes = new Uint8Array(byteNumbers);
               
               if (fileData.mimeType === 'application/pdf') {
-                // If attachment is a PDF, append all its pages
                 const extPdf = await PDFDocument.load(fileBytes);
                 const copiedPages = await masterPdf.copyPages(extPdf, extPdf.getPageIndices());
                 copiedPages.forEach(page => masterPdf.addPage(page));
               } else if (fileData.mimeType.startsWith('image/')) {
-                // If attachment is an image, draw it onto a new PDF page
                 const image = fileData.mimeType === 'image/png' ? await masterPdf.embedPng(fileBytes) : await masterPdf.embedJpg(fileBytes);
                 const page = masterPdf.addPage();
                 const { width, height } = page.getSize();
                 
-                // Scale image to fit A4 page
+                // Scale image to fit A4 page perfectly
                 const imgDims = image.scale(1);
                 const scaleRatio = Math.min((width - 40) / imgDims.width, (height - 40) / imgDims.height);
                 const finalDims = image.scale(scaleRatio < 1 ? scaleRatio : 1);
@@ -698,8 +719,11 @@
         console.error("PDF Compilation Failed:", err);
         alert("An error occurred while compiling the unified PDF.");
       } finally {
-        // --- RESTORE THE WALL: Re-enable horizontal hiding for the mobile UI ---
-        document.body.style.overflowX = 'hidden';
+        // --- RESTORE THE MOBILE VIEWPORT UI ---
+        // Instantly revert the phone back to standard app mode
+        document.body.style.width = originalBodyWidth;
+        document.body.style.overflowX = originalOverflowX;
+        document.body.removeChild(anchor); // Remove the rendering element
         if(document.getElementById('pdf-compiler-loader')) document.getElementById('pdf-compiler-loader').remove();
       }
     }
