@@ -22,6 +22,17 @@
   <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
 
   <style>
+    :root {
+      --bg: #F1F3F5;           /* App background */
+      --card: #FFFFFF;         /* Solid white for cards */
+      --card-light: #F8F9FA;   /* Slightly off-white for hovered items */
+      --border: #DEE2E6;       /* Clean gray borders */
+      --text: #212529;         /* Near-black for high contrast readability */
+      --muted: #6C757D;        /* Gray for secondary text */
+      --primary: #0D6EFD;      /* Professional blue for main accents */
+      --success: #198754;      /* Green for approvals/operational */
+      --danger: #DC3545;       /* Red for declined/archived */
+    }
     * { 
       margin: 0; 
       padding: 0; 
@@ -171,22 +182,7 @@
 
     #report-print-container { display: none; }
 
-    /* DIAGNOSTIC TEST: Force Visibility */
-button, button i, .btn, .btn i, .nav-btn, .nav-btn i {
-    opacity: 1 !important;
-    visibility: visible !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    background-color: #ff0000 !important; /* Red background */
-    color: #ffffff !important;           /* White icon/text */
-    border: 3px solid #000000 !important;
-    z-index: 99999 !important;           /* Force to front */
-    position: relative !important;
-    pointer-events: auto !important;
-    width: 50px !important;              /* Force size */
-    height: 50px !important;
-}
+   
   </style>
 </head>
 <body>
