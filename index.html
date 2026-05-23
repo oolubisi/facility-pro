@@ -715,31 +715,28 @@
       }
     }
 
-    // 7. Finalize & Share/Download
-    toast.innerHTML = '<i class="fas fa-check-circle" style="color:var(--success)"></i> Finalizing...';
-    const finalPdfBytes = await masterPdf.save();
-    const blob = new Blob([finalPdfBytes], { type: 'application/pdf' });
-    const file = new File([finalPdfBytes], filename + '.pdf', { type: 'application/pdf' });
+    // 7. Finalize & Direct Download
+        toast.innerHTML = '<i class="fas fa-download"></i> Saving to device...';
+        const finalPdfBytes = await masterPdf.save();
+        const blob = new Blob([finalPdfBytes], { type: 'application/pdf' });
 
-    // Native Web Share Fallback Logic
-    if (navigator.canShare && navigator.canShare({ files: [file] })) {
-      toast.innerHTML = '<i class="fas fa-share-nodes"></i> Opening Share Sheet...';
-      await navigator.share({
-        title: filename,
-        files: [file]
-      });
-    } else {
-      toast.innerHTML = '<i class="fas fa-download"></i> Downloading...';
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(blob);
-      link.download = filename + '.pdf';
-      link.click();
-    }
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = filename + '.pdf';
+        
+        // Append, click, and remove to ensure maximum browser compatibility
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
 
-  } catch (err) {
-    console.error("PDF Fail:", err);
-    alert("PDF Generation Failed. Check console.");
-  } finally {
+      } catch (err) {
+        console.error("PDF Fail:", err);
+        alert("PDF Generation Failed. Check console.");
+      } finally {
+        // 8. Bulletproof Cleanup
+        document.querySelectorAll('#pdf-render-box, #pdf-toast').forEach(el => el.remove());
+      }
+      
     // 8. Bulletproof Cleanup: Ensure all layers are destroyed on exit
     document.querySelectorAll('#pdf-render-box, #pdf-toast').forEach(el => el.remove());
   }
@@ -815,40 +812,6 @@
       return `${prefix}-${String(maxId + 1).padStart(4, '0')}`;
     }
 
-    // ==========================================
-    // COMMUNICATION ENGINE (WHATSAPP & EMAIL)
-    // ==========================================
-    function dispatchVendorWhatsApp() {
-      if (!currentSelectedRecord) return;
-      const wo = currentSelectedRecord;
-      const woId = wo.workOrderId || wo.WorkOrderId;
-      const status = wo.status || wo.Status || 'PENDING';
-      const vendor = wo.assigned || wo.Assigned || 'Unassigned';
-      const node = getUnitNumber(wo);
-      const title = wo.description || wo.Description || 'General Work Order';
-      const budget = formatMoney(wo.amount || wo.Amount || 0);
-
-      const text = `*${(appSettings.fmName || 'FACILITY MANAGEMENT').toUpperCase()}*\n\n*WORK ORDER:* ${woId}\n*STATUS:* ${status}\n\n*Vendor:* ${vendor}\n*Site:* ${appSettings.estateName || 'Estate'} (Unit ${node})\n*Task:* ${title}\n\n*Approved Budget:* ₦${budget}\n\nPlease proceed according to the SLA guidelines. Let us know if you require site access clearance.`;
-
-      window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
-    }
-
-    function dispatchVendorEmail() {
-      if (!currentSelectedRecord) return;
-      const wo = currentSelectedRecord;
-      const woId = wo.workOrderId || wo.WorkOrderId;
-      const status = wo.status || wo.Status || 'PENDING';
-      const vendor = wo.assigned || wo.Assigned || 'Unassigned';
-      const node = getUnitNumber(wo);
-      const title = wo.description || wo.Description || 'General Work Order';
-      const budget = formatMoney(wo.amount || wo.Amount || 0);
-      const notes = wo.notes || wo.Notes || 'N/A';
-
-      const subject = `Work Order Update: ${woId}`;
-      const body = `${(appSettings.fmName || 'FACILITY MANAGEMENT').toUpperCase()}\n\nWork Order Reference: ${woId}\nCurrent Status: ${status}\n\nVendor: ${vendor}\nLocation: ${appSettings.estateName || 'Estate'} (Unit ${node})\nApproved Budget: ₦${budget}\n\nNotes: ${notes}\n\n---\nGenerated via Facility Pro System`;
-
-      window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    }
 
     async function loadApplicationSettingsData() {
       const stored = localStorage.getItem("facility_pro_config_meta");
@@ -1812,15 +1775,9 @@
         if (isEdit && (editData.attachments || editData.Attachments)) currentModalFiles = (editData.attachments || editData.Attachments).split(',').filter(Boolean);
         
         const communicationButtons = isEdit ? `
-          <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-top:15px; margin-bottom:15px; border-top:2px solid var(--border); padding-top:15px; border-bottom:2px solid var(--border); padding-bottom:15px;">
-            <button type="button" onclick="dispatchVendorWhatsApp()" style="background:#25D366; color:#fff; border:none; padding:12px; border-radius:8px; font-weight:700; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:4px; font-size:11px; text-transform:uppercase; box-shadow:0 2px 4px rgba(0,0,0,0.1);">
-              <i class="fab fa-whatsapp" style="font-size:18px;"></i> WhatsApp
-            </button>
-            <button type="button" onclick="dispatchVendorEmail()" style="background:#0F172A; color:#fff; border:none; padding:12px; border-radius:8px; font-weight:700; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:4px; font-size:11px; text-transform:uppercase; box-shadow:0 2px 4px rgba(0,0,0,0.1);">
-              <i class="fas fa-envelope" style="font-size:18px;"></i> Email
-            </button>
-            <button type="button" onclick="printSingleWorkOrderDirect('${uniqueWO}')" style="background:#0D6EFD; color:#fff; border:none; padding:12px; border-radius:8px; font-weight:700; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:4px; font-size:11px; text-transform:uppercase; box-shadow:0 2px 4px rgba(0,0,0,0.1);">
-              <i class="fas fa-file-pdf" style="font-size:18px;"></i> Share PDF
+          <div style="margin-top:15px; margin-bottom:15px; border-top:2px solid var(--border); padding-top:15px; border-bottom:2px solid var(--border); padding-bottom:15px;">
+            <button type="button" onclick="printSingleWorkOrderDirect('${uniqueWO}')" style="width: 100%; background:#0D6EFD; color:#fff; border:none; padding:16px; border-radius:8px; font-weight:800; cursor:pointer; display:flex; justify-content:center; align-items:center; gap:8px; font-size:14px; text-transform:uppercase; box-shadow:0 2px 4px rgba(0,0,0,0.1);">
+              <i class="fas fa-download" style="font-size:18px;"></i> Download Work Order PDF
             </button>
           </div>
         ` : '';
