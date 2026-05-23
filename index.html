@@ -604,60 +604,54 @@
     }
 
     async function compileAndDownloadUnifiedPDF(htmlContent, attachmentUrls, filename) {
-      // 1. Show UI Loader (This fixed screen covers up the background layout shifting)
+      // 1. Show UI Loader (Covers the screen so we can build the document safely behind it)
       const loader = document.createElement('div');
       loader.id = 'pdf-compiler-loader';
       loader.innerHTML = `
         <div style="position:fixed; inset:0; background:rgba(255,255,255,0.98); z-index:9999; display:flex; flex-direction:column; justify-content:center; align-items:center; color:var(--text);">
           <i class="fas fa-file-pdf fa-bounce" style="font-size:50px; color:var(--danger); margin-bottom:20px;"></i>
-          <h2 style="font-weight:900; text-transform:uppercase;">Merging Single PDF</h2>
-          <p style="font-weight:700; color:var(--muted); text-align:center;">Compiling invoice and stitching attachments into one document.<br>Please do not close this window.</p>
+          <h2 style="font-weight:900; text-transform:uppercase;">Generating Document</h2>
+          <p style="font-weight:700; color:var(--muted); text-align:center;">Compiling invoice and stitching attachments.<br>Please do not close this window.</p>
         </div>`;
       document.body.appendChild(loader);
 
-      // --- THE BULLETPROOF MOBILE FIX ---
-      // Force the physical DOM body to become a desktop-width canvas momentarily.
-      // This completely eliminates the auto-centering negative-margin cutoff bug.
-      const originalBodyWidth = document.body.style.width;
+      // 2. Temporarily remove the mobile viewport wall so it doesn't cut in half
       const originalOverflowX = document.body.style.overflowX;
-      document.body.style.width = '800px';
       document.body.style.overflowX = 'visible';
-      window.scrollTo(0, 0); // Lock scroll to 0,0 to prevent offset clipping
 
-      // Create a physical anchor container explicitly locked to the top-left edge
+      // 3. Create a physical anchor container exactly where the user is currently scrolled
       const anchor = document.createElement('div');
       anchor.style.width = '800px';
       anchor.style.position = 'absolute';
-      anchor.style.top = '0';
+      anchor.style.top = window.scrollY + 'px'; // Anchors to your current scroll position!
       anchor.style.left = '0';
+      anchor.style.backgroundColor = '#ffffff';
+      anchor.style.zIndex = '9998'; // Hides directly behind the loading screen
       anchor.innerHTML = htmlContent;
       document.body.appendChild(anchor);
 
+      // Wait 100ms for the mobile browser to physically paint the DOM element
+      await new Promise(resolve => setTimeout(resolve, 100));
+
       try {
-        // 2. Generate Base Invoice PDF from the anchored Element (NOT the string)
+        // 4. Generate Base Invoice PDF
         const opt = {
-          margin: [15, 0, 15, 0], // Top, Right, Bottom, Left
+          margin: [15, 0, 15, 0], 
           filename: filename,
           image: { type: 'jpeg', quality: 0.98 },
-          html2canvas: { 
-            scale: 2, 
-            useCORS: true, 
-            width: 800,
-            windowWidth: 800,
-            x: 0,          // Force camera to absolute left
-            y: 0,          // Force camera to absolute top
-            scrollX: 0,    // Ignore mobile horizontal scrolling
-            scrollY: 0     // Ignore mobile vertical scrolling
-          }, 
+          // Removed the forced X/Y/Scroll parameters so the engine auto-detects the box bounds
+          html2canvas: { scale: 2, useCORS: true }, 
           jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
         };
+        
+        // Pass the actual DOM element, not a string, ensuring perfect translation
         const htmlPdfBuffer = await html2pdf().set(opt).from(anchor).output('arraybuffer');
         
-        // 3. Initialize PDF-Lib to stitch pages
+        // 5. Initialize PDF-Lib to stitch pages
         const { PDFDocument } = PDFLib;
         const masterPdf = await PDFDocument.load(htmlPdfBuffer);
 
-        // 4. Fetch and Merge Attachments (Bypassing CORS)
+        // 6. Fetch and Merge Attachments (Bypassing CORS)
         if (attachmentUrls && attachmentUrls.length > 0) {
           for (let url of attachmentUrls) {
             const fileId = extractDriveFileId(url);
@@ -667,7 +661,6 @@
               const fileData = await callApi('getFileBase64', { id: fileId });
               if (!fileData || fileData.status !== 'success') continue;
               
-              // Decode base64 safely into raw bytes
               const base64Cleaned = fileData.base64.replace(/\s/g, '');
               const byteCharacters = atob(base64Cleaned);
               const byteNumbers = new Array(byteCharacters.length);
@@ -685,7 +678,6 @@
                 const page = masterPdf.addPage();
                 const { width, height } = page.getSize();
                 
-                // Scale image to fit A4 page perfectly
                 const imgDims = image.scale(1);
                 const scaleRatio = Math.min((width - 40) / imgDims.width, (height - 40) / imgDims.height);
                 const finalDims = image.scale(scaleRatio < 1 ? scaleRatio : 1);
@@ -702,6 +694,29 @@
           }
         }
 
+        // 7. Download Final File
+        const finalPdfBytes = await masterPdf.save();
+        const blob = new Blob([finalPdfBytes], { type: 'application/pdf' });
+        const blobUrl = URL.createObjectURL(blob);
+        
+        const link = document.createElement('a');
+        link.href = blobUrl; 
+        link.download = filename + '.pdf';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(blobUrl);
+
+      } catch (err) {
+        console.error("PDF Compilation Failed:", err);
+        alert("An error occurred while compiling the unified PDF.");
+      } finally {
+        // --- CLEAN UP ---
+        document.body.style.overflowX = originalOverflowX;
+        document.body.removeChild(anchor);
+        if(document.getElementById('pdf-compiler-loader')) document.getElementById('pdf-compiler-loader').remove();
+      }
+    }
         // 5. Package into one file and force the browser/device to download it
         const finalPdfBytes = await masterPdf.save();
         const blob = new Blob([finalPdfBytes], { type: 'application/pdf' });
