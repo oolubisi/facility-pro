@@ -615,13 +615,17 @@
         </div>`;
       document.body.appendChild(loader);
 
+      // --- CRITICAL FIX: Temporarily remove the mobile horizontal cutoff wall ---
+      document.body.style.overflowX = 'visible';
+
       try {
         // 2. Generate Base Invoice PDF from HTML
         const opt = {
           margin: [15, 0, 15, 0], // Top, Right, Bottom, Left
           filename: filename,
           image: { type: 'jpeg', quality: 0.98 },
-          html2canvas: { scale: 2, useCORS: true, windowWidth: 800 }, // Forces desktop width on mobile
+          // Added explicitly declared 'width: 800' to force the camera frame size
+          html2canvas: { scale: 2, useCORS: true, windowWidth: 800, width: 800 }, 
           jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
         };
         const htmlPdfBuffer = await html2pdf().set(opt).from(htmlContent).output('arraybuffer');
@@ -694,6 +698,8 @@
         console.error("PDF Compilation Failed:", err);
         alert("An error occurred while compiling the unified PDF.");
       } finally {
+        // --- RESTORE THE WALL: Re-enable horizontal hiding for the mobile UI ---
+        document.body.style.overflowX = 'hidden';
         if(document.getElementById('pdf-compiler-loader')) document.getElementById('pdf-compiler-loader').remove();
       }
     }
@@ -2049,7 +2055,6 @@
       }
       
       let invoiceLayoutHtml = `
-        let invoiceLayoutHtml = `
         <div style="width: 800px; padding: 20px 40px; font-family:'Inter', sans-serif; color:#000; background:#fff; box-sizing: border-box;">
           <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:3px solid #000; padding-bottom:10px; margin-bottom:20px;">
             <div>
@@ -2087,7 +2092,6 @@
       var unitId = getUnitNumber(orderItem);
       
       let invoiceLayoutHtml = `
-        let invoiceLayoutHtml = `
         <div style="width: 800px; padding: 20px 40px; font-family:'Inter', sans-serif; color:#000; background:#fff; box-sizing: border-box;">
           <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:3px solid #000; padding-bottom:10px; margin-bottom:20px;">
             <div>
@@ -2118,7 +2122,6 @@
       var unitId = getUnitNumber(orderItem);
       
       let invoiceLayoutHtml = `
-        let invoiceLayoutHtml = `
         <div style="width: 800px; padding: 20px 40px; font-family:'Inter', sans-serif; color:#000; background:#fff; box-sizing: border-box;">
           <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:3px solid #000; padding-bottom:10px; margin-bottom:20px;">
             <div>
