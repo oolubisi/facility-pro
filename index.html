@@ -604,31 +604,33 @@
     }
 
     async function compileAndDownloadUnifiedPDF(htmlContent, attachmentUrls, filename) {
-      // 1. Show UI Loader
+      // 1. Create a pristine, isolated "Camera Room" locked to the active screen
       const loader = document.createElement('div');
       loader.id = 'pdf-compiler-loader';
-      loader.innerHTML = `<div style="position:fixed; inset:0; background:rgba(255,255,255,1); z-index:9999; display:flex; flex-direction:column; justify-content:center; align-items:center; color:var(--text);">
-          <i class="fas fa-file-pdf fa-bounce" style="font-size:50px; color:var(--danger); margin-bottom:20px;"></i>
-          <h2 style="font-weight:900; text-transform:uppercase;">Generating PDF...</h2>
-      </div>`;
+      
+      // By using fixed position here, we bypass the mobile browser's off-screen culling. 
+      // The content is forced to physically exist exactly where your screen is currently looking.
+      loader.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; z-index:99999; text-align:left;';
+      
+      loader.innerHTML = `
+        <div id="pdf-render-box" style="position:absolute; top:0; left:0; width:800px; background:#ffffff; z-index:1;">
+           ${htmlContent}
+        </div>
+        
+        <div style="position:absolute; inset:0; background:#ffffff; z-index:10; display:flex; flex-direction:column; justify-content:center; align-items:center; color:#212529;">
+            <i class="fas fa-file-pdf fa-bounce" style="font-size:50px; color:#DC3545; margin-bottom:20px;"></i>
+            <h2 style="font-weight:900; text-transform:uppercase;">Generating PDF...</h2>
+            <p style="font-weight:700; color:#6C757D; text-align:center;">Compiling document and stitching photos.<br>Please hold.</p>
+        </div>
+      `;
       document.body.appendChild(loader);
 
-      // 2. STABLE ANCHOR: Put it at 0,0 but hide it behind the loader using z-index
-      const printContainer = document.getElementById('report-print-container');
-      printContainer.innerHTML = htmlContent;
-      printContainer.style.display = 'block';
-      printContainer.style.width = '800px';
-      printContainer.style.position = 'absolute';
-      printContainer.style.top = '0'; 
-      printContainer.style.left = '0';
-      printContainer.style.zIndex = '-9999'; // Hide behind the loader, but keep in DOM
-      printContainer.style.opacity = '1';    // Must be 1 so browser renders it
-      printContainer.style.pointerEvents = 'none';
-
-      // 3. Force the browser to paint
+      // 2. Allow 800ms for deep DOM layout painting to complete
       await new Promise(resolve => setTimeout(resolve, 800));
 
       try {
+        const renderBox = document.getElementById('pdf-render-box');
+        
         const opt = {
           margin: [15, 0, 15, 0],
           filename: filename,
@@ -637,12 +639,14 @@
             scale: 2, 
             useCORS: true, 
             windowWidth: 800,
-            allowTaint: true
+            scrollY: 0, // Forces the camera to ignore mobile scroll offsets
+            scrollX: 0
           },
           jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
         };
-        console.log("Container Height:", printContainer.offsetHeight);
-        const htmlPdfBuffer = await html2pdf().set(opt).from(printContainer).output('arraybuffer');
+        
+        // 3. Take snapshot of the specific render box
+        const htmlPdfBuffer = await html2pdf().set(opt).from(renderBox).output('arraybuffer');
         
         // 4. Merge Attachments
         const { PDFDocument } = PDFLib;
@@ -681,8 +685,8 @@
 
       } catch (err) {
         console.error("PDF Fail:", err);
+        alert("PDF Generation Failed. Check console.");
       } finally {
-        printContainer.style.display = 'none';
         if(document.getElementById('pdf-compiler-loader')) document.getElementById('pdf-compiler-loader').remove();
       }
     }
