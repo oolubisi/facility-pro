@@ -604,36 +604,37 @@
     }
 
     async function compileAndDownloadUnifiedPDF(htmlContent, attachmentUrls, filename) {
-      // 1. Defensive Cleanup & Viewport Lock
-      if (document.getElementById('pdf-loader-mask')) document.getElementById('pdf-loader-mask').remove();
-      if (document.getElementById('pdf-render-box')) document.getElementById('pdf-render-box').remove();
-      
-      const originalScrollY = window.scrollY;
-      window.scrollTo(0, 0);
+      // 1. Clean up any stuck layers
+      if(document.getElementById('pdf-render-box')) document.getElementById('pdf-render-box').remove();
+      if(document.getElementById('pdf-toast')) document.getElementById('pdf-toast').remove();
 
-      // 2. THE VISUAL MASK (Fixed to screen, hides everything below it)
-      const loaderMask = document.createElement('div');
-      loaderMask.id = 'pdf-loader-mask';
-      loaderMask.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:#ffffff; z-index:99999; display:flex; flex-direction:column; justify-content:center; align-items:center; color:#212529;';
-      loaderMask.innerHTML = `
-        <i class="fas fa-file-pdf fa-bounce" style="font-size:50px; color:#DC3545; margin-bottom:20px;"></i>
-        <h2 style="font-weight:900; text-transform:uppercase;">Generating PDF...</h2>
-        <p style="font-weight:700; color:#6C757D; text-align:center;">Compiling document and stitching photos.<br>Please hold.</p>
-      `;
-      document.body.appendChild(loaderMask);
-
-      // 3. THE PHYSICAL RENDER TARGET (Independent element, no height restriction)
+      // 2. THE "PRINT PREVIEW" FIX: Show it actively on screen!
+      // By putting the target visibly on screen, we defeat Chrome and Safari's "Occlusion Culling".
       const renderBox = document.createElement('div');
       renderBox.id = 'pdf-render-box';
-      // Placed just under the mask (99998) so you don't see it, but the browser renders its full height
-      renderBox.style.cssText = 'position:absolute; top:0; left:0; width:800px; background:#ffffff; z-index:99998;';
-      renderBox.innerHTML = htmlContent;
+      renderBox.style.cssText = 'position:fixed; top:0; left:0; width:100vw; height:100vh; background:#e9ecef; z-index:99998; overflow:auto; display:block; text-align:center; padding-top:20px;';
+      
+      // Wrap the HTML in an 800px card so html2canvas captures a perfect rectangle
+      renderBox.innerHTML = `
+        <div id="pdf-capture-target" style="width:800px; background:#ffffff; margin:0 auto 40px auto; text-align:left; box-shadow:0 5px 15px rgba(0,0,0,0.1);">
+           ${htmlContent}
+        </div>
+      `;
       document.body.appendChild(renderBox);
 
-      // Wait for deep DOM layout painting
+      // 3. UI Toast for feedback (instead of a full screen mask)
+      const toast = document.createElement('div');
+      toast.id = 'pdf-toast';
+      toast.style.cssText = 'position:fixed; bottom:30px; left:50%; transform:translateX(-50%); background:#212529; color:#ffffff; padding:16px 32px; border-radius:50px; font-weight:800; font-size:16px; z-index:99999; box-shadow:0 10px 20px rgba(0,0,0,0.3); display:flex; align-items:center; gap:12px; white-space:nowrap;';
+      toast.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating Document...';
+      document.body.appendChild(toast);
+
+      // 4. Force browser GPU to paint the document
       await new Promise(resolve => setTimeout(resolve, 800));
 
       try {
+        const target = document.getElementById('pdf-capture-target');
+        
         const opt = {
           margin: [15, 0, 15, 0],
           filename: filename,
@@ -642,25 +643,15 @@
           jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
         };
 
-        // 4. SAFE EXTRACTION
-        // Instead of the .output() shortcut, we force it to wait for the core jsPDF instance
-        const htmlPdfBuffer = await new Promise((resolve, reject) => {
-            html2pdf()
-                .set(opt)
-                .from(renderBox)
-                .toPdf()
-                .get('pdf')
-                .then(pdf => {
-                    resolve(pdf.output('arraybuffer'));
-                })
-                .catch(reject);
-        });
+        // 5. Native Promise resolution for the ArrayBuffer
+        const htmlPdfBuffer = await html2pdf().set(opt).from(target).output('arraybuffer');
         
-        // 5. Merge Attachments
+        // 6. Merge Attachments
         const { PDFDocument } = PDFLib;
         const masterPdf = await PDFDocument.load(htmlPdfBuffer);
 
         if (attachmentUrls && attachmentUrls.length > 0) {
+          toast.innerHTML = '<i class="fas fa-cog fa-spin"></i> Stitching Attachments...';
           for (let url of attachmentUrls) {
             const fileId = extractDriveFileId(url);
             if (!fileId) continue;
@@ -683,7 +674,8 @@
           }
         }
 
-        // 6. Download
+        // 7. Finalize & Download
+        toast.innerHTML = '<i class="fas fa-check-circle" style="color:var(--success)"></i> Finalizing...';
         const finalPdfBytes = await masterPdf.save();
         const blob = new Blob([finalPdfBytes], { type: 'application/pdf' });
         const link = document.createElement('a');
@@ -695,10 +687,9 @@
         console.error("PDF Fail:", err);
         alert("PDF Generation Failed. Check console.");
       } finally {
-        // 7. Cleanup and Restore User Position
-        if (document.getElementById('pdf-loader-mask')) document.getElementById('pdf-loader-mask').remove();
+        // 8. Cleanup and return to dashboard
         if (document.getElementById('pdf-render-box')) document.getElementById('pdf-render-box').remove();
-        window.scrollTo(0, originalScrollY);
+        if (document.getElementById('pdf-toast')) document.getElementById('pdf-toast').remove();
       }
     }
     
