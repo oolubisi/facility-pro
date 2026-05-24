@@ -1351,6 +1351,10 @@
             const linkPreview = item.reference ? `<span style="background:var(--card-light); padding:2px 6px; border:1px solid var(--border); border-radius:4px; font-size:10px; margin-left:6px;"><i class="fas fa-link"></i> ${item.reference}</span>` : '';
             const bankPreview = item.bank ? `${item.bank}: ` : 'Acc: ';
             
+            // Generate Paperclip icon if attachments exist
+            const hasAttachments = item.attachments || item.Attachments;
+            const attachmentPreview = hasAttachments ? `<span style="background:#e8f4fd; color:#0D6EFD; padding:2px 6px; border:1px solid #b6d4fe; border-radius:4px; font-size:10px; margin-left:6px;"><i class="fas fa-paperclip"></i></span>` : '';
+            
             return `
               <div class="card" onclick="openRecordRow('payment', '${item.paymentId || item.PaymentId}')">
                 <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:4px;">
@@ -1368,7 +1372,7 @@
                     </button>
                   </div>
                 </div>
-                <div style="font-size:15px; font-weight:800; color:${color};">${item.direction || 'INFLOW'} &bull; ${item.type || 'General Record'} ${linkPreview}</div>
+                <div style="font-size:15px; font-weight:800; color:${color};">${item.direction || 'INFLOW'} &bull; ${item.type || 'General Record'} ${linkPreview} ${attachmentPreview}</div>
                 ${reasonPreview}
               </div>`;
           }
@@ -1913,6 +1917,10 @@
             outflowRefOpts += '<option disabled>⚠️ No Approved Records Available</option>';
         }
 
+        // Add attachment preview if editing
+        const existingAttachments = isEdit && (editData.attachments || editData.Attachments) ? 
+          `<div style="font-size:12px; color:var(--success); margin-bottom:10px;"><i class="fas fa-check-circle"></i> This record already has saved attachments. Uploading new ones will add to them.</div>` : '';
+
         body.innerHTML = `
           <label ${labelStyle}>Payment ID</label><input type="text" value="${uniqueId}" disabled ${largeInput} style="background:#e9ecef; font-weight:900;">
           <label ${labelStyle}>Transaction Direction</label>
@@ -1928,14 +1936,7 @@
           <label ${labelStyle}>Bank Name</label>
           <input list="bank_list" id="p_bank" type="text" value="${isEdit ? (editData.bank || editData.Bank || '') : ''}" placeholder="e.g. GTBank, Zenith, Access" ${largeInput}>
           <datalist id="bank_list">
-            <option value="Access Bank">
-            <option value="First Bank">
-            <option value="GTBank">
-            <option value="Kuda Bank">
-            <option value="Moniepoint">
-            <option value="Opay">
-            <option value="UBA">
-            <option value="Zenith Bank">
+            <option value="Access Bank"><option value="First Bank"><option value="GTBank"><option value="Kuda Bank"><option value="Moniepoint"><option value="Opay"><option value="UBA"><option value="Zenith Bank">
           </datalist>
 
           <label ${labelStyle}>Account Number (10 Digits)</label>
@@ -1948,19 +1949,21 @@
           <label ${labelStyle}>Reason / Justification</label><textarea id="p_reason" rows="2" placeholder="Describe the transaction..." ${largeInput}>${isEdit ? (editData.reason || '') : ''}</textarea>
           <label ${labelStyle}>Amount (₦)</label><input id="p_amount" type="number" required value="${isEdit ? (editData.amount || '') : ''}" ${largeInput}>
           <label ${labelStyle}>Date</label><input id="p_date" type="date" value="${isEdit ? fromSheetDate(editData.date) : new Date().toISOString().split('T')[0]}" ${largeInput}>
+          
+          ${existingAttachments}
+          <label ${labelStyle}>Attachments (Receipts / Invoices)</label>
+          <input id="p_attachments" type="file" multiple accept="image/*,application/pdf" ${largeInput}>
         `;
         
         const pDir = document.getElementById('p_direction');
         const pRef = document.getElementById('p_reference');
         
-        const updateRefDropdown = () => {
-            pRef.innerHTML = pDir.value === 'INFLOW' ? inflowRefOpts : outflowRefOpts;
-        };
-        
+        const updateRefDropdown = () => { pRef.innerHTML = pDir.value === 'INFLOW' ? inflowRefOpts : outflowRefOpts; };
         pDir.addEventListener('change', updateRefDropdown);
         updateRefDropdown(); 
 
-        submit.onclick = () => {
+        // Make this function ASYNC to handle file reading
+        submit.onclick = async () => {
           if(!document.getElementById('p_amount').value) { alert("Amount is required."); return; }
           
           const accVal = document.getElementById('p_account').value;
@@ -1970,6 +1973,19 @@
           }
 
           submit.disabled = true;
+          submit.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...'; // Visual feedback for slow uploads
+
+          // Process files into Base64 array
+          const fileInput = document.getElementById('p_attachments');
+          let attachedFiles = [];
+          if (fileInput.files.length > 0) {
+            attachedFiles = await Promise.all(Array.from(fileInput.files).map(f => new Promise((resolve) => {
+              const reader = new FileReader();
+              reader.onload = e => resolve({ name: f.name, mimeType: f.type, base64: e.target.result.split('base64,')[1] });
+              reader.readAsDataURL(f);
+            })));
+          }
+
           callApi(isEdit ? 'updatePayment' : 'savePayment', {
             paymentId: uniqueId, 
             direction: document.getElementById('p_direction').value, 
@@ -1980,7 +1996,8 @@
             type: document.getElementById('p_type').value, 
             reason: document.getElementById('p_reason').value,
             amount: document.getElementById('p_amount').value, 
-            date: toSheetDate(document.getElementById('p_date').value)
+            date: toSheetDate(document.getElementById('p_date').value),
+            attachments: attachedFiles // Send to Google Apps Script to save to Drive
           }).then(() => { closeModal(); refreshData('payments'); });
         };
       }
@@ -2313,6 +2330,10 @@
       const documentTitle = isOutflow ? 'Payment Voucher / Request' : 'Official Receipt';
       const partyLabel = isOutflow ? 'Payee / Vendor' : 'Received From';
       
+      // Parse attachments into an array for the compiler
+      const rawAttachments = orderItem.attachments || orderItem.Attachments;
+      const attachmentUrlsArray = rawAttachments ? String(rawAttachments).split(',').map(s => s.trim()).filter(Boolean) : [];
+      
       let invoiceLayoutHtml = `
         <div style="width: 800px; padding: 20px 40px; font-family:'Inter', sans-serif; color:#000; background:#fff; box-sizing: border-box;">
           <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:3px solid #000; padding-bottom:10px; margin-bottom:20px;">
@@ -2352,7 +2373,8 @@
           
         </div>`;
 
-      compileAndDownloadUnifiedPDF(invoiceLayoutHtml, [], `Ledger_${orderItem.paymentId || orderItem.PaymentId}`);
+      // Pass the attachmentUrlsArray here so they are stitched to the PDF
+      compileAndDownloadUnifiedPDF(invoiceLayoutHtml, attachmentUrlsArray, `Ledger_${orderItem.paymentId || orderItem.PaymentId}`);
     }
     
     // ---------------------------------------------------------
