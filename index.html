@@ -1895,7 +1895,6 @@
         const uniqueId = isEdit ? (editData.paymentId) : generateNextId('PAY', cache.payments, 'paymentId');
         title.innerText = isEdit ? "Edit Ledger Record" : "Log Financial Ledger";
         
-        // 1. Initialize the global files array if editing
         if (isEdit && (editData.attachments || editData.Attachments)) {
             currentModalFiles = (editData.attachments || editData.Attachments).split(',').filter(Boolean);
         }
@@ -1937,7 +1936,6 @@
             outflowRefOpts += '<option disabled>⚠️ No Approved Records Available</option>';
         }
 
-        // 2. HTML UI incorporating the interactive thumbnail gallery and paperclip button
         body.innerHTML = `
           <label ${labelStyle}>Payment ID</label><input type="text" value="${uniqueId}" disabled ${largeInput} style="background:#e9ecef; font-weight:900;">
           <label ${labelStyle}>Transaction Direction</label>
@@ -1964,7 +1962,23 @@
 
           <label ${labelStyle}>Classification Note</label><input id="p_type" value="${isEdit ? (editData.type || '') : ''}" placeholder="e.g. Rent, Vendor Payment" ${largeInput}>
           <label ${labelStyle}>Reason / Justification</label><textarea id="p_reason" rows="2" placeholder="Describe the transaction..." ${largeInput}>${isEdit ? (editData.reason || '') : ''}</textarea>
-          <label ${labelStyle}>Amount (₦)</label><input id="p_amount" type="number" required value="${isEdit ? (editData.amount || '') : ''}" ${largeInput}>
+          
+          <div style="background:#f8f9fa; padding:15px; border-radius:8px; border:1px solid #dee2e6; margin:15px 0;">
+            <h4 style="margin-top:0; margin-bottom:10px; font-size:13px; color:#6c757d; text-transform:uppercase; letter-spacing:0.5px;">Contract Financials</h4>
+            
+            <label ${labelStyle}>Total Job Value (₦)</label>
+            <input id="p_total_job" type="number" value="${isEdit ? (editData.totalJobValue || editData.TotalJobValue || '') : ''}" placeholder="e.g. 500000" ${largeInput}>
+            
+            <label ${labelStyle}>Paid to Date (₦)</label>
+            <input id="p_paid_todate" type="number" value="${isEdit ? (editData.paidToDate || editData.PaidToDate || '') : ''}" placeholder="Amount already paid" ${largeInput}>
+            
+            <label ${labelStyle}>Amount to Pay (₦)</label>
+            <input id="p_amount" type="number" required value="${isEdit ? (editData.amount || '') : ''}" placeholder="Current payment amount" ${largeInput} style="border-color:var(--primary); border-width:3px;">
+            
+            <label ${labelStyle}>Balance Due (₦)</label>
+            <input id="p_balance_due" type="number" value="${isEdit ? (editData.balanceDue || editData.BalanceDue || '') : ''}" placeholder="Remaining balance" ${largeInput}>
+          </div>
+
           <label ${labelStyle}>Date</label><input id="p_date" type="date" value="${isEdit ? fromSheetDate(editData.date) : new Date().toISOString().split('T')[0]}" ${largeInput}>
           
           <label ${labelStyle}>Supporting Attachments</label>
@@ -1979,19 +1993,25 @@
         pDir.addEventListener('change', updateRefDropdown);
         updateRefDropdown(); 
 
-        // 3. Wire up the attachment preview gallery to your smart processing function
+        // Auto-Calculate Balance Due UX
+        const calcBalance = () => {
+            const tjv = parseFloat(document.getElementById('p_total_job').value) || 0;
+            const ptd = parseFloat(document.getElementById('p_paid_todate').value) || 0;
+            const amt = parseFloat(document.getElementById('p_amount').value) || 0;
+            if (tjv > 0) document.getElementById('p_balance_due').value = (tjv - ptd - amt);
+        };
+        ['p_total_job', 'p_paid_todate', 'p_amount'].forEach(id => {
+            document.getElementById(id).addEventListener('input', calcBalance);
+        });
+
         if(isEdit && currentModalFiles.length > 0) populateModalInlineImageGalleryPreviews('paymentPreviews');
         document.getElementById('p_multi_uploader').onchange = (e) => { processIncomingMultiAttachments(e.target.files, 'paymentPreviews'); };
 
-        // 4. Update the Submit logic to pull from the shared currentModalFiles array
         submit.onclick = () => {
-          if(!document.getElementById('p_amount').value) { alert("Amount is required."); return; }
+          if(!document.getElementById('p_amount').value) { alert("Amount to Pay is required."); return; }
           
           const accVal = document.getElementById('p_account').value;
-          if (accVal && accVal.length !== 10) { 
-              alert("If providing an Account Number, it must be exactly 10 digits."); 
-              return; 
-          }
+          if (accVal && accVal.length !== 10) { alert("If providing an Account Number, it must be exactly 10 digits."); return; }
 
           submit.disabled = true;
           submit.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...'; 
@@ -2005,14 +2025,17 @@
             reference: document.getElementById('p_reference').value,
             type: document.getElementById('p_type').value, 
             reason: document.getElementById('p_reason').value,
+            
+            // Send new payload items
+            totalJobValue: document.getElementById('p_total_job').value,
+            paidToDate: document.getElementById('p_paid_todate').value,
             amount: document.getElementById('p_amount').value, 
+            balanceDue: document.getElementById('p_balance_due').value,
+            
             date: toSheetDate(document.getElementById('p_date').value),
-            attachments: currentModalFiles.join(',') // Saves the URLs just like Work Orders do
+            attachments: currentModalFiles.join(',')
           }).then(() => { closeModal(); refreshData('payments'); })
-            .catch(() => {
-              submit.disabled = false;
-              submit.innerHTML = isEdit ? "Update" : "Save";
-            });
+            .catch(() => { submit.disabled = false; submit.innerHTML = isEdit ? "Update" : "Save"; });
         };
       }
       else if (type === 'inventory') {
@@ -2345,7 +2368,6 @@
       const documentTitle = isOutflow ? 'Payment Voucher / Request' : 'Official Receipt';
       const partyLabel = isOutflow ? 'Payee / Vendor' : 'Received From';
       
-      // Parse attachments into an array for the compiler
       const rawAttachments = orderItem.attachments || orderItem.Attachments;
       const attachmentUrlsArray = rawAttachments ? String(rawAttachments).split(',').map(s => s.trim()).filter(Boolean) : [];
       
@@ -2364,7 +2386,14 @@
             <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Date Logged</th><td style="padding:10px; border:1px solid #000;">${formatDateForDisplay(orderItem.date || orderItem.Date)}</td></tr>
             ${(orderItem.reference || orderItem.Reference) ? `<tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Linked Record</th><td style="padding:10px; border:1px solid #000;"><strong>${orderItem.reference || orderItem.Reference}</strong></td></tr>` : ''}
             <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Reason / Justification</th><td style="padding:10px; border:1px solid #000;">${orderItem.reason || orderItem.Reason || 'No specific reason provided.'}</td></tr>
+            
+            ${(orderItem.totalJobValue || orderItem.TotalJobValue) ? `<tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Total Job Value</th><td style="padding:10px; border:1px solid #000; font-size:16px;"><strong>₦${formatMoney(orderItem.totalJobValue || orderItem.TotalJobValue)}</strong></td></tr>` : ''}
+            ${(orderItem.paidToDate || orderItem.PaidToDate) ? `<tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Paid to Date</th><td style="padding:10px; border:1px solid #000;">₦${formatMoney(orderItem.paidToDate || orderItem.PaidToDate)}</td></tr>` : ''}
+            
+            <tr><th style="padding:10px; border:1px solid #000; background:#e8f4fd; text-align:left;">Amount to Pay</th><td style="padding:10px; border:1px solid #000; background:#e8f4fd; font-size:18px;"><strong>₦${formatMoney(orderItem.amount || orderItem.Amount)}</strong></td></tr>
             <tr><th style="padding:10px; border:1px solid #000; background:#f9f9f9; text-align:left;">Amount in Words</th><td style="padding:10px; border:1px solid #000; font-style:italic;"><strong>${convertAmountToWords(orderItem.amount || orderItem.Amount)}</strong></td></tr>
+            
+            ${(orderItem.balanceDue || orderItem.BalanceDue) ? `<tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Balance Due</th><td style="padding:10px; border:1px solid #000; font-size:16px; color:#dc3545;"><strong>₦${formatMoney(orderItem.balanceDue || orderItem.BalanceDue)}</strong></td></tr>` : ''}
           </table>
 
           <div style="border: 2px dashed #000; padding: 20px; margin-top: 25px; background-color: #fafafa; border-radius: 8px; page-break-inside: avoid;">
@@ -2380,7 +2409,7 @@
                 <span style="font-size: 14px; color: #555;">${orderItem.bank || orderItem.Bank || ''}</span>
               </div>
               <div style="width: 30%; text-align: right;">
-                <small style="color: #666; font-weight: 700; font-size: 12px; display: block; text-transform: uppercase;">Total Amount</small>
+                <small style="color: #666; font-weight: 700; font-size: 12px; display: block; text-transform: uppercase;">Amount to Pay</small>
                 <span style="font-size: 20px; font-weight: 900; color: #000;">₦${formatMoney(orderItem.amount || orderItem.Amount)}</span>
               </div>
             </div>
@@ -2388,7 +2417,6 @@
           
         </div>`;
 
-      // Pass the attachmentUrlsArray here so they are stitched to the PDF
       compileAndDownloadUnifiedPDF(invoiceLayoutHtml, attachmentUrlsArray, `Ledger_${orderItem.paymentId || orderItem.PaymentId}`);
     }
     
