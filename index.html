@@ -2368,10 +2368,12 @@
       const documentTitle = isOutflow ? 'Payment Voucher / Request' : 'Official Receipt';
       const partyLabel = isOutflow ? 'Payee / Vendor' : 'Received From';
       
+      // 1. Get Payment Attachments
       const rawAttachments = orderItem.attachments || orderItem.Attachments;
-      const attachmentUrlsArray = rawAttachments ? String(rawAttachments).split(',').map(s => s.trim()).filter(Boolean) : [];
+      let combinedAttachmentsArray = rawAttachments ? String(rawAttachments).split(',').map(s => s.trim()).filter(Boolean) : [];
       
-      let invoiceLayoutHtml = `
+      // 2. Build the Primary Ledger HTML
+      let finalLayoutHtml = `
         <div style="width: 800px; padding: 20px 40px; font-family:'Inter', sans-serif; color:#000; background:#fff; box-sizing: border-box;">
           <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:3px solid #000; padding-bottom:10px; margin-bottom:20px;">
             <div>
@@ -2414,10 +2416,85 @@
               </div>
             </div>
           </div>
-          
         </div>`;
 
-      compileAndDownloadUnifiedPDF(invoiceLayoutHtml, attachmentUrlsArray, `Ledger_${orderItem.paymentId || orderItem.PaymentId}`);
+      // 3. Check for and stitch Linked Records (Work Orders or Expense Requests)
+      const ref = orderItem.reference || orderItem.Reference;
+      
+      if (ref) {
+          // If it links to a Work Order
+          if (ref.startsWith('WO-')) {
+              const wo = cache.workorders.find(w => String(w.workOrderId || w.WorkOrderId) === ref);
+              if (wo) {
+                  let assetInfo = "N/A";
+                  if (wo.asset || wo.Asset) {
+                      const ast = cache.assets.find(a => String(a.tag || a.Tag) === String(wo.asset || wo.Asset));
+                      assetInfo = ast ? `${ast.tag || 'N/A'}; ${ast.type || 'N/A'}; ${ast.specs || 'N/A'}; ${ast.loc || ast.Loc || 'N/A'}` : (wo.asset || wo.Asset);
+                  }
+                  
+                  // Stitch WO HTML with a forced Page Break
+                  finalLayoutHtml += `
+                    <div style="page-break-before: always; height: 0; clear: both;"></div>
+                    <div style="width: 800px; padding: 20px 40px; font-family:'Inter', sans-serif; color:#000; background:#fff; box-sizing: border-box;">
+                      <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:3px solid #000; padding-bottom:10px; margin-bottom:20px;">
+                        <div>
+                          <h2 style="font-size:32px; margin:0; text-transform:uppercase;">${appSettings.estateName || 'Work Order Dossier'}</h2>
+                          <small style="display:block; font-weight:700; color:#444; margin-top:2px;">[SUPPORTING DOCUMENT] Managed by: ${appSettings.fmName || 'Facility Pro'}</small>
+                        </div>
+                        <div style="text-align:right; font-size:12px; font-weight:800;">PRINT DATE:<br>${new Date().toLocaleDateString()}</div>
+                      </div>
+                      <h3 style="text-transform: uppercase; margin-bottom: 15px;">Work Order Authorization Form</h3>
+                      <table style="width:100%; border-collapse:collapse; margin-bottom:20px; font-size:14px;">
+                        <tr><th style="width:30%; padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Work Order Ref</th><td style="padding:10px; border:1px solid #000;"><strong>${wo.workOrderId || wo.WorkOrderId}</strong></td></tr>
+                        <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Date Logged</th><td style="padding:10px; border:1px solid #000;">${formatDateForDisplay(wo.date || wo.Date)}</td></tr>
+                        <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Target Node</th><td style="padding:10px; border:1px solid #000;">Unit ${getUnitNumber(wo)} | Asset: ${assetInfo}</td></tr>
+                        <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Assigned</th><td style="padding:10px; border:1px solid #000;">${wo.assigned || wo.Assigned || 'Unassigned'}</td></tr>
+                        <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Project Duration</th><td style="padding:10px; border:1px solid #000;">${wo.duration || wo.Duration || 'Not Specified'}</td></tr>
+                        <tr><th style="padding:10px; border:1px solid #000; background:#f9f9f9; text-align:left;">Submitted Value</th><td style="padding:10px; border:1px solid #000; background:#f9f9f9; font-size:15px; color:#555;"><strong>₦${formatMoney(wo.submittedValue || wo.SubmittedValue)}</strong></td></tr>
+                        <tr><th style="padding:10px; border:1px solid #000; background:#e8f4fd; text-align:left;">Negotiated Value</th><td style="padding:10px; border:1px solid #000; background:#e8f4fd; font-size:18px;"><strong>₦${formatMoney(wo.amount || wo.Amount)}</strong></td></tr>
+                        <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Lifecycle Auth Status</th><td style="padding:10px; border:1px solid #000;"><strong>${String(wo.status || wo.Status || 'PENDING').toUpperCase()}</strong></td></tr>
+                        <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left; vertical-align:top;">Scope / Narrative</th><td style="padding:10px; border:1px solid #000;">${wo.description || wo.Description || 'No description provided.'}</td></tr>
+                      </table>
+                    </div>`;
+                    
+                  // Add WO Attachments to the master array
+                  if (wo.attachments || wo.Attachments) combinedAttachmentsArray.push(...(wo.attachments || wo.Attachments).split(',').filter(Boolean));
+              }
+          } 
+          // If it links to an Expense Request
+          else if (ref.startsWith('EXR-')) {
+              const exr = cache.expenseRequests.find(r => String(r.reqId || r.ReqId) === ref);
+              if (exr) {
+                  // Stitch EXR HTML with a forced Page Break
+                  finalLayoutHtml += `
+                    <div style="page-break-before: always; height: 0; clear: both;"></div>
+                    <div style="width: 800px; padding: 20px 40px; font-family:'Inter', sans-serif; color:#000; background:#fff; box-sizing: border-box;">
+                      <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:3px solid #000; padding-bottom:10px; margin-bottom:20px;">
+                        <div>
+                          <h2 style="font-size:32px; margin:0; text-transform:uppercase;">${appSettings.estateName || 'Facility Pro'}</h2>
+                          <small style="display:block; font-weight:700; color:#444; margin-top:2px;">[SUPPORTING DOCUMENT] Expense Request Form</small>
+                        </div>
+                        <div style="text-align:right; font-size:12px; font-weight:800;">PRINT DATE:<br>${new Date().toLocaleDateString()}</div>
+                      </div>
+                      <table style="width:100%; border-collapse:collapse; margin-bottom:20px; font-size:14px;">
+                        <tr><th style="width:30%; padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Request Ref</th><td style="padding:10px; border:1px solid #000;"><strong>${exr.reqId || exr.ReqId}</strong></td></tr>
+                        <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Apt : Asset</th><td style="padding:10px; border:1px solid #000;">Unit ${getUnitNumber(exr)} : ${exr.assetTag || 'N/A'}</td></tr>
+                        <tr><th style="padding:10px; border:1px solid #000; background:#e8f4fd; text-align:left;">Estimated Cost</th><td style="padding:10px; border:1px solid #000; background:#e8f4fd; font-size:18px;"><strong>₦${formatMoney(exr.cost || exr.Cost)}</strong></td></tr>
+                        <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left; vertical-align:top;">Job Scope</th><td style="padding:10px; border:1px solid #000;">${exr.job || exr.Job || 'No description provided.'}</td></tr>
+                      </table>
+                    </div>`;
+                    
+                  // Add EXR Attachments to the master array
+                  if (exr.attachments || exr.Attachments) combinedAttachmentsArray.push(...(exr.attachments || exr.Attachments).split(',').filter(Boolean));
+              }
+          }
+      }
+
+      // 4. Clean up any duplicate attachments (in case the same receipt was uploaded to both)
+      combinedAttachmentsArray = Array.from(new Set(combinedAttachmentsArray));
+
+      // 5. Send everything to the PDF compiler
+      compileAndDownloadUnifiedPDF(finalLayoutHtml, combinedAttachmentsArray, `Ledger_Dossier_${orderItem.paymentId || orderItem.PaymentId}`);
     }
     
     // ---------------------------------------------------------
