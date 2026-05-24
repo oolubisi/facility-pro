@@ -1880,6 +1880,11 @@
         const uniqueId = isEdit ? (editData.paymentId) : generateNextId('PAY', cache.payments, 'paymentId');
         title.innerText = isEdit ? "Edit Ledger Record" : "Log Financial Ledger";
         
+        // 1. Initialize the global files array if editing
+        if (isEdit && (editData.attachments || editData.Attachments)) {
+            currentModalFiles = (editData.attachments || editData.Attachments).split(',').filter(Boolean);
+        }
+
         let partyOpts = '';
         (cache.apts || []).forEach(a => { if(a.tenant && a.tenant.toLowerCase() !== 'services') partyOpts += `<option value="${a.tenant}">`; });
         (cache.staff || []).forEach(s => { if(s.name) partyOpts += `<option value="${s.name}">`; });
@@ -1917,10 +1922,7 @@
             outflowRefOpts += '<option disabled>⚠️ No Approved Records Available</option>';
         }
 
-        // Add attachment preview if editing
-        const existingAttachments = isEdit && (editData.attachments || editData.Attachments) ? 
-          `<div style="font-size:12px; color:var(--success); margin-bottom:10px;"><i class="fas fa-check-circle"></i> This record already has saved attachments. Uploading new ones will add to them.</div>` : '';
-
+        // 2. HTML UI incorporating the interactive thumbnail gallery and paperclip button
         body.innerHTML = `
           <label ${labelStyle}>Payment ID</label><input type="text" value="${uniqueId}" disabled ${largeInput} style="background:#e9ecef; font-weight:900;">
           <label ${labelStyle}>Transaction Direction</label>
@@ -1950,9 +1952,9 @@
           <label ${labelStyle}>Amount (₦)</label><input id="p_amount" type="number" required value="${isEdit ? (editData.amount || '') : ''}" ${largeInput}>
           <label ${labelStyle}>Date</label><input id="p_date" type="date" value="${isEdit ? fromSheetDate(editData.date) : new Date().toISOString().split('T')[0]}" ${largeInput}>
           
-          ${existingAttachments}
-          <label ${labelStyle}>Attachments (Receipts / Invoices)</label>
-          <input id="p_attachments" type="file" multiple accept="image/*,application/pdf" ${largeInput}>
+          <label ${labelStyle}>Supporting Attachments</label>
+          <div id="paymentPreviews" class="modal-preview-grid" style="display:none;"></div>
+          <label class="icon-upload-label"><i class="fas fa-paperclip"></i><input type="file" id="p_multi_uploader" accept="image/*,application/pdf" multiple style="display:none"></label>
         `;
         
         const pDir = document.getElementById('p_direction');
@@ -1962,8 +1964,12 @@
         pDir.addEventListener('change', updateRefDropdown);
         updateRefDropdown(); 
 
-        // Make this function ASYNC to handle file reading
-        submit.onclick = async () => {
+        // 3. Wire up the attachment preview gallery to your smart processing function
+        if(isEdit && currentModalFiles.length > 0) populateModalInlineImageGalleryPreviews('paymentPreviews');
+        document.getElementById('p_multi_uploader').onchange = (e) => { processIncomingMultiAttachments(e.target.files, 'paymentPreviews'); };
+
+        // 4. Update the Submit logic to pull from the shared currentModalFiles array
+        submit.onclick = () => {
           if(!document.getElementById('p_amount').value) { alert("Amount is required."); return; }
           
           const accVal = document.getElementById('p_account').value;
@@ -1973,18 +1979,7 @@
           }
 
           submit.disabled = true;
-          submit.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...'; // Visual feedback for slow uploads
-
-          // Process files into Base64 array
-          const fileInput = document.getElementById('p_attachments');
-          let attachedFiles = [];
-          if (fileInput.files.length > 0) {
-            attachedFiles = await Promise.all(Array.from(fileInput.files).map(f => new Promise((resolve) => {
-              const reader = new FileReader();
-              reader.onload = e => resolve({ name: f.name, mimeType: f.type, base64: e.target.result.split('base64,')[1] });
-              reader.readAsDataURL(f);
-            })));
-          }
+          submit.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...'; 
 
           callApi(isEdit ? 'updatePayment' : 'savePayment', {
             paymentId: uniqueId, 
@@ -1997,8 +1992,12 @@
             reason: document.getElementById('p_reason').value,
             amount: document.getElementById('p_amount').value, 
             date: toSheetDate(document.getElementById('p_date').value),
-            attachments: attachedFiles // Send to Google Apps Script to save to Drive
-          }).then(() => { closeModal(); refreshData('payments'); });
+            attachments: currentModalFiles.join(',') // Saves the URLs just like Work Orders do
+          }).then(() => { closeModal(); refreshData('payments'); })
+            .catch(() => {
+              submit.disabled = false;
+              submit.innerHTML = isEdit ? "Update" : "Save";
+            });
         };
       }
       else if (type === 'inventory') {
