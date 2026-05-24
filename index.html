@@ -1355,7 +1355,7 @@
                 <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:4px;">
                   <div>
                     <strong style="font-size:18px;">${item.party || 'No Party Listed'}</strong><br>
-                    <small style="color:var(--muted); font-weight:700;">ID: ${item.paymentId || item.PaymentId || ''}</small>
+                    <small style="color:var(--muted); font-weight:700;">ID: ${item.paymentId || item.PaymentId || ''} | Acc: ${item.account || item.Account || 'N/A'}</small>
                   </div>
                   <div style="display:flex; flex-direction:column; align-items:flex-end; gap:8px;">
                     <div style="text-align:right;">
@@ -1875,13 +1875,11 @@
         const uniqueId = isEdit ? (editData.paymentId) : generateNextId('PAY', cache.payments, 'paymentId');
         title.innerText = isEdit ? "Edit Ledger Record" : "Log Financial Ledger";
         
-        // 1. Build Party Autocomplete List (Tenants, Staff, Vendors)
         let partyOpts = '';
         (cache.apts || []).forEach(a => { if(a.tenant && a.tenant.toLowerCase() !== 'services') partyOpts += `<option value="${a.tenant}">`; });
         (cache.staff || []).forEach(s => { if(s.name) partyOpts += `<option value="${s.name}">`; });
         (cache.vendors || []).forEach(v => { if(v.company) partyOpts += `<option value="${v.company}">`; });
 
-        // 2. Build INFLOW Linked Record Options (Apartments)
         let inflowRefOpts = '<option value="">-- No Linked Unit --</option>';
         (cache.apts || []).forEach(a => {
             const uNum = getUnitNumber(a);
@@ -1891,7 +1889,6 @@
             }
         });
 
-        // 3. Build OUTFLOW Linked Record Options (WOs & Exp Reqs)
         let outflowRefOpts = '<option value="">-- No Linked Record --</option>';
         const approvedWOs = (cache.workorders || []).filter(w => String(w.status) === 'Approved');
         const expReqs = cache.expenseRequests || [];
@@ -1915,7 +1912,6 @@
             outflowRefOpts += '<option disabled>⚠️ No Approved Records Available</option>';
         }
 
-        // 4. Render the HTML Layout
         body.innerHTML = `
           <label ${labelStyle}>Payment ID</label><input type="text" value="${uniqueId}" disabled ${largeInput} style="background:#e9ecef; font-weight:900;">
           <label ${labelStyle}>Transaction Direction</label>
@@ -1924,9 +1920,12 @@
             <option value="OUTFLOW" ${isEdit && editData.direction==='OUTFLOW'?'selected':''}>OUTFLOW (- Payables)</option>
           </select>
           
-          <label ${labelStyle}>Party / Payer / Payee</label>
+          <label ${labelStyle}>Party / Payer / Payee Name</label>
           <input list="party_list" id="p_party" value="${isEdit ? (editData.party || '') : ''}" placeholder="Type or select from list..." ${largeInput}>
           <datalist id="party_list">${partyOpts}</datalist>
+          
+          <label ${labelStyle}>Account Number</label>
+          <input id="p_account" type="text" value="${isEdit ? (editData.account || editData.Account || '') : ''}" placeholder="Bank Account Number" ${largeInput}>
           
           <label ${labelStyle}>Linked Record</label>
           <select id="p_reference" ${largeInput}></select>
@@ -1937,7 +1936,6 @@
           <label ${labelStyle}>Date</label><input id="p_date" type="date" value="${isEdit ? fromSheetDate(editData.date) : new Date().toISOString().split('T')[0]}" ${largeInput}>
         `;
         
-        // 5. Dynamic Dropdown Logic: Swap list contents based on Inflow vs Outflow
         const pDir = document.getElementById('p_direction');
         const pRef = document.getElementById('p_reference');
         
@@ -1946,7 +1944,7 @@
         };
         
         pDir.addEventListener('change', updateRefDropdown);
-        updateRefDropdown(); // Trigger immediately to load the initial list
+        updateRefDropdown(); 
 
         submit.onclick = () => {
           if(!document.getElementById('p_amount').value) { alert("Amount is required."); return; }
@@ -1955,6 +1953,7 @@
             paymentId: uniqueId, 
             direction: document.getElementById('p_direction').value, 
             party: document.getElementById('p_party').value,
+            account: document.getElementById('p_account').value, 
             reference: document.getElementById('p_reference').value,
             type: document.getElementById('p_type').value, 
             reason: document.getElementById('p_reason').value,
@@ -2302,18 +2301,34 @@
             <div style="text-align:right; font-size:12px; font-weight:800;">PRINT DATE:<br>${new Date().toLocaleDateString()}</div>
           </div>
           
-          <table style="width:100%; border-collapse:collapse; margin-bottom:20px; font-size:14px;">
+          <table style="width:100%; border-collapse:collapse; margin-bottom:10px; font-size:14px;">
             <tr><th style="width:30%; padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Transaction Ref</th><td style="padding:10px; border:1px solid #000;"><strong>${orderItem.paymentId || orderItem.PaymentId}</strong></td></tr>
             <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Date Logged</th><td style="padding:10px; border:1px solid #000;">${formatDateForDisplay(orderItem.date || orderItem.Date)}</td></tr>
-            <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">${partyLabel}</th><td style="padding:10px; border:1px solid #000;"><strong>${orderItem.party || orderItem.Party || 'N/A'}</strong></td></tr>
             ${(orderItem.reference || orderItem.Reference) ? `<tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Linked Record</th><td style="padding:10px; border:1px solid #000;"><strong>${orderItem.reference || orderItem.Reference}</strong></td></tr>` : ''}
             <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Reason / Justification</th><td style="padding:10px; border:1px solid #000;">${orderItem.reason || orderItem.Reason || 'No specific reason provided.'}</td></tr>
-            <tr><th style="padding:10px; border:1px solid #000; background:#e8f4fd; text-align:left;">Amount</th><td style="padding:10px; border:1px solid #000; background:#e8f4fd; font-size:22px;"><strong>₦${formatMoney(orderItem.amount || orderItem.Amount)}</strong></td></tr>
             <tr><th style="padding:10px; border:1px solid #000; background:#f9f9f9; text-align:left;">Amount in Words</th><td style="padding:10px; border:1px solid #000; font-style:italic;"><strong>${convertAmountToWords(orderItem.amount || orderItem.Amount)}</strong></td></tr>
           </table>
+
+          <div style="border: 2px dashed #000; padding: 20px; margin-top: 25px; background-color: #fafafa; border-radius: 8px; page-break-inside: avoid;">
+            <h4 style="margin-top:0; margin-bottom: 15px; text-transform: uppercase; font-size: 14px; color: #444; border-bottom: 1px solid #ccc; padding-bottom: 5px;">Transaction Disbursement Details</h4>
+            <div style="display: flex; justify-content: space-between; font-size: 16px;">
+              <div style="width: 35%;">
+                <small style="color: #666; font-weight: 700; font-size: 12px; display: block; text-transform: uppercase;">${partyLabel}</small>
+                <strong>${orderItem.party || orderItem.Party || 'N/A'}</strong>
+              </div>
+              <div style="width: 35%;">
+                <small style="color: #666; font-weight: 700; font-size: 12px; display: block; text-transform: uppercase;">Account Number</small>
+                <strong>${orderItem.account || orderItem.Account || 'N/A'}</strong>
+              </div>
+              <div style="width: 30%; text-align: right;">
+                <small style="color: #666; font-weight: 700; font-size: 12px; display: block; text-transform: uppercase;">Total Amount</small>
+                <span style="font-size: 20px; font-weight: 900; color: #000;">₦${formatMoney(orderItem.amount || orderItem.Amount)}</span>
+              </div>
+            </div>
+          </div>
+          
         </div>`;
 
-      // Trigger the standard download
       compileAndDownloadUnifiedPDF(invoiceLayoutHtml, [], `Ledger_${orderItem.paymentId || orderItem.PaymentId}`);
     }
     
