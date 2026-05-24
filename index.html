@@ -1072,18 +1072,13 @@
       let totalInflow = 0;
       let totalOutflow = 0;
       
-      // Calculate from Ledger
       if (cache.payments) {
         cache.payments.forEach(p => {
-          if (p.direction === 'OUTFLOW') {
-            totalOutflow += parseFloat(p.amount || p.Amount || 0);
-          } else {
-            totalInflow += parseFloat(p.amount || p.Amount || 0);
-          }
+          if (p.direction === 'OUTFLOW') totalOutflow += parseFloat(p.amount || p.Amount || 0);
+          else totalInflow += parseFloat(p.amount || p.Amount || 0);
         });
       }
       
-      // Calculate from direct Cash Expenses
       if (cache.cashExpenses) {
         cache.cashExpenses.forEach(c => {
           totalOutflow += parseFloat(c.amount || c.Amount || 0);
@@ -1095,6 +1090,7 @@
       balEl.innerText = `${netBalance >= 0 ? '+' : '-'}₦${formatMoney(Math.abs(netBalance))}`;
       balEl.style.color = netBalance >= 0 ? 'var(--success)' : 'var(--danger)';
     }
+    
     function updateDashboardCounters() {
       const tenancyCount = cache.apts ? cache.apts.filter(a => {
         var status = String(a.status || a.Status || '').toLowerCase();
@@ -1351,9 +1347,8 @@
             const color = isOutflow ? 'var(--danger)' : 'var(--success)';
             const sign = isOutflow ? '-' : '+';
             
-            // Format snippets for the Reason and Linked Record to show on the dashboard
             const reasonPreview = item.reason ? `<div style="font-size:13px; color:var(--muted); margin-top:2px;">${item.reason}</div>` : '';
-            const linkPreview = isOutflow && item.reference ? `<span style="background:var(--card-light); padding:2px 6px; border:1px solid var(--border); border-radius:4px; font-size:10px; margin-left:6px;"><i class="fas fa-link"></i> ${item.reference}</span>` : '';
+            const linkPreview = item.reference ? `<span style="background:var(--card-light); padding:2px 6px; border:1px solid var(--border); border-radius:4px; font-size:10px; margin-left:6px;"><i class="fas fa-link"></i> ${item.reference}</span>` : '';
             
             return `
               <div class="card" onclick="openRecordRow('payment', '${item.paymentId || item.PaymentId}')">
@@ -1879,31 +1874,52 @@
       else if (type === 'payment') {
         const uniqueId = isEdit ? (editData.paymentId) : generateNextId('PAY', cache.payments, 'paymentId');
         title.innerText = isEdit ? "Edit Ledger Record" : "Log Financial Ledger";
-        const isOutflowInit = isEdit && editData.direction === 'OUTFLOW';
         
-        // Build auto-complete dropdown for Parties (Tenants, Staff, Vendors)
+        // 1. Build Party Autocomplete List (Tenants, Staff, Vendors)
         let partyOpts = '';
         (cache.apts || []).forEach(a => { if(a.tenant && a.tenant.toLowerCase() !== 'services') partyOpts += `<option value="${a.tenant}">`; });
         (cache.staff || []).forEach(s => { if(s.name) partyOpts += `<option value="${s.name}">`; });
         (cache.vendors || []).forEach(v => { if(v.company) partyOpts += `<option value="${v.company}">`; });
-        
-        // Build Linked Records dropdown for Outflows
-        let refOpts = '<option value="">-- No Linked Record --</option>';
-        refOpts += '<optgroup label="Approved Work Orders">';
-        (cache.workorders || []).filter(w => String(w.status)==='Approved').forEach(w => {
-            const wid = w.workOrderId || w.WorkOrderId;
-            refOpts += `<option value="${wid}" ${isEdit && editData.reference===wid?'selected':''}>${wid} - ₦${formatMoney(w.amount)}</option>`;
-        });
-        refOpts += '</optgroup><optgroup label="Expense Requests">';
-        (cache.expenseRequests || []).forEach(r => {
-            refOpts += `<option value="${r.reqId}" ${isEdit && editData.reference===r.reqId?'selected':''}>${r.reqId} - ₦${formatMoney(r.cost)}</option>`;
-        });
-        refOpts += '</optgroup>';
 
+        // 2. Build INFLOW Linked Record Options (Apartments)
+        let inflowRefOpts = '<option value="">-- No Linked Unit --</option>';
+        (cache.apts || []).forEach(a => {
+            const uNum = getUnitNumber(a);
+            if(uNum && String(a.type).toLowerCase() !== 'services') {
+                const valStr = `Unit ${uNum}`;
+                inflowRefOpts += `<option value="${valStr}" ${isEdit && editData.reference === valStr ? 'selected' : ''}>${valStr} - ${a.tenant || 'Vacant'}</option>`;
+            }
+        });
+
+        // 3. Build OUTFLOW Linked Record Options (WOs & Exp Reqs)
+        let outflowRefOpts = '<option value="">-- No Linked Record --</option>';
+        const approvedWOs = (cache.workorders || []).filter(w => String(w.status) === 'Approved');
+        const expReqs = cache.expenseRequests || [];
+        
+        if (approvedWOs.length > 0) {
+            outflowRefOpts += '<optgroup label="Approved Work Orders">';
+            approvedWOs.forEach(w => {
+                const wid = w.workOrderId || w.WorkOrderId;
+                outflowRefOpts += `<option value="${wid}" ${isEdit && editData.reference===wid?'selected':''}>${wid} - ₦${formatMoney(w.amount)}</option>`;
+            });
+            outflowRefOpts += '</optgroup>';
+        }
+        if (expReqs.length > 0) {
+            outflowRefOpts += '<optgroup label="Expense Requests">';
+            expReqs.forEach(r => {
+                outflowRefOpts += `<option value="${r.reqId}" ${isEdit && editData.reference===r.reqId?'selected':''}>${r.reqId} - ₦${formatMoney(r.cost)}</option>`;
+            });
+            outflowRefOpts += '</optgroup>';
+        }
+        if (approvedWOs.length === 0 && expReqs.length === 0) {
+            outflowRefOpts += '<option disabled>⚠️ No Approved Records Available</option>';
+        }
+
+        // 4. Render the HTML Layout
         body.innerHTML = `
           <label ${labelStyle}>Payment ID</label><input type="text" value="${uniqueId}" disabled ${largeInput} style="background:#e9ecef; font-weight:900;">
           <label ${labelStyle}>Transaction Direction</label>
-          <select id="p_direction" ${largeInput} onchange="document.getElementById('p_ref_container').style.display = this.value === 'OUTFLOW' ? 'block' : 'none';">
+          <select id="p_direction" ${largeInput}>
             <option value="INFLOW" ${isEdit && editData.direction==='INFLOW'?'selected':''}>INFLOW (+ Receivables)</option>
             <option value="OUTFLOW" ${isEdit && editData.direction==='OUTFLOW'?'selected':''}>OUTFLOW (- Payables)</option>
           </select>
@@ -1912,17 +1928,26 @@
           <input list="party_list" id="p_party" value="${isEdit ? (editData.party || '') : ''}" placeholder="Type or select from list..." ${largeInput}>
           <datalist id="party_list">${partyOpts}</datalist>
           
-          <div id="p_ref_container" style="display:${isOutflowInit ? 'block' : 'none'};">
-            <label ${labelStyle}>Linked Record (Outflow Only)</label>
-            <select id="p_reference" ${largeInput}>${refOpts}</select>
-          </div>
+          <label ${labelStyle}>Linked Record</label>
+          <select id="p_reference" ${largeInput}></select>
 
           <label ${labelStyle}>Classification Note</label><input id="p_type" value="${isEdit ? (editData.type || '') : ''}" placeholder="e.g. Rent, Vendor Payment" ${largeInput}>
-          <label ${labelStyle}>Reason for Transaction</label><textarea id="p_reason" rows="2" placeholder="Describe the justification..." ${largeInput}>${isEdit ? (editData.reason || '') : ''}</textarea>
+          <label ${labelStyle}>Reason / Justification</label><textarea id="p_reason" rows="2" placeholder="Describe the transaction..." ${largeInput}>${isEdit ? (editData.reason || '') : ''}</textarea>
           <label ${labelStyle}>Amount (₦)</label><input id="p_amount" type="number" required value="${isEdit ? (editData.amount || '') : ''}" ${largeInput}>
           <label ${labelStyle}>Date</label><input id="p_date" type="date" value="${isEdit ? fromSheetDate(editData.date) : new Date().toISOString().split('T')[0]}" ${largeInput}>
         `;
         
+        // 5. Dynamic Dropdown Logic: Swap list contents based on Inflow vs Outflow
+        const pDir = document.getElementById('p_direction');
+        const pRef = document.getElementById('p_reference');
+        
+        const updateRefDropdown = () => {
+            pRef.innerHTML = pDir.value === 'INFLOW' ? inflowRefOpts : outflowRefOpts;
+        };
+        
+        pDir.addEventListener('change', updateRefDropdown);
+        updateRefDropdown(); // Trigger immediately to load the initial list
+
         submit.onclick = () => {
           if(!document.getElementById('p_amount').value) { alert("Amount is required."); return; }
           submit.disabled = true;
@@ -1930,7 +1955,7 @@
             paymentId: uniqueId, 
             direction: document.getElementById('p_direction').value, 
             party: document.getElementById('p_party').value,
-            reference: document.getElementById('p_direction').value === 'OUTFLOW' ? document.getElementById('p_reference').value : '',
+            reference: document.getElementById('p_reference').value,
             type: document.getElementById('p_type').value, 
             reason: document.getElementById('p_reason').value,
             amount: document.getElementById('p_amount').value, 
@@ -2264,8 +2289,6 @@
       if(!orderItem) return;
       
       const isOutflow = orderItem.direction === 'OUTFLOW';
-      
-      // Dynamic Text Based on Direction
       const documentTitle = isOutflow ? 'Payment Voucher / Request' : 'Official Receipt';
       const partyLabel = isOutflow ? 'Payee / Vendor' : 'Received From';
       
@@ -2283,14 +2306,14 @@
             <tr><th style="width:30%; padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Transaction Ref</th><td style="padding:10px; border:1px solid #000;"><strong>${orderItem.paymentId || orderItem.PaymentId}</strong></td></tr>
             <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Date Logged</th><td style="padding:10px; border:1px solid #000;">${formatDateForDisplay(orderItem.date || orderItem.Date)}</td></tr>
             <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">${partyLabel}</th><td style="padding:10px; border:1px solid #000;"><strong>${orderItem.party || orderItem.Party || 'N/A'}</strong></td></tr>
-            ${isOutflow && (orderItem.reference || orderItem.Reference) ? `<tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Linked Record</th><td style="padding:10px; border:1px solid #000;"><strong>${orderItem.reference || orderItem.Reference}</strong></td></tr>` : ''}
+            ${(orderItem.reference || orderItem.Reference) ? `<tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Linked Record</th><td style="padding:10px; border:1px solid #000;"><strong>${orderItem.reference || orderItem.Reference}</strong></td></tr>` : ''}
             <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Reason / Justification</th><td style="padding:10px; border:1px solid #000;">${orderItem.reason || orderItem.Reason || 'No specific reason provided.'}</td></tr>
             <tr><th style="padding:10px; border:1px solid #000; background:#e8f4fd; text-align:left;">Amount</th><td style="padding:10px; border:1px solid #000; background:#e8f4fd; font-size:22px;"><strong>₦${formatMoney(orderItem.amount || orderItem.Amount)}</strong></td></tr>
             <tr><th style="padding:10px; border:1px solid #000; background:#f9f9f9; text-align:left;">Amount in Words</th><td style="padding:10px; border:1px solid #000; font-style:italic;"><strong>${convertAmountToWords(orderItem.amount || orderItem.Amount)}</strong></td></tr>
           </table>
         </div>`;
 
-      // Pass empty array for attachments
+      // Trigger the standard download
       compileAndDownloadUnifiedPDF(invoiceLayoutHtml, [], `Ledger_${orderItem.paymentId || orderItem.PaymentId}`);
     }
     
