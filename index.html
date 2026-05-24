@@ -1322,7 +1322,6 @@
           else if (p === 'workorders') {
             const woId = item.workOrderId || item.WorkOrderId;
             
-            // Build the submitted vs negotiated preview
             const submittedPreview = (item.submittedValue || item.SubmittedValue) 
               ? `<span style="font-size:13px; font-weight:700; color:var(--muted); text-decoration:line-through; margin-left:8px;">₦${formatMoney(item.submittedValue || item.SubmittedValue)}</span>` 
               : '';
@@ -1338,9 +1337,16 @@
                     <span style="padding:4px 10px; border:2px solid #000; border-radius:6px; font-size:12px; font-weight:900; background:${String(item.status || '') === 'Approved' ? 'var(--success)' : String(item.status || '') === 'Declined' ? 'var(--danger)' : '#ffc107'}; color:#fff; text-align:center;">
                       ${String(item.status || 'PENDING').toUpperCase()}
                     </span>
-                    <button onclick="event.stopPropagation(); printSingleWorkOrderDirect('${woId}')" style="background:var(--primary); color:#fff; border:none; padding:6px 12px; border-radius:6px; font-size:11px; font-weight:800; cursor:pointer; text-transform:uppercase;">
-                      <i class="fas fa-print"></i> Print WO
-                    </button>
+                    
+                    <div style="display:flex; gap:5px;">
+                      <button onclick="event.stopPropagation(); printSingleWorkOrderDirect('${woId}', false)" style="background:var(--card-light); color:#000; border:2px solid var(--border); padding:6px 10px; border-radius:6px; font-size:11px; font-weight:800; cursor:pointer; text-transform:uppercase;">
+                        <i class="fas fa-file-alt"></i> Text
+                      </button>
+                      <button onclick="event.stopPropagation(); printSingleWorkOrderDirect('${woId}', true)" style="background:var(--primary); color:#fff; border:none; padding:6px 10px; border-radius:6px; font-size:11px; font-weight:800; cursor:pointer; text-transform:uppercase;">
+                        <i class="fas fa-paperclip"></i> Full
+                      </button>
+                    </div>
+
                   </div>
                 </div>
                 
@@ -1809,13 +1815,16 @@
         if (isEdit && (editData.attachments || editData.Attachments)) currentModalFiles = (editData.attachments || editData.Attachments).split(',').filter(Boolean);
         
         const communicationButtons = isEdit ? `
-          <div style="margin-top:15px; margin-bottom:15px; border-top:2px solid var(--border); padding-top:15px; border-bottom:2px solid var(--border); padding-bottom:15px;">
-            <button type="button" onclick="printSingleWorkOrderDirect('${uniqueWO}')" style="width: 100%; background:#0D6EFD; color:#fff; border:none; padding:16px; border-radius:8px; font-weight:800; cursor:pointer; display:flex; justify-content:center; align-items:center; gap:8px; font-size:14px; text-transform:uppercase; box-shadow:0 2px 4px rgba(0,0,0,0.1);">
-              <i class="fas fa-download" style="font-size:18px;"></i> Download Work Order PDF
+          <div style="margin-top:15px; margin-bottom:15px; border-top:2px solid var(--border); padding-top:15px; border-bottom:2px solid var(--border); padding-bottom:15px; display:flex; gap:10px;">
+            <button type="button" onclick="printSingleWorkOrderDirect('${uniqueWO}', true)" style="flex:1; background:#0D6EFD; color:#fff; border:none; padding:12px; border-radius:8px; font-weight:800; cursor:pointer; font-size:12px; text-transform:uppercase; box-shadow:0 2px 4px rgba(0,0,0,0.1);">
+              <i class="fas fa-paperclip"></i> Full PDF
+            </button>
+            <button type="button" onclick="printSingleWorkOrderDirect('${uniqueWO}', false)" style="flex:1; background:#6c757d; color:#fff; border:none; padding:12px; border-radius:8px; font-weight:800; cursor:pointer; font-size:12px; text-transform:uppercase; box-shadow:0 2px 4px rgba(0,0,0,0.1);">
+              <i class="fas fa-file-alt"></i> Text Only
             </button>
           </div>
         ` : '';
-
+        
         body.innerHTML = `
           <label ${labelStyle}>Work Order ID</label><input type="text" value="${uniqueWO}" disabled ${largeInput} style="background:#e9ecef; font-weight:900;">
           ${communicationButtons}
@@ -2255,7 +2264,7 @@
     }
 
     // --- PDF PRINT LAYOUT ENGINE ---
-    function printSingleWorkOrderDirect(woId) {
+    function printSingleWorkOrderDirect(woId, includeAttachments = true) {
       const orderItem = cache.workorders.find(w => String(w.workOrderId || w.WorkOrderId) === woId); if(!orderItem) return;
       var unitId = getUnitNumber(orderItem);
       
@@ -2264,6 +2273,12 @@
           const ast = cache.assets.find(a => String(a.tag || a.Tag) === String(orderItem.asset || orderItem.Asset));
           assetInfo = ast ? `${ast.tag || 'N/A'}; ${ast.type || 'N/A'}; ${ast.specs || 'N/A'}; ${ast.loc || ast.Loc || 'N/A'}` : (orderItem.asset || orderItem.Asset);
       }
+      
+      // Dynamic Styling for the Approved Badge
+      const woStatus = String(orderItem.status || orderItem.Status || 'PENDING').toUpperCase();
+      const statusBadge = woStatus === 'APPROVED' 
+        ? `<span style="background-color: #198754; color: #ffffff; padding: 4px 10px; border-radius: 4px;">${woStatus}</span>` 
+        : woStatus;
       
       let invoiceLayoutHtml = `
         <div style="width: 800px; padding: 20px 40px; font-family:'Inter', sans-serif; color:#000; background:#fff; box-sizing: border-box;">
@@ -2287,14 +2302,15 @@
             <tr><th style="padding:10px; border:1px solid #000; background:#e8f4fd; text-align:left;">Negotiated Value</th><td style="padding:10px; border:1px solid #000; background:#e8f4fd; font-size:18px;"><strong>₦${formatMoney(orderItem.amount || orderItem.Amount)}</strong></td></tr>
             <tr><th style="padding:10px; border:1px solid #000; background:#f9f9f9; text-align:left;">Amount in Words</th><td style="padding:10px; border:1px solid #000; font-style:italic;"><strong>${convertAmountToWords(orderItem.amount || orderItem.Amount)}</strong></td></tr>
             
-            <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Lifecycle Auth Status</th><td style="padding:10px; border:1px solid #000;"><strong>${String(orderItem.status || orderItem.Status || 'PENDING').toUpperCase()}</strong></td></tr>
+            <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Lifecycle Auth Status</th><td style="padding:10px; border:1px solid #000;"><strong>${statusBadge}</strong></td></tr>
             <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left; vertical-align:top;">Scope / Narrative</th><td style="padding:10px; border:1px solid #000;">${orderItem.description || orderItem.Description || 'No description provided.'}</td></tr>
             <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left; vertical-align:top;">Operational Remarks</th><td style="padding:10px; border:1px solid #000;">${orderItem.notes || orderItem.Notes || 'No operational feedback logged.'}</td></tr>
           </table>
         </div>`;
 
       let attachmentsArr = [];
-      if (orderItem.attachments || orderItem.Attachments) {
+      // Respect the includeAttachments toggle
+      if (includeAttachments && (orderItem.attachments || orderItem.Attachments)) {
           attachmentsArr = (orderItem.attachments || orderItem.Attachments).split(',').filter(Boolean);
       }
       compileAndDownloadUnifiedPDF(invoiceLayoutHtml, attachmentsArr, `WorkOrder_${woId}`);
