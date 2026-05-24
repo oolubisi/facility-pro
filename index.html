@@ -1070,13 +1070,20 @@
       if (!balEl) return;
       
       let totalInflow = 0;
+      let totalOutflow = 0;
+      
+      // Calculate from Ledger
       if (cache.payments) {
         cache.payments.forEach(p => {
-          totalInflow += parseFloat(p.amount || p.Amount || 0);
+          if (p.direction === 'OUTFLOW') {
+            totalOutflow += parseFloat(p.amount || p.Amount || 0);
+          } else {
+            totalInflow += parseFloat(p.amount || p.Amount || 0);
+          }
         });
       }
       
-      let totalOutflow = 0;
+      // Calculate from direct Cash Expenses
       if (cache.cashExpenses) {
         cache.cashExpenses.forEach(c => {
           totalOutflow += parseFloat(c.amount || c.Amount || 0);
@@ -1088,7 +1095,6 @@
       balEl.innerText = `${netBalance >= 0 ? '+' : '-'}₦${formatMoney(Math.abs(netBalance))}`;
       balEl.style.color = netBalance >= 0 ? 'var(--success)' : 'var(--danger)';
     }
-
     function updateDashboardCounters() {
       const tenancyCount = cache.apts ? cache.apts.filter(a => {
         var status = String(a.status || a.Status || '').toLowerCase();
@@ -1341,13 +1347,28 @@
               </div>`;
           }
           else if (p === 'payments') {
+            const isOutflow = item.direction === 'OUTFLOW';
+            const color = isOutflow ? 'var(--danger)' : 'var(--success)';
+            const sign = isOutflow ? '-' : '+';
+            
             return `
               <div class="card" onclick="openRecordRow('payment', '${item.paymentId || item.PaymentId}')">
                 <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:4px;">
-                  <div><strong style="font-size:18px;">${item.party || 'No Party Listed'}</strong><br><small style="color:var(--muted); font-weight:700;">ID: ${item.paymentId || item.PaymentId || ''}</small></div>
-                  <div style="text-align:right;"><span style="font-size:20px; font-weight:900; color:var(--success);">+₦${formatMoney(item.amount)}</span><br><small style="font-size:11px; font-weight:700; color:var(--muted);">${formatDateForDisplay(item.date)}</small></div>
+                  <div>
+                    <strong style="font-size:18px;">${item.party || 'No Party Listed'}</strong><br>
+                    <small style="color:var(--muted); font-weight:700;">ID: ${item.paymentId || item.PaymentId || ''}</small>
+                  </div>
+                  <div style="display:flex; flex-direction:column; align-items:flex-end; gap:8px;">
+                    <div style="text-align:right;">
+                      <span style="font-size:20px; font-weight:900; color:${color};">${sign}₦${formatMoney(item.amount)}</span><br>
+                      <small style="font-size:11px; font-weight:700; color:var(--muted);">${formatDateForDisplay(item.date)}</small>
+                    </div>
+                    <button onclick="event.stopPropagation(); printSinglePaymentDirect('${item.paymentId || item.PaymentId}')" style="background:var(--primary); color:#fff; border:none; padding:6px 12px; border-radius:6px; font-size:11px; font-weight:800; cursor:pointer; text-transform:uppercase;">
+                      <i class="fas fa-print"></i> Print
+                    </button>
+                  </div>
                 </div>
-                <div style="font-size:15px; font-weight:800; color:var(--primary);">${item.type || 'General Record'}</div>
+                <div style="font-size:15px; font-weight:800; color:${color};">${item.direction || 'INFLOW'} &bull; ${item.type || 'General Record'}</div>
               </div>`;
           }
           else if (p === 'inventory') {
@@ -1858,6 +1879,7 @@
           <label ${labelStyle}>Transaction Direction</label>
           <select id="p_direction" ${largeInput}>
             <option value="INFLOW" ${isEdit && editData.direction==='INFLOW'?'selected':''}>INFLOW (+ Receivables)</option>
+            <option value="OUTFLOW" ${isEdit && editData.direction==='OUTFLOW'?'selected':''}>OUTFLOW (- Payables)</option>
           </select>
           <label ${labelStyle}>Party / Payer / Payee</label><input id="p_party" value="${isEdit ? (editData.party || '') : ''}" placeholder="Tenant Name, Vendor, or Staff" ${largeInput}>
           <label ${labelStyle}>Classification Note</label><input id="p_type" value="${isEdit ? (editData.type || '') : ''}" placeholder="e.g. Rent, Vendor Payment" ${largeInput}>
@@ -2193,6 +2215,49 @@
           attachmentsArr = (orderItem.attachments || orderItem.Attachments).split(',').filter(Boolean);
       }
       compileAndDownloadUnifiedPDF(invoiceLayoutHtml, attachmentsArr, `CashVoucher_${cashId}`);
+    }
+
+    function printSinglePaymentDirect(paymentId) {
+      const orderItem = cache.payments.find(p => String(p.paymentId || p.PaymentId) === paymentId); 
+      if(!orderItem) return;
+      
+      const isOutflow = orderItem.direction === 'OUTFLOW';
+      
+      // Dynamic Text Based on Direction
+      const documentTitle = isOutflow ? 'Payment Voucher / Request' : 'Official Receipt';
+      const partyLabel = isOutflow ? 'Payee / Vendor' : 'Received From';
+      
+      let invoiceLayoutHtml = `
+        <div style="width: 800px; padding: 20px 40px; font-family:'Inter', sans-serif; color:#000; background:#fff; box-sizing: border-box;">
+          <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:3px solid #000; padding-bottom:10px; margin-bottom:20px;">
+            <div>
+              <h2 style="font-size:32px; margin:0; text-transform:uppercase;">${appSettings.estateName || 'Facility Pro'}</h2>
+              <small style="display:block; font-weight:700; color:#444; margin-top:2px;">${documentTitle}</small>
+            </div>
+            <div style="text-align:right; font-size:12px; font-weight:800;">PRINT DATE:<br>${new Date().toLocaleDateString()}</div>
+          </div>
+          
+          <table style="width:100%; border-collapse:collapse; margin-bottom:20px; font-size:14px;">
+            <tr><th style="width:30%; padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Transaction Ref</th><td style="padding:10px; border:1px solid #000;"><strong>${orderItem.paymentId || orderItem.PaymentId}</strong></td></tr>
+            <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Date Logged</th><td style="padding:10px; border:1px solid #000;">${formatDateForDisplay(orderItem.date || orderItem.Date)}</td></tr>
+            <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">${partyLabel}</th><td style="padding:10px; border:1px solid #000;"><strong>${orderItem.party || orderItem.Party || 'N/A'}</strong></td></tr>
+            <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Classification</th><td style="padding:10px; border:1px solid #000;">${orderItem.type || orderItem.Type || 'General Ledger'}</td></tr>
+            <tr><th style="padding:10px; border:1px solid #000; background:#e8f4fd; text-align:left;">Amount</th><td style="padding:10px; border:1px solid #000; background:#e8f4fd; font-size:22px;"><strong>₦${formatMoney(orderItem.amount || orderItem.Amount)}</strong></td></tr>
+            <tr><th style="padding:10px; border:1px solid #000; background:#f9f9f9; text-align:left;">Amount in Words</th><td style="padding:10px; border:1px solid #000; font-style:italic;"><strong>${convertAmountToWords(orderItem.amount || orderItem.Amount)}</strong></td></tr>
+          </table>
+          
+          <div style="margin-top: 50px; display: flex; justify-content: space-between;">
+            <div style="width: 40%; text-align: center; border-top: 1px solid #000; padding-top: 10px;">
+              <strong>Authorized Signatory</strong>
+            </div>
+            <div style="width: 40%; text-align: center; border-top: 1px solid #000; padding-top: 10px;">
+              <strong>${isOutflow ? 'Payee Signature' : 'Payer Signature'}</strong>
+            </div>
+          </div>
+        </div>`;
+
+      // Pass empty array for attachments since Ledger entries don't support them yet
+      compileAndDownloadUnifiedPDF(invoiceLayoutHtml, [], `Ledger_${orderItem.paymentId || orderItem.PaymentId}`);
     }
 
     // ---------------------------------------------------------
