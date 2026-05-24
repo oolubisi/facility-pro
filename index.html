@@ -1321,6 +1321,12 @@
           } 
           else if (p === 'workorders') {
             const woId = item.workOrderId || item.WorkOrderId;
+            
+            // Build the submitted vs negotiated preview
+            const submittedPreview = (item.submittedValue || item.SubmittedValue) 
+              ? `<span style="font-size:13px; font-weight:700; color:var(--muted); text-decoration:line-through; margin-left:8px;">₦${formatMoney(item.submittedValue || item.SubmittedValue)}</span>` 
+              : '';
+
             return `
               <div class="card" onclick="openRecordRow('workorder', '${woId}')">
                 <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:4px;">
@@ -1337,7 +1343,12 @@
                     </button>
                   </div>
                 </div>
-                <div style="font-size:18px; font-weight:900; color:var(--success)">₦${formatMoney(item.amount)}</div>
+                
+                <div style="display:flex; align-items:baseline; margin:4px 0;">
+                   <div style="font-size:18px; font-weight:900; color:var(--success)">₦${formatMoney(item.amount)}</div>
+                   ${submittedPreview}
+                </div>
+                
                 ${item.assigned ? `<div style="font-size:14px; font-weight:700; color:var(--muted); margin-bottom:4px;"><i class="fas fa-user-check"></i> ${item.assigned} ${item.duration ? `• ${item.duration}` : ''}</div>` : ''}
                 <div style="font-size:15px; font-weight:600; color:#000;">${item.description || item.Description || ''}</div>
               </div>`;
@@ -1813,7 +1824,10 @@
           <label ${labelStyle}>Target Asset (Optional)</label><select id="w_asset" ${largeInput} ${isApproved ? 'disabled' : ''}><option value="">-- No Specific Asset --</option></select>
           <label ${labelStyle}>Assigned</label><select id="w_assigned" ${largeInput} ${isApproved ? 'disabled' : ''}></select>
           <label ${labelStyle}>Duration</label><input id="w_duration" type="text" value="${isEdit ? (editData.duration || editData.Duration || '') : ''}" placeholder="e.g. 3 Days, 1 Week" ${largeInput} ${isApproved ? 'disabled' : ''}>
-          <label ${labelStyle}>Budget (₦)</label><input id="w_amount" type="number" required placeholder="Cost allocation entry" value="${isEdit ? (editData.amount || editData.Amount || '') : ''}" ${largeInput} ${isApproved ? 'disabled' : ''}>
+          
+          <label ${labelStyle}>Submitted Value (₦)</label><input id="w_submitted_val" type="number" placeholder="Initial proposed cost" value="${isEdit ? (editData.submittedValue || editData.SubmittedValue || '') : ''}" ${largeInput} ${isApproved ? 'disabled' : ''}>
+          <label ${labelStyle}>Negotiated Value (₦)</label><input id="w_amount" type="number" required placeholder="Final agreed cost" value="${isEdit ? (editData.amount || editData.Amount || '') : ''}" ${largeInput} ${isApproved ? 'disabled' : ''}>
+          
           <label ${labelStyle}>Authorization Status</label>
           <select id="w_status" ${largeInput} ${isApproved ? 'disabled' : ''}>
             <option value="Pending Approval" ${isEdit && String(editData.status || editData.Status)==='Pending Approval'?'selected':''}>Pending Approval</option>
@@ -1858,7 +1872,7 @@
           submit.style.display = "none"; 
         } else {
           submit.onclick = () => {
-            if(!document.getElementById('w_amount').value) { alert("Budget amount is required."); return; }
+            if(!document.getElementById('w_amount').value) { alert("Negotiated Value is required."); return; }
             submit.disabled = true;
             callApi(isEdit ? 'updateWorkOrder' : 'saveWorkOrder', { 
               workOrderId: uniqueWO, 
@@ -1867,6 +1881,7 @@
               asset: document.getElementById('w_asset').value,
               assigned: asSel.value,
               duration: document.getElementById('w_duration').value,
+              submittedValue: document.getElementById('w_submitted_val').value, // Add new value to payload
               amount: document.getElementById('w_amount').value, 
               status: document.getElementById('w_status').value, 
               description: document.getElementById('w_desc').value, 
@@ -2245,7 +2260,8 @@
             <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Assigned</th><td style="padding:10px; border:1px solid #000;">${orderItem.assigned || orderItem.Assigned || 'Unassigned'}</td></tr>
             <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Project Duration</th><td style="padding:10px; border:1px solid #000;">${orderItem.duration || orderItem.Duration || 'Not Specified'}</td></tr>
             
-            <tr><th style="padding:10px; border:1px solid #000; background:#e8f4fd; text-align:left;">Financial Budget</th><td style="padding:10px; border:1px solid #000; background:#e8f4fd; font-size:18px;"><strong>₦${formatMoney(orderItem.amount || orderItem.Amount)}</strong></td></tr>
+            <tr><th style="padding:10px; border:1px solid #000; background:#f9f9f9; text-align:left;">Submitted Value</th><td style="padding:10px; border:1px solid #000; background:#f9f9f9; font-size:15px; color:#555;"><strong>₦${formatMoney(orderItem.submittedValue || orderItem.SubmittedValue)}</strong></td></tr>
+            <tr><th style="padding:10px; border:1px solid #000; background:#e8f4fd; text-align:left;">Negotiated Value</th><td style="padding:10px; border:1px solid #000; background:#e8f4fd; font-size:18px;"><strong>₦${formatMoney(orderItem.amount || orderItem.Amount)}</strong></td></tr>
             <tr><th style="padding:10px; border:1px solid #000; background:#f9f9f9; text-align:left;">Amount in Words</th><td style="padding:10px; border:1px solid #000; font-style:italic;"><strong>${convertAmountToWords(orderItem.amount || orderItem.Amount)}</strong></td></tr>
             
             <tr><th style="padding:10px; border:1px solid #000; background:#f0f0f0; text-align:left;">Lifecycle Auth Status</th><td style="padding:10px; border:1px solid #000;"><strong>${String(orderItem.status || orderItem.Status || 'PENDING').toUpperCase()}</strong></td></tr>
