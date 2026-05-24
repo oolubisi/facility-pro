@@ -1924,8 +1924,8 @@
           <input list="party_list" id="p_party" value="${isEdit ? (editData.party || '') : ''}" placeholder="Type or select from list..." ${largeInput}>
           <datalist id="party_list">${partyOpts}</datalist>
           
-          <label ${labelStyle}>Account Number</label>
-          <input id="p_account" type="text" value="${isEdit ? (editData.account || editData.Account || '') : ''}" placeholder="Bank Account Number" ${largeInput}>
+          <label ${labelStyle}>Account Number (10 Digits)</label>
+          <input id="p_account" type="text" inputmode="numeric" maxlength="10" oninput="this.value=this.value.replace(/[^0-9]/g,'')" value="${isEdit ? (editData.account || editData.Account || '') : ''}" placeholder="e.g. 0123456789" ${largeInput}>
           
           <label ${labelStyle}>Linked Record</label>
           <select id="p_reference" ${largeInput}></select>
@@ -1948,12 +1948,20 @@
 
         submit.onclick = () => {
           if(!document.getElementById('p_amount').value) { alert("Amount is required."); return; }
+          
+          // STRICT 10-DIGIT VALIDATION
+          const accVal = document.getElementById('p_account').value;
+          if (accVal && accVal.length !== 10) { 
+              alert("If providing an Account Number, it must be exactly 10 digits."); 
+              return; 
+          }
+
           submit.disabled = true;
           callApi(isEdit ? 'updatePayment' : 'savePayment', {
             paymentId: uniqueId, 
             direction: document.getElementById('p_direction').value, 
             party: document.getElementById('p_party').value,
-            account: document.getElementById('p_account').value, 
+            account: String(accVal), // Explicitly cast to String to protect leading zeros in Apps Script
             reference: document.getElementById('p_reference').value,
             type: document.getElementById('p_type').value, 
             reason: document.getElementById('p_reason').value,
