@@ -1349,13 +1349,14 @@
             
             const reasonPreview = item.reason ? `<div style="font-size:13px; color:var(--muted); margin-top:2px;">${item.reason}</div>` : '';
             const linkPreview = item.reference ? `<span style="background:var(--card-light); padding:2px 6px; border:1px solid var(--border); border-radius:4px; font-size:10px; margin-left:6px;"><i class="fas fa-link"></i> ${item.reference}</span>` : '';
+            const bankPreview = item.bank ? `${item.bank}: ` : 'Acc: ';
             
             return `
               <div class="card" onclick="openRecordRow('payment', '${item.paymentId || item.PaymentId}')">
                 <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:4px;">
                   <div>
                     <strong style="font-size:18px;">${item.party || 'No Party Listed'}</strong><br>
-                    <small style="color:var(--muted); font-weight:700;">ID: ${item.paymentId || item.PaymentId || ''} | Acc: ${item.account || item.Account || 'N/A'}</small>
+                    <small style="color:var(--muted); font-weight:700;">ID: ${item.paymentId || item.PaymentId || ''} | ${bankPreview}${item.account || item.Account || 'N/A'}</small>
                   </div>
                   <div style="display:flex; flex-direction:column; align-items:flex-end; gap:8px;">
                     <div style="text-align:right;">
@@ -1924,6 +1925,19 @@
           <input list="party_list" id="p_party" value="${isEdit ? (editData.party || '') : ''}" placeholder="Type or select from list..." ${largeInput}>
           <datalist id="party_list">${partyOpts}</datalist>
           
+          <label ${labelStyle}>Bank Name</label>
+          <input list="bank_list" id="p_bank" type="text" value="${isEdit ? (editData.bank || editData.Bank || '') : ''}" placeholder="e.g. GTBank, Zenith, Access" ${largeInput}>
+          <datalist id="bank_list">
+            <option value="Access Bank">
+            <option value="First Bank">
+            <option value="GTBank">
+            <option value="Kuda Bank">
+            <option value="Moniepoint">
+            <option value="Opay">
+            <option value="UBA">
+            <option value="Zenith Bank">
+          </datalist>
+
           <label ${labelStyle}>Account Number (10 Digits)</label>
           <input id="p_account" type="text" inputmode="numeric" maxlength="10" oninput="this.value=this.value.replace(/[^0-9]/g,'')" value="${isEdit ? (editData.account || editData.Account || '') : ''}" placeholder="e.g. 0123456789" ${largeInput}>
           
@@ -1949,7 +1963,6 @@
         submit.onclick = () => {
           if(!document.getElementById('p_amount').value) { alert("Amount is required."); return; }
           
-          // STRICT 10-DIGIT VALIDATION
           const accVal = document.getElementById('p_account').value;
           if (accVal && accVal.length !== 10) { 
               alert("If providing an Account Number, it must be exactly 10 digits."); 
@@ -1961,7 +1974,8 @@
             paymentId: uniqueId, 
             direction: document.getElementById('p_direction').value, 
             party: document.getElementById('p_party').value,
-            account: String(accVal), // Explicitly cast to String to protect leading zeros in Apps Script
+            bank: document.getElementById('p_bank').value,
+            account: String(accVal), 
             reference: document.getElementById('p_reference').value,
             type: document.getElementById('p_type').value, 
             reason: document.getElementById('p_reason').value,
@@ -2325,8 +2339,9 @@
                 <strong>${orderItem.party || orderItem.Party || 'N/A'}</strong>
               </div>
               <div style="width: 35%;">
-                <small style="color: #666; font-weight: 700; font-size: 12px; display: block; text-transform: uppercase;">Account Number</small>
-                <strong>${orderItem.account || orderItem.Account || 'N/A'}</strong>
+                <small style="color: #666; font-weight: 700; font-size: 12px; display: block; text-transform: uppercase;">Bank Account</small>
+                <strong>${orderItem.account || orderItem.Account || 'N/A'}</strong><br>
+                <span style="font-size: 14px; color: #555;">${orderItem.bank || orderItem.Bank || ''}</span>
               </div>
               <div style="width: 30%; text-align: right;">
                 <small style="color: #666; font-weight: 700; font-size: 12px; display: block; text-transform: uppercase;">Total Amount</small>
