@@ -266,7 +266,7 @@
           <div class="nav-card" onclick="showPage('workorders')">
             <i class="fas fa-file-invoice-dollar"></i>
             <div id="s-wo" class="count">--</div>
-            <small>Work Orders</small>
+            <small>Pending Work Orders</small>
           </div>
           <div class="nav-card" onclick="showPage('assets')">
             <i class="fas fa-clock"></i>
@@ -1102,7 +1102,7 @@
       const assetCount = cache.assets ? cache.assets.filter(a => String(a.status || a.Status || '') !== 'Archived' && String(a.archived || a.Archived || '') !== 'Yes').length : 0;
       const invCount = cache.inventory ? cache.inventory.filter(i => String(i.archived || i.Archived || '') !== 'Yes').length : 0;
       const maintCount = cache.tickets ? cache.tickets.filter(t => String(t.status || t.Status || '') !== 'Resolved').length : 0;
-      const woCount = cache.workorders ? cache.workorders.filter(w => String(w.archived || w.Archived || '') !== 'Yes').length : 0;
+      const woCount = cache.workorders ? cache.workorders.filter(w => String(w.status || w.Status || '') === 'Pending Approval').length : 0;
 
       const today = new Date(); today.setHours(0,0,0,0);
       const fourteenDaysLimit = new Date(); fourteenDaysLimit.setDate(today.getDate() + 14); fourteenDaysLimit.setHours(23,59,59,999);
