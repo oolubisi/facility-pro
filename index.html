@@ -2001,6 +2001,27 @@
         const updateRefDropdown = () => { pRef.innerHTML = pDir.value === 'INFLOW' ? inflowRefOpts : outflowRefOpts; };
         pDir.addEventListener('change', updateRefDropdown);
         updateRefDropdown(); 
+        // Auto-fill account details when a Staff or Vendor is selected
+        document.getElementById('p_party').addEventListener('change', (e) => {
+            const selectedParty = e.target.value.trim();
+            if (!selectedParty) return;
+
+            // 1. Check Vendors Registry
+            const vendorMatch = cache.vendors.find(v => (v.company || v.Company) === selectedParty);
+            if (vendorMatch && (vendorMatch.account || vendorMatch.Account)) {
+                document.getElementById('p_bank').value = vendorMatch.bank || vendorMatch.Bank || '';
+                document.getElementById('p_account').value = vendorMatch.account || vendorMatch.Account || '';
+                return;
+            }
+
+            // 2. Check Staff Registry
+            const staffMatch = cache.staff.find(s => (s.name || s.Name) === selectedParty);
+            if (staffMatch && (staffMatch.account || staffMatch.Account)) {
+                document.getElementById('p_bank').value = staffMatch.bank || staffMatch.Bank || '';
+                document.getElementById('p_account').value = staffMatch.account || staffMatch.Account || '';
+                return;
+            }
+        });
 
         // Auto-Calculate Balance Due UX
         const calcBalance = () => {
@@ -2170,6 +2191,10 @@
           <label ${labelStyle}>Phone 1</label><input id="st_p1" type="tel" maxlength="11" inputmode="numeric" oninput="this.value=this.value.replace(/[^0-9]/g,'')" value="${isEdit?(editData.phone1 || editData.Phone1 || ''):''}" ${largeInput}>
           <label ${labelStyle}>Phone 2</label><input id="st_p2" type="tel" maxlength="11" inputmode="numeric" oninput="this.value=this.value.replace(/[^0-9]/g,'')" value="${isEdit?(editData.phone2 || editData.Phone2 || ''):''}" ${largeInput}>
           <label ${labelStyle}>Staff Email Address</label><input id="st_email" type="email" value="${isEdit?(editData.email || editData.Email || ''):''}" ${largeInput}>
+          <label ${labelStyle}>Bank Name</label>
+          <input list="bank_list" id="st_bank" value="${isEdit?(editData.bank || editData.Bank || ''):''}" placeholder="e.g. GTBank" ${largeInput}>
+          <label ${labelStyle}>Account Number</label>
+          <input id="st_account" type="text" inputmode="numeric" maxlength="10" oninput="this.value=this.value.replace(/[^0-9]/g,'')" value="${isEdit?(editData.account || editData.Account || ''):''}" placeholder="10 Digit Account Number" ${largeInput}>
           
           <label ${labelStyle}>Profile Archive Lifecycle Deployment State</label>
           <select id="st_archived" ${largeInput}>
@@ -2200,7 +2225,21 @@
           if(!p1 || p1.length !== 11) { alert("Phone 1 must be exactly 11 numeric digits."); return; }
           if(p2 && p2.length !== 11) { alert("Phone 2 must be exactly 11 numeric digits if provided."); return; }
           submit.disabled = true;
-          callApi(isEdit?'updateStaff':'saveStaff', { rowId: document.getElementById('st_id').value, name: document.getElementById('st_name').value, address: document.getElementById('st_address').value, role: document.getElementById('st_role').value, phone1: String(p1), phone2: String(p2), email: document.getElementById('st_email').value, passport: currentAvatarPhoto, attachments: currentModalFiles.join(','), archived: document.getElementById('st_archived').value }).then(() => { closeModal(); refreshData('staff'); });
+          
+          callApi(isEdit?'updateStaff':'saveStaff', { 
+            rowId: document.getElementById('st_id').value, 
+            name: document.getElementById('st_name').value, 
+            address: document.getElementById('st_address').value, 
+            role: document.getElementById('st_role').value, 
+            phone1: String(p1), 
+            phone2: String(p2), 
+            email: document.getElementById('st_email').value,
+            bank: document.getElementById('st_bank').value,                   // NEW
+            account: String(document.getElementById('st_account').value),     // NEW (Forced String)
+            passport: currentAvatarPhoto, 
+            attachments: currentModalFiles.join(','), 
+            archived: document.getElementById('st_archived').value 
+          }).then(() => { closeModal(); refreshData('staff'); });
         };
       }
       else if (type === 'vendor') {
@@ -2227,6 +2266,10 @@
           <label ${labelStyle}>Phone 1</label><input id="v_phone1" type="tel" maxlength="11" inputmode="numeric" oninput="this.value=this.value.replace(/[^0-9]/g,'')" value="${isEdit?(editData.phone1 || editData.Phone1 || ''):''}" ${largeInput}>
           <label ${labelStyle}>Phone 2</label><input id="v_phone2" type="tel" maxlength="11" inputmode="numeric" oninput="this.value=this.value.replace(/[^0-9]/g,'')" value="${isEdit?(editData.phone2 || editData.Phone2 || ''):''}" ${largeInput}>
           <label ${labelStyle}>Corporate Support Email</label><input id="v_email" type="email" value="${isEdit?(editData.email || editData.Email || ''):''}" ${largeInput}>
+          <label ${labelStyle}>Bank Name</label>
+          <input list="bank_list" id="v_bank" value="${isEdit?(editData.bank || editData.Bank || ''):''}" placeholder="e.g. Zenith Bank" ${largeInput}>
+          <label ${labelStyle}>Account Number</label>
+          <input id="v_account" type="text" inputmode="numeric" maxlength="10" oninput="this.value=this.value.replace(/[^0-9]/g,'')" value="${isEdit?(editData.account || editData.Account || ''):''}" placeholder="10 Digit Account Number" ${largeInput}>
           <label ${labelStyle}>SLA Contract Expiration Timeline</label><input id="v_end" type="date" value="${isEdit?fromSheetDate(editData.contractEnd || editData.ContractEnd):''}" ${largeInput}>
           
           <label ${labelStyle}>Archive Profile Account</label>
@@ -2258,7 +2301,23 @@
           if(!p1 || p1.length !== 11) { alert("Phone 1 must be exactly 11 numeric digits."); return; }
           if(p2 && p2.length !== 11) { alert("Phone 2 must be exactly 11 numeric digits if provided."); return; }
           submit.disabled = true;
-          callApi(isEdit?'updateVendor':'saveVendor', { rowId: document.getElementById('v_id').value, company: document.getElementById('v_company').value, address: document.getElementById('v_address').value, trade: document.getElementById('v_trade').value, contactName: document.getElementById('v_contact').value, phone1: String(p1), phone2: String(p2), email: document.getElementById('v_email').value, contractEnd: toSheetDate(document.getElementById('v_end').value), passport: currentAvatarPhoto, attachments: currentModalFiles.join(','), archived: document.getElementById('v_archived').value }).then(() => { closeModal(); refreshData('vendors'); });
+          
+          callApi(isEdit?'updateVendor':'saveVendor', { 
+            rowId: document.getElementById('v_id').value, 
+            company: document.getElementById('v_company').value, 
+            address: document.getElementById('v_address').value, 
+            trade: document.getElementById('v_trade').value, 
+            contactName: document.getElementById('v_contact').value, 
+            phone1: String(p1), 
+            phone2: String(p2), 
+            email: document.getElementById('v_email').value, 
+            bank: document.getElementById('v_bank').value,                    // NEW
+            account: String(document.getElementById('v_account').value),      // NEW (Forced String)
+            contractEnd: toSheetDate(document.getElementById('v_end').value), 
+            passport: currentAvatarPhoto, 
+            attachments: currentModalFiles.join(','), 
+            archived: document.getElementById('v_archived').value 
+          }).then(() => { closeModal(); refreshData('vendors'); });
         };
       }
     }
