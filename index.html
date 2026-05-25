@@ -1377,7 +1377,7 @@
                 <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:4px;">
                   <div>
                     <strong style="font-size:18px;">${item.party || 'No Party Listed'}</strong><br>
-                    <small style="color:var(--muted); font-weight:700;">ID: ${item.paymentId || item.PaymentId || ''} | ${bankPreview}${item.account || item.Account || 'N/A'}</small>
+                    <small style="color:var(--muted); font-weight:700;">ID: ${item.paymentId || item.PaymentId || ''} | ${bankPreview}${(item.account || item.Account) ? String(item.account || item.Account).padStart(10, '0') : 'N/A'}</small>
                   </div>
                   <div style="display:flex; flex-direction:column; align-items:flex-end; gap:8px;">
                     <div style="text-align:right;">
@@ -2040,9 +2040,12 @@
         submit.onclick = () => {
           if(!document.getElementById('p_amount').value) { alert("Amount to Pay is required."); return; }
           
-          const accVal = document.getElementById('p_account').value;
-          if (accVal && accVal.length !== 10) { alert("If providing an Account Number, it must be exactly 10 digits."); return; }
+          // Grab the account and pad it to 10 digits if it exists
+          let accVal = document.getElementById('p_account').value;
+          if (accVal) accVal = String(accVal).padStart(10, '0');
 
+          // (Optional) You can keep this check if you want to ensure they didn't type more than 10 digits
+          if (accVal && accVal.length !== 10) { alert("Account Number must be exactly 10 digits."); return; }
           submit.disabled = true;
           submit.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...'; 
 
@@ -2051,7 +2054,7 @@
             direction: document.getElementById('p_direction').value, 
             party: document.getElementById('p_party').value,
             bank: document.getElementById('p_bank').value,
-            account: String(accVal), 
+            account: accVal, // Send the padded value
             reference: document.getElementById('p_reference').value,
             type: document.getElementById('p_type').value, 
             reason: document.getElementById('p_reason').value,
@@ -2235,7 +2238,7 @@
             phone2: String(p2), 
             email: document.getElementById('st_email').value,
             bank: document.getElementById('st_bank').value,                   // NEW
-            account: String(document.getElementById('st_account').value),     // NEW (Forced String)
+            account: String(document.getElementById('st_account').value).padStart(10, '0'), // Auto-pads to 10 digits
             passport: currentAvatarPhoto, 
             attachments: currentModalFiles.join(','), 
             archived: document.getElementById('st_archived').value 
@@ -2319,7 +2322,7 @@
             phone2: String(p2), 
             email: document.getElementById('v_email').value, 
             bank: document.getElementById('v_bank').value,                    // NEW
-            account: String(document.getElementById('v_account').value),      // NEW (Forced String)
+            account: String(document.getElementById('v_account').value).padStart(10, '0'), // Auto-pads to 10 digits
             contractEnd: toSheetDate(document.getElementById('v_end').value), 
             passport: currentAvatarPhoto, 
             attachments: currentModalFiles.join(','), 
@@ -2455,6 +2458,7 @@
       let combinedAttachmentsArray = rawAttachments ? String(rawAttachments).split(',').map(s => s.trim()).filter(Boolean) : [];
       
       // 2. Build the Primary Ledger HTML
+      // 2. Build the Primary Ledger HTML
       let finalLayoutHtml = `
         <div style="width: 800px; padding: 20px 40px; font-family:'Inter', sans-serif; color:#000; background:#fff; box-sizing: border-box;">
           <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:3px solid #000; padding-bottom:10px; margin-bottom:20px;">
@@ -2489,7 +2493,7 @@
               </div>
               <div style="width: 30%;">
                 <small style="color: #666; font-weight: 700; font-size: 12px; display: block; text-transform: uppercase;">Bank Account</small>
-                <strong>${orderItem.account || orderItem.Account || 'N/A'}</strong><br>
+                <strong>${(orderItem.account || orderItem.Account) ? String(orderItem.account || orderItem.Account).padStart(10, '0') : 'N/A'}</strong><br>
                 <span style="font-size: 14px; color: #555;">${orderItem.bank || orderItem.Bank || ''}</span>
               </div>
               <div style="width: 35%; text-align: right;">
@@ -2499,7 +2503,7 @@
             </div>
           </div>
         </div>`;
-
+      
       // 3. Check for and stitch Linked Records (Work Orders or Expense Requests)
       const ref = orderItem.reference || orderItem.Reference;
       
