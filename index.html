@@ -2248,6 +2248,13 @@
         currentAvatarPhoto = isEdit ? (editData.passport || editData.Passport) : "";
         if (isEdit && (editData.attachments || editData.Attachments)) currentModalFiles = (editData.attachments || editData.Attachments).split(',').filter(Boolean);
 
+        // Auto-restore stripped leading zeros from Google Sheets
+        let vPhone1 = isEdit ? String(editData.phone1 || editData.Phone1 || '').replace(/[^0-9]/g, '') : '';
+        if (vPhone1.length === 10 && !vPhone1.startsWith('0')) vPhone1 = '0' + vPhone1;
+
+        let vPhone2 = isEdit ? String(editData.phone2 || editData.Phone2 || '').replace(/[^0-9]/g, '') : '';
+        if (vPhone2.length === 10 && !vPhone2.startsWith('0')) vPhone2 = '0' + vPhone2;
+        
         body.innerHTML = `
           <div class="passport-frame-container" style="position:relative;">
             <img id="vendor_frame_view" src="${currentAvatarPhoto ? getDirectImageUrl(currentAvatarPhoto) : 'data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 width=%2260%22 height=%2260%22><path d=%22M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z%22 fill=%22%236c757d%22/></svg>'}" style="width:100%; height:100%; object-fit:cover;">
@@ -2263,8 +2270,8 @@
           <label ${labelStyle}>Business Address</label><input id="v_address" value="${isEdit ? (editData.address || editData.Address || '') : ''}" ${largeInput}>
           <label ${labelStyle}>Trade Domain Specialization</label><input id="v_trade" value="${isEdit ? (editData.trade || editData.Trade) : ''}" ${largeInput}>
           <label ${labelStyle}>Primary Account Contact Name</label><input id="v_contact" value="${isEdit ? (editData.contactName || editData.ContactName) : ''}" ${largeInput}>
-          <label ${labelStyle}>Phone 1</label><input id="v_phone1" type="tel" maxlength="11" inputmode="numeric" oninput="this.value=this.value.replace(/[^0-9]/g,'')" value="${isEdit?(editData.phone1 || editData.Phone1 || ''):''}" ${largeInput}>
-          <label ${labelStyle}>Phone 2</label><input id="v_phone2" type="tel" maxlength="11" inputmode="numeric" oninput="this.value=this.value.replace(/[^0-9]/g,'')" value="${isEdit?(editData.phone2 || editData.Phone2 || ''):''}" ${largeInput}>
+          <label ${labelStyle}>Phone 1</label><input id="v_phone1" type="tel" maxlength="11" inputmode="numeric" oninput="this.value=this.value.replace(/[^0-9]/g,'')" value="${vPhone1}" ${largeInput}>
+          <label ${labelStyle}>Phone 2</label><input id="v_phone2" type="tel" maxlength="11" inputmode="numeric" oninput="this.value=this.value.replace(/[^0-9]/g,'')" value="${vPhone2}" ${largeInput}>
           <label ${labelStyle}>Corporate Support Email</label><input id="v_email" type="email" value="${isEdit?(editData.email || editData.Email || ''):''}" ${largeInput}>
           <label ${labelStyle}>Bank Name</label>
           <input list="bank_list" id="v_bank" value="${isEdit?(editData.bank || editData.Bank || ''):''}" placeholder="e.g. Zenith Bank" ${largeInput}>
