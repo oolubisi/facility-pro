@@ -1,1 +1,197 @@
+    :root {
+      --bg: #F1F3F5;           /* App background */
+      --card: #FFFFFF;         /* Solid white for cards */
+      --card-light: #F8F9FA;   /* Slightly off-white for hovered items */
+      --border: #DEE2E6;       /* Clean gray borders */
+      --text: #212529;         /* Near-black for high contrast readability */
+      --muted: #6C757D;        /* Gray for secondary text */
+      --primary: #0D6EFD;      /* Professional blue for main accents */
+      --success: #198754;      /* Green for approvals/operational */
+      --danger: #DC3545;       /* Red for declined/archived */
+    }
+    * { 
+      margin: 0; 
+      padding: 0; 
+      box-sizing: border-box; 
+      /* Stop blue tap highlights on mobile */
+      -webkit-tap-highlight-color: transparent; 
+    }
 
+    body { 
+      font-family: 'Inter', sans-serif; 
+      background: var(--bg); 
+      color: var(--text); 
+      width: 100%; 
+      overflow-x: hidden; 
+      line-height: 1.5;
+      /* Stop the "pull-to-refresh" browser bounce effect */
+      overscroll-behavior-y: none; 
+      /* Stop users from accidentally highlighting text while tapping */
+      -webkit-user-select: none; 
+      user-select: none; 
+      /* Support for iPhone Notch Safe Areas */
+      padding-top: env(safe-area-inset-top);
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+
+    /* Re-enable text selection ONLY for input fields so users can type and edit */
+    input, textarea, select {
+      -webkit-user-select: auto;
+      user-select: auto;
+    }
+    
+    .main { 
+      width: 100%; 
+      max-width: 500px; 
+      margin: 0 auto; 
+      padding: 15px 12px 100px 12px; 
+      min-height: 100vh; 
+    }
+
+    .nav-grid { 
+      display: grid; 
+      grid-template-columns: repeat(2, 1fr); 
+      gap: 12px; 
+      margin-bottom: 15px; 
+    }
+    .nav-card {
+      background: var(--card); 
+      border: 2px solid var(--border); 
+      border-radius: 24px; 
+      padding: 16px;
+      text-align: center; 
+      display: flex; 
+      flex-direction: column;
+      justify-content: center; 
+      align-items: center; 
+      cursor: pointer; 
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+      min-height: 145px; 
+    }
+    .nav-card:active { background: var(--card-light); transform: scale(0.98); }
+    .nav-card i { font-size: 36px; color: var(--primary); margin-bottom: 6px; } 
+    .nav-card .count { font-size: 38px; font-weight: 900; color: var(--text); line-height: 1.1; } 
+    .nav-card small { font-size: 16px; text-transform: uppercase; color: var(--text); font-weight: 800; margin-top: 4px; } 
+
+    .nav-card-small {
+      background: var(--card); border: 2px solid var(--border); border-radius: 16px; 
+      padding: 12px; text-align: center; display: flex; flex-direction: column;
+      justify-content: center; align-items: center; cursor: pointer; 
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05); min-height: 58px;
+    }
+    .nav-card-small:active { background: var(--card-light); transform: scale(0.98); }
+    .nav-card-small i { font-size: 24px; color: var(--primary); margin-bottom: 4px; } 
+    .nav-card-small small { font-size: 13px; text-transform: uppercase; color: var(--text); font-weight: 800; }
+
+    .alert-banner {
+      background: #FFF3CD; border: 2px solid #FFEBAA; color: #856404; padding: 14px;
+      border-radius: 16px; margin-bottom: 15px; font-weight: 700; font-size: 15px;
+      display: none; align-items: center; gap: 10px; cursor: pointer;
+    }
+
+    .page-header { 
+      display: flex; align-items: center; justify-content: space-between; 
+      margin-bottom: 20px; padding-bottom: 12px; border-bottom: 3px solid var(--text); 
+    }
+    .header-group { display: flex; align-items: center; gap: 10px; }
+    .home-btn { background: var(--text); border: none; color: white; width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+    h2 { font-size: 22px; font-weight: 800; color: var(--text); }
+
+    .card { 
+      background: var(--bg); border-radius: 16px; padding: 16px; 
+      border: 2px solid var(--border); margin-bottom: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+    
+    label { 
+      display: block; font-weight: 800; font-size: 15px; color: var(--text); 
+      margin-bottom: 4px; margin-top: 10px; 
+    }
+
+    input, select, textarea { 
+      width: 100%; padding: 14px; margin-bottom: 8px; border-radius: 10px; 
+      border: 2px solid var(--text); background: white; color: black; 
+      font-size: 18px !important; font-weight: 500;
+    }
+    
+    input:disabled, select:disabled, textarea:disabled { background: #e9ecef; border-color: #adb5bd; color: #495057; opacity: 1; }
+
+    .action-btn { 
+      background: var(--text); color: white; border: none; padding: 16px; 
+      border-radius: 12px; font-weight: 900; width: 100%; font-size: 18px; 
+      text-transform: uppercase; letter-spacing: 0.5px; cursor: pointer;
+    }
+
+    .icon-upload-label {
+      background: var(--card-light); border: 2px solid var(--text); width: 56px; height: 56px;
+      border-radius: 50%; display: flex; align-items: center; justify-content: center;
+      font-size: 22px; cursor: pointer; color: var(--text); margin: 10px auto;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+    }
+    .icon-upload-label:active { background: var(--border); }
+
+    .modal-preview-grid {
+      display: flex; flex-wrap: wrap; gap: 12px; justify-content: center;
+      margin-top: 8px; background: var(--card); padding: 12px;
+      border-radius: 10px; border: 1px dashed var(--border);
+    }
+
+    .passport-frame-container {
+      position: relative; width: 110px; height: 110px; margin: 0 auto 12px auto; 
+      border: 3px solid var(--text); border-radius: 14px; background: #ffffff; 
+      overflow: hidden; display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+    }
+
+    .modal-overlay { 
+      position: fixed; inset: 0; background: rgba(255,255,255,0.96); 
+      display: none; justify-content: center; align-items: center; 
+      z-index: 5000; padding: 15px; 
+    }
+    .modal { 
+      background: var(--bg); width: 100%; max-width: 480px; padding: 20px; 
+      border-radius: 20px; border: 3px solid var(--text); 
+      max-height: 90vh; overflow-y: auto; 
+    }
+
+    .page-view { display: none; }
+    .active-view { display: block; }
+
+    #report-print-container { display: none; }
+    /* ========================================= */
+    /* PRINT & PDF GENERATION STYLES             */
+    /* ========================================= */
+    @media print {
+      /* 1. Completely collapse the main app so it takes ZERO space */
+      .app, .modal-overlay, #sync-status, #pdf-toast { 
+        display: none !important; 
+      }
+      
+      /* 2. Strip background colors from the body */
+      body {
+        background: #ffffff !important;
+        margin: 0;
+        padding: 0;
+      }
+
+      /* 3. Let the print container flow naturally (No position: absolute!) */
+      #report-print-container { 
+        display: block !important; 
+        position: relative !important;
+        left: auto;
+        top: auto;
+        width: 100%; 
+      }
+      
+      /* 4. Ensure your colored tags and headers print beautifully */
+      #report-print-container * {
+        visibility: visible;
+        -webkit-print-color-adjust: exact !important; 
+        print-color-adjust: exact !important;
+      }
+
+      @page { 
+        size: A4 portrait; 
+        margin: 15mm; 
+      }
+    }
+   
