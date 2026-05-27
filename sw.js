@@ -1,9 +1,11 @@
-const CACHE_NAME = 'facility-pro-v4'; // Bumped to v4 to clear the corrupted opaque cache
+const CACHE_NAME = 'facility-pro-v5'; // Bumped to v5 to clear the corrupted opaque cache
 
 // 1. Only precache your LOCAL files here
 const STATIC_ASSETS = [
   '/facility-pro/',
   '/facility-pro/index.html',
+  '/facility-pro/styles.css',   
+  '/facility-pro/app.js',       
   '/facility-pro/manifest.json'
 ];
 
