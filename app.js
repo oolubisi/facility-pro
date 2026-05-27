@@ -2110,6 +2110,151 @@
             </div>`;
         });
       }
+          // -----------------------------------------------------
+  // PHASE 3: DAILY OPERATIONS REPORT
+  // -----------------------------------------------------
+  else if (layout === "daily_operations") {
+      const reportDate = document.getElementById('rep-param-date').value;
+      if (!reportDate) { alert("Please select a date."); return; }
+
+      // Defensive filtering (defaults to empty arrays if cache is missing)
+      const dailyTickets = (cache.tickets || []).filter(t => t.date === reportDate);
+      const openTickets = dailyTickets.filter(t => t.status !== 'Completed');
+      const closedTickets = dailyTickets.filter(t => t.status === 'Completed');
+
+      html += `<div style="text-align:center; margin-bottom: 20px;">
+                 <h3 style="margin:0; text-transform:uppercase; font-weight: 800;">Daily Operations Report</h3>
+                 <p style="margin:5px 0 0 0; font-weight: bold; color: #6C757D;">Date: ${formatDateForDisplay(reportDate)}</p>
+               </div>`;
+
+      html += `
+        <div style="display: flex; gap: 15px; margin-bottom: 20px;">
+           <div style="flex: 1; padding: 15px; background: #F8F9FA; border: 1px solid #DEE2E6; border-left: 4px solid #0D6EFD; border-radius: 4px;">
+              <h4 style="margin: 0 0 10px 0; font-size: 13px; color: #6C757D; text-transform: uppercase;">Maintenance Activity</h4>
+              <p style="margin: 0; font-size: 24px; font-weight: 900;">${dailyTickets.length} <span style="font-size: 12px; font-weight: normal;">Faults Logged</span></p>
+              <p style="margin: 5px 0 0 0; font-size: 12px; color: #198754;">${closedTickets.length} Resolved Today</p>
+           </div>
+           <div style="flex: 1; padding: 15px; background: #F8F9FA; border: 1px solid #DEE2E6; border-left: 4px solid #FFC107; border-radius: 4px;">
+              <h4 style="margin: 0 0 10px 0; font-size: 13px; color: #6C757D; text-transform: uppercase;">Generator & Power</h4>
+              <p style="margin: 0; font-size: 14px; font-weight: bold; color: #DC3545;">* Requires Manual Entry</p>
+              <p style="margin: 5px 0 0 0; font-size: 12px;">Runtime: ____ hrs | Diesel: ____ Ltrs</p>
+           </div>
+        </div>
+
+        <h4 style="border-bottom: 2px solid #212529; padding-bottom: 5px; text-transform: uppercase; margin-top: 20px;">Logged Faults & Work Orders</h4>
+        <table style="width:100%; border-collapse: collapse; font-size: 12px; margin-bottom: 20px;">
+          <thead>
+            <tr style="background-color: #E9ECEF; text-transform: uppercase;">
+              <th style="padding: 8px; border: 1px solid #DEE2E6; text-align:left;">Unit</th>
+              <th style="padding: 8px; border: 1px solid #DEE2E6; text-align:left;">Description</th>
+              <th style="padding: 8px; border: 1px solid #DEE2E6; text-align:center;">Priority</th>
+              <th style="padding: 8px; border: 1px solid #DEE2E6; text-align:center;">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${dailyTickets.length > 0 ? dailyTickets.map(t => `
+              <tr>
+                <td style="padding: 8px; border: 1px solid #DEE2E6;">${t.unit || t.apartment || 'N/A'}</td>
+                <td style="padding: 8px; border: 1px solid #DEE2E6;">${t.description || t.complaint || 'N/A'}</td>
+                <td style="padding: 8px; border: 1px solid #DEE2E6; text-align:center;">${t.priority || 'Normal'}</td>
+                <td style="padding: 8px; border: 1px solid #DEE2E6; text-align:center; font-weight:bold; color:${t.status === 'Completed' ? '#198754' : '#DC3545'}">${t.status || 'Pending'}</td>
+              </tr>
+            `).join('') : `<tr><td colspan="4" style="padding: 15px; text-align:center; color: #6C757D;">No incidents logged for this date.</td></tr>`}
+          </tbody>
+        </table>
+        
+        <h4 style="border-bottom: 2px solid #212529; padding-bottom: 5px; text-transform: uppercase;">Security & Visitors (Summary)</h4>
+        <div style="min-height: 60px; border: 1px dashed #DEE2E6; padding: 10px; font-size: 13px; color: #6C757D;">
+           [Manual Input Area - No security incidents reported in system]
+        </div>
+      `;
+  }
+
+  // -----------------------------------------------------
+  // PHASE 3: KPI DASHBOARD & MONTHLY SUMMARY
+  // -----------------------------------------------------
+  else if (layout === "monthly_fm" || layout === "kpi_dashboard") {
+      const monthStr = document.getElementById('rep-param-month').value; // format: YYYY-MM
+      if (!monthStr) { alert("Please select a month."); return; }
+
+      // 1. Data Aggregation
+      const apts = cache.apts || [];
+      const occupied = apts.filter(a => String(a.status || '').toLowerCase() === 'occupied').length;
+      const occPercentage = apts.length > 0 ? Math.round((occupied / apts.length) * 100) : 0;
+
+      const tickets = cache.tickets || [];
+      const monthlyTickets = tickets.filter(t => t.date && t.date.startsWith(monthStr));
+      const resolvedTickets = monthlyTickets.filter(t => t.status === 'Completed').length;
+      const resPercentage = monthlyTickets.length > 0 ? Math.round((resolvedTickets / monthlyTickets.length) * 100) : 100;
+
+      // Calculate Financials for the Month
+      let mInflow = 0; let mOutflow = 0;
+      (cache.payments || []).filter(p => p.date && p.date.startsWith(monthStr)).forEach(p => mInflow += parseFloat(p.amount || 0));
+      (cache.cashExpenses || []).filter(c => c.date && c.date.startsWith(monthStr)).forEach(c => mOutflow += parseFloat(c.amount || 0));
+
+      const reportTitle = layout === "monthly_fm" ? "Monthly Facility Management Report" : "Executive KPI Dashboard";
+
+      html += `<div style="text-align:center; margin-bottom: 20px;">
+                 <h3 style="margin:0; text-transform:uppercase; font-weight: 900; font-size: 22px;">${reportTitle}</h3>
+                 <p style="margin:5px 0 0 0; font-weight: bold; color: #6C757D; font-size: 16px;">Period: ${monthStr}</p>
+               </div>`;
+
+      // KPI CARDS (CSS Grid Layout)
+      html += `
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 25px;">
+           <div style="padding: 15px; background: #fff; border: 1px solid #DEE2E6; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+              <div style="display:flex; justify-content: space-between; align-items:center;">
+                 <div>
+                    <h4 style="margin: 0; font-size: 12px; color: #6C757D; text-transform: uppercase;">Occupancy Rate</h4>
+                    <p style="margin: 5px 0 0 0; font-size: 28px; font-weight: 900;">${occPercentage}%</p>
+                    <p style="margin: 0; font-size: 11px; color: #212529;">${occupied} of ${apts.length} Units Occupied</p>
+                 </div>
+                 <div style="width: 50px; height: 50px; border-radius: 50%; background: conic-gradient(#0D6EFD ${occPercentage}%, #E9ECEF 0); display:flex; align-items:center; justify-content:center;">
+                    <div style="width: 35px; height: 35px; background: #fff; border-radius: 50%;"></div>
+                 </div>
+              </div>
+           </div>
+
+           <div style="padding: 15px; background: #fff; border: 1px solid #DEE2E6; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+              <div style="display:flex; justify-content: space-between; align-items:center;">
+                 <div>
+                    <h4 style="margin: 0; font-size: 12px; color: #6C757D; text-transform: uppercase;">Resolution Rate</h4>
+                    <p style="margin: 5px 0 0 0; font-size: 28px; font-weight: 900; color: ${resPercentage >= 80 ? '#198754' : '#DC3545'};">${resPercentage}%</p>
+                    <p style="margin: 0; font-size: 11px; color: #212529;">${resolvedTickets} of ${monthlyTickets.length} Tickets Closed</p>
+                 </div>
+                 <div style="width: 50px; height: 50px; border-radius: 50%; background: conic-gradient(${resPercentage >= 80 ? '#198754' : '#DC3545'} ${resPercentage}%, #E9ECEF 0); display:flex; align-items:center; justify-content:center;">
+                    <div style="width: 35px; height: 35px; background: #fff; border-radius: 50%;"></div>
+                 </div>
+              </div>
+           </div>
+
+           <div style="padding: 15px; background: #F8F9FA; border: 1px solid #DEE2E6; border-left: 4px solid #198754; border-radius: 4px;">
+              <h4 style="margin: 0; font-size: 12px; color: #6C757D; text-transform: uppercase;">Monthly Collections</h4>
+              <p style="margin: 5px 0 0 0; font-size: 20px; font-weight: 900; color: #198754;">₦ ${formatMoney(mInflow)}</p>
+           </div>
+
+           <div style="padding: 15px; background: #F8F9FA; border: 1px solid #DEE2E6; border-left: 4px solid #DC3545; border-radius: 4px;">
+              <h4 style="margin: 0; font-size: 12px; color: #6C757D; text-transform: uppercase;">Monthly Expenses</h4>
+              <p style="margin: 5px 0 0 0; font-size: 20px; font-weight: 900; color: #DC3545;">₦ ${formatMoney(mOutflow)}</p>
+           </div>
+        </div>
+      `;
+
+      // If it is the full Monthly FM report, add narrative sections
+      if (layout === "monthly_fm") {
+          html += `
+            <h4 style="border-bottom: 2px solid #212529; padding-bottom: 5px; text-transform: uppercase;">Executive Summary</h4>
+            <div style="min-height: 80px; border: 1px solid #DEE2E6; padding: 10px; font-size: 13px; margin-bottom: 20px; background: #fff;">
+               <p style="margin:0; color:#6C757D; font-style:italic;">(Management remarks and overview for ${monthStr}...)</p>
+            </div>
+
+            <h4 style="border-bottom: 2px solid #212529; padding-bottom: 5px; text-transform: uppercase;">Challenges & Recommendations</h4>
+            <div style="min-height: 80px; border: 1px solid #DEE2E6; padding: 10px; font-size: 13px; margin-bottom: 20px; background: #fff;">
+               <p style="margin:0; color:#6C757D; font-style:italic;">(List major operational challenges and proposed solutions...)</p>
+            </div>
+          `;
+      }
+  }
       else if (layout === "fin_wo") {
         const startDate = new Date(document.getElementById('rep_start_date').value);
         const endDate = new Date(document.getElementById('rep_end_date').value);
