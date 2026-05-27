@@ -2019,36 +2019,48 @@
     }
 
     function handleReportProfileSwitch() {
-      const p = document.getElementById('rep-profile-selector').value; 
-      const l = document.getElementById('rep-layout-selector');
-      let out = "<option value=''>-- Choose Option Layout --</option>";
+      const profile = document.getElementById('rep-profile-selector').value;
+      const layoutSel = document.getElementById('rep-layout-selector');
+      const paramsFrame = document.getElementById('rep-dynamic-parameters-frame');
       
-      if (p === "apartments") { 
-        out += `<option value="apt_custom_print">Apartments Manifest</option>`; 
-      } 
-      else if (p === "financials") { 
-        out += `
-          <option value="fin_vendor">Vendor Account Ledger</option>
-          <option value="fin_wo">Approved Work Orders (Time Period)</option>
-          <option value="fin_cash">Cash Expenses (Time Period)</option>
-          <option value="fin_income">Income Accounts (Inflows)</option>
-          <option value="fin_pl">Full Account (Income & Expense)</option>`; 
-      }
-      l.innerHTML = out; 
-      document.getElementById('rep-dynamic-parameters-frame').innerHTML = "";
-    }
-
-    function handleReportLayoutSwitch() {
-      const layout = document.getElementById('rep-layout-selector').value; 
-      const f = document.getElementById('rep-dynamic-parameters-frame'); 
-      f.innerHTML = "";
-      
-      if (layout === "fin_wo" || layout === "fin_cash" || layout === "fin_pl" || layout === "fin_income") {
-        f.innerHTML = `
-          <label>START DATE:</label><input type="date" id="rep_start_date" style="font-size: 16px; padding: 10px; margin-bottom: 6px; width: 100%;">
-          <label>END DATE:</label><input type="date" id="rep_end_date" style="font-size: 16px; padding: 10px; margin-bottom: 15px; width: 100%;">
+      layoutSel.innerHTML = "";
+      paramsFrame.innerHTML = "";
+      document.getElementById('report-onscreen-preview-card').style.display = "none";
+    
+      if (profile === "apartments") {
+        layoutSel.innerHTML = `<option value="">-- Select Report --</option><option value="detailed_profile">Detailed Apartment Profile</option>`; 
+      } else if (profile === "financials") {
+        layoutSel.innerHTML = `<option value="">-- Select Report --</option><option value="ledger_summary">Comprehensive Ledger Summary</option>`;
+      } else if (profile === "executive") {
+        // Phase 3 Additions
+        layoutSel.innerHTML = `
+          <option value="">-- Select Report --</option>
+          <option value="daily_operations">Daily Operations Report</option>
+          <option value="monthly_fm">Monthly FM Report</option>
+          <option value="kpi_dashboard">KPI Executive Dashboard</option>
         `;
       }
+    }
+    
+    function handleReportLayoutSwitch() {
+       const layout = document.getElementById('rep-layout-selector').value;
+       const paramsFrame = document.getElementById('rep-dynamic-parameters-frame');
+       paramsFrame.innerHTML = ""; 
+       
+       if (layout === "detailed_profile") {
+          paramsFrame.innerHTML = `<label>SELECT APARTMENT UNIT</label><select id="rep-param-unit"></select>`;
+          populateUnitDropdown('rep-param-unit');
+       } else if (layout === "ledger_summary") {
+          paramsFrame.innerHTML = `<div style="display:flex; gap:10px;"><div style="flex:1;"><label>START</label><input type="date" id="rep-param-start"></div><div style="flex:1;"><label>END</label><input type="date" id="rep-param-end"></div></div>`;
+       } else if (layout === "daily_operations") {
+          // Input for Daily Report
+          const today = new Date().toISOString().split('T')[0];
+          paramsFrame.innerHTML = `<label>REPORT DATE</label><input type="date" id="rep-param-date" value="${today}">`;
+       } else if (layout === "monthly_fm" || layout === "kpi_dashboard") {
+          // Input for Monthly/KPI Reports
+          const thisMonth = new Date().toISOString().slice(0,7);
+          paramsFrame.innerHTML = `<label>SELECT MONTH</label><input type="month" id="rep-param-month" value="${thisMonth}">`;
+       }
     }
 
     function compileReportPreview() {
