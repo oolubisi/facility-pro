@@ -76,8 +76,8 @@
     const target = document.getElementById('pdf-capture-target');
     
     const opt = {
-      margin: [15, 0, 15, 0],
-      filename: filename,
+      margin:       20,             // <--- This forces a 20mm (2cm) margin on ALL 4 sides
+      filename:     filename + '.pdf',
       image: { type: 'jpeg', quality: 0.98 },
       html2canvas: { 
         scale: 2, 
