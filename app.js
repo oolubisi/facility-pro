@@ -2064,250 +2064,228 @@
     }
 
     function compileReportPreview() {
-      const layout = document.getElementById('rep-layout-selector').value;
-      if (!layout) return;
-      
-      let headerStr = `<div style="display: flex; align-items: center; justify-content: space-between; padding-bottom: 12px; border-bottom: 3px solid #000; margin-bottom: 20px;">
-        <div style="display: flex; align-items: center; gap: 14px;">
-          <div style="text-align: left;">
-            <h2 style="font-size: 32px; font-weight: 800; margin: 0; line-height: 1.2; text-transform:uppercase;">${appSettings.estateName || 'FACILITY OPERATIONS REPORT'}</h2>
-            <small style="display: block; font-weight: 700; color: #444; margin-top: 4px;">${appSettings.estateAddress || ''}</small>
-            <small style="display: block; font-weight: 700; color: #444; margin-top: 2px;">Managed by: ${appSettings.fmName || 'Facility Pro Engine'}</small>
-          </div>
+    const layout = document.getElementById('rep-layout-selector').value;
+    const viewport = document.getElementById('report-preview-viewport');
+    if (!layout) return;
+
+    // ==========================================
+    // 1. UNIVERSAL EVERGREEN HEADER
+    // ==========================================
+    // This wrapper enforces the professional print font and colors across ALL reports
+    let out = `<div style="font-family: 'Helvetica', 'Inter', sans-serif; color: #000; background: #fff; padding: 10px;">`;
+
+    out += `
+      <div style="text-align: center; margin-bottom: 20px;">
+        <h1 style="margin: 0; font-size: 24px; font-weight: 900; letter-spacing: 1px; text-transform: uppercase;">${appSettings.estateName || 'EVERGREEN ESTATE'}</h1>
+        <p style="margin: 4px 0; font-size: 11px;">${appSettings.estateAddress || 'Plot 62, Amos Adamu Close, Parkview Estate, Ikoyi, Lagos'}</p>
+        <p style="margin: 0; font-size: 11px; font-weight: bold;">Managed by: ${appSettings.fmName || 'PI PROJECTS'}</p>
+      </div>
+    `;
+
+    // Helper to generate the standard Title & Date bar
+    const generateTitleBar = (titleText) => `
+      <div style="border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: flex-end;">
+        <h2 style="margin: 0; font-size: 18px; font-weight: 900; text-transform: uppercase;">${titleText}</h2>
+        <div style="text-align: right; font-size: 12px;">
+          <p style="margin: 0; color: #555;">RUN DATE:</p>
+          <p style="margin: 2px 0 0 0; font-weight: bold;">${new Date().toLocaleDateString('en-GB')}</p>
         </div>
-        <div style="text-align: right; font-size: 11px; font-weight: 800; white-space: nowrap;">RUN DATE:<br><span>${new Date().toLocaleDateString()}</span></div>
-      </div>`;
+      </div>
+    `;
 
-      let contentHtml = "";
-
-      if (layout === "apt_custom_print") {
-        const filteredApts = cache.apts.filter(a => String(a.type || a.Type || '').toLowerCase() !== 'services');
-        contentHtml = `<h3 style="margin-bottom: 15px; text-transform: uppercase;">APARTMENTS MANIFEST</h3>`;
+    // ==========================================
+    // 2. APARTMENTS MANIFEST LAYOUT
+    // ==========================================
+    if (layout === "apt_custom_print") {
+        const filteredApts = (cache.apts || []).filter(a => String(a.type || a.Type || '').toLowerCase() !== 'services');
+        out += generateTitleBar('APARTMENTS MANIFEST');
 
         filteredApts.forEach((a) => {
-          const uNum = getUnitNumber(a);
-          let meterNo = a.meterNo || a.MeterNo || ((cache.utilities || []).find(u => String(getUnitNumber(u)) === String(uNum) && String(u.type) === 'Electricity') || {}).meterNo || 'N/A';
-          const relatedAssets = cache.assets.filter(ast => String(getUnitNumber(ast)) === String(uNum) && String(ast.status || ast.Status || '') !== 'Archived');
+            const uNum = getUnitNumber(a);
+            let meterNo = a.meterNo || a.MeterNo || ((cache.utilities || []).find(u => String(getUnitNumber(u)) === String(uNum) && String(u.type) === 'Electricity') || {}).meterNo || 'N/A';
+            const relatedAssets = (cache.assets || []).filter(ast => String(getUnitNumber(ast)) === String(uNum) && String(ast.status || ast.Status || '') !== 'Archived');
 
-          let assetRows = "";
-          for (let i = 0; i < relatedAssets.length; i += 2) {
-            assetRows += "<tr>";
-            for (let j = 0; j < 2; j++) {
-              const ast = relatedAssets[i + j];
-              assetRows += ast ? `<td style="width: 50%; padding: 3px; border: 1px dashed #ccc;">• <strong>${ast.type || 'Asset'}</strong> (${ast.tag || ''}) - ${ast.specs || ''}</td>` : `<td style="width: 50%;"></td>`;
-            }
-            assetRows += "</tr>";
-          }
-
-          contentHtml += `
-            <div style="margin-bottom: 25px; padding-bottom: 20px; border-bottom: 4px solid #333; page-break-inside: avoid;">
-              <table style="width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 8px;">
-                <tr><td style="padding: 4px; border: 1px solid #999; font-weight: 800; background: #f0f0f0;">Unit</td><td style="padding: 4px; border: 1px solid #999;">${uNum}</td><td style="padding: 4px; border: 1px solid #999; font-weight: 800; background: #f0f0f0;">Tenant</td><td style="padding: 4px; border: 1px solid #999;">${a.tenant || a.Tenant || 'VACANT'}</td></tr>
-                <tr><td style="padding: 4px; border: 1px solid #999; font-weight: 800; background: #f0f0f0;">Type</td><td style="padding: 4px; border: 1px solid #999;">${a.type || a.Type || 'Standard'}</td><td style="padding: 4px; border: 1px solid #999; font-weight: 800; background: #f0f0f0;">Meter No</td><td style="padding: 4px; border: 1px solid #999;">${meterNo}</td></tr>
-              </table>
-              <div style="font-weight: 800; font-size: 11px; text-transform: uppercase; margin-bottom: 4px;">REGISTERED ASSETS:</div>
-              <table style="width: 100%; border-collapse: collapse; font-size: 10px;">${assetRows}</table>
-            </div>`;
+            out += `
+              <div style="margin-bottom: 25px; page-break-inside: avoid;">
+                <table style="width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 8px;">
+                  <tr>
+                    <td style="padding: 4px 8px; border: 1px solid #000; font-weight: bold; background: #f4f4f4; width: 15%;">Unit</td>
+                    <td style="padding: 4px 8px; border: 1px solid #000; width: 35%;">${uNum}</td>
+                    <td style="padding: 4px 8px; border: 1px solid #000; font-weight: bold; background: #f4f4f4; width: 15%;">Tenant</td>
+                    <td style="padding: 4px 8px; border: 1px solid #000; width: 35%;">${a.tenant || a.Tenant || 'VACANT'}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 4px 8px; border: 1px solid #000; font-weight: bold; background: #f4f4f4;">Type</td>
+                    <td style="padding: 4px 8px; border: 1px solid #000;">${a.type || a.Type || 'Standard'}</td>
+                    <td style="padding: 4px 8px; border: 1px solid #000; font-weight: bold; background: #f4f4f4;">Meter No</td>
+                    <td style="padding: 4px 8px; border: 1px solid #000;">${meterNo}</td>
+                  </tr>
+                </table>
+                <div style="font-weight: bold; font-size: 11px; margin-bottom: 4px; text-transform: uppercase;">REGISTERED ASSETS:</div>
+                <div style="font-size: 11px; line-height: 1.5; padding-left: 10px;">
+                  ${relatedAssets.length > 0 
+                      ? relatedAssets.map(ast => `<div>• ${ast.type || 'Appliance'} (${ast.tag || 'N/A'}) - ${ast.specs || ''}</div>`).join('') 
+                      : `<div style="color:#777; font-style:italic;">No active assets registered.</div>`}
+                </div>
+              </div>`;
         });
-      }
-          // -----------------------------------------------------
-  // PHASE 3: DAILY OPERATIONS REPORT
-  // -----------------------------------------------------
-  else if (layout === "daily_operations") {
-      const reportDate = document.getElementById('rep-param-date').value;
-      if (!reportDate) { alert("Please select a date."); return; }
+    }
 
-      // Defensive filtering (defaults to empty arrays if cache is missing)
-      const dailyTickets = (cache.tickets || []).filter(t => t.date === reportDate);
-      const openTickets = dailyTickets.filter(t => t.status !== 'Completed');
-      const closedTickets = dailyTickets.filter(t => t.status === 'Completed');
+    // ==========================================
+    // 3. DAILY OPERATIONS REPORT
+    // ==========================================
+    else if (layout === "daily_operations") {
+        const reportDate = document.getElementById('rep-param-date').value;
+        if (!reportDate) { alert("Please select a date."); return; }
 
-      html += `<div style="text-align:center; margin-bottom: 20px;">
-                 <h3 style="margin:0; text-transform:uppercase; font-weight: 800;">Daily Operations Report</h3>
-                 <p style="margin:5px 0 0 0; font-weight: bold; color: #6C757D;">Date: ${formatDateForDisplay(reportDate)}</p>
-               </div>`;
+        const dailyTickets = (cache.tickets || []).filter(t => t.date === reportDate);
+        const closedTickets = dailyTickets.filter(t => t.status === 'Completed');
 
-      html += `
-        <div style="display: flex; gap: 15px; margin-bottom: 20px;">
-           <div style="flex: 1; padding: 15px; background: #F8F9FA; border: 1px solid #DEE2E6; border-left: 4px solid #0D6EFD; border-radius: 4px;">
-              <h4 style="margin: 0 0 10px 0; font-size: 13px; color: #6C757D; text-transform: uppercase;">Maintenance Activity</h4>
-              <p style="margin: 0; font-size: 24px; font-weight: 900;">${dailyTickets.length} <span style="font-size: 12px; font-weight: normal;">Faults Logged</span></p>
-              <p style="margin: 5px 0 0 0; font-size: 12px; color: #198754;">${closedTickets.length} Resolved Today</p>
-           </div>
-           <div style="flex: 1; padding: 15px; background: #F8F9FA; border: 1px solid #DEE2E6; border-left: 4px solid #FFC107; border-radius: 4px;">
-              <h4 style="margin: 0 0 10px 0; font-size: 13px; color: #6C757D; text-transform: uppercase;">Generator & Power</h4>
-              <p style="margin: 0; font-size: 14px; font-weight: bold; color: #DC3545;">* Requires Manual Entry</p>
-              <p style="margin: 5px 0 0 0; font-size: 12px;">Runtime: ____ hrs | Diesel: ____ Ltrs</p>
-           </div>
-        </div>
+        out += generateTitleBar(`DAILY OPERATIONS: ${formatDateForDisplay(reportDate)}`);
 
-        <h4 style="border-bottom: 2px solid #212529; padding-bottom: 5px; text-transform: uppercase; margin-top: 20px;">Logged Faults & Work Orders</h4>
-        <table style="width:100%; border-collapse: collapse; font-size: 12px; margin-bottom: 20px;">
-          <thead>
-            <tr style="background-color: #E9ECEF; text-transform: uppercase;">
-              <th style="padding: 8px; border: 1px solid #DEE2E6; text-align:left;">Unit</th>
-              <th style="padding: 8px; border: 1px solid #DEE2E6; text-align:left;">Description</th>
-              <th style="padding: 8px; border: 1px solid #DEE2E6; text-align:center;">Priority</th>
-              <th style="padding: 8px; border: 1px solid #DEE2E6; text-align:center;">Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${dailyTickets.length > 0 ? dailyTickets.map(t => `
-              <tr>
-                <td style="padding: 8px; border: 1px solid #DEE2E6;">${t.unit || t.apartment || 'N/A'}</td>
-                <td style="padding: 8px; border: 1px solid #DEE2E6;">${t.description || t.complaint || 'N/A'}</td>
-                <td style="padding: 8px; border: 1px solid #DEE2E6; text-align:center;">${t.priority || 'Normal'}</td>
-                <td style="padding: 8px; border: 1px solid #DEE2E6; text-align:center; font-weight:bold; color:${t.status === 'Completed' ? '#198754' : '#DC3545'}">${t.status || 'Pending'}</td>
+        // Styled specifically for high-contrast print (Grayscale/Black/White instead of colored)
+        out += `
+          <div style="display: flex; gap: 15px; margin-bottom: 20px;">
+             <div style="flex: 1; padding: 15px; border: 2px solid #000; background: #fafafa;">
+                <h4 style="margin: 0 0 10px 0; font-size: 12px; text-transform: uppercase;">Maintenance Activity</h4>
+                <p style="margin: 0; font-size: 24px; font-weight: 900;">${dailyTickets.length} <span style="font-size: 11px; font-weight: normal; text-transform: uppercase;">Faults Logged</span></p>
+                <p style="margin: 5px 0 0 0; font-size: 11px; font-weight: bold;">${closedTickets.length} Resolved Today</p>
+             </div>
+             <div style="flex: 1; padding: 15px; border: 2px solid #000; background: #fafafa;">
+                <h4 style="margin: 0 0 10px 0; font-size: 12px; text-transform: uppercase;">Generator & Power</h4>
+                <p style="margin: 0; font-size: 11px; font-weight: bold; color: #555; font-style: italic;">* Requires Manual Entry *</p>
+                <p style="margin: 8px 0 0 0; font-size: 12px; font-weight: bold;">Runtime: ______ hrs &nbsp;&nbsp;|&nbsp;&nbsp; Diesel: ______ Ltrs</p>
+             </div>
+          </div>
+
+          <h4 style="border-bottom: 1px solid #000; padding-bottom: 5px; font-size: 12px; text-transform: uppercase; margin-top: 20px;">Logged Faults & Work Orders</h4>
+          <table style="width:100%; border-collapse: collapse; font-size: 11px; margin-bottom: 20px;">
+            <thead>
+              <tr style="background-color: #f4f4f4;">
+                <th style="padding: 6px; border: 1px solid #000; text-align:left;">Unit</th>
+                <th style="padding: 6px; border: 1px solid #000; text-align:left;">Description</th>
+                <th style="padding: 6px; border: 1px solid #000; text-align:center;">Priority</th>
+                <th style="padding: 6px; border: 1px solid #000; text-align:center;">Status</th>
               </tr>
-            `).join('') : `<tr><td colspan="4" style="padding: 15px; text-align:center; color: #6C757D;">No incidents logged for this date.</td></tr>`}
-          </tbody>
-        </table>
-        
-        <h4 style="border-bottom: 2px solid #212529; padding-bottom: 5px; text-transform: uppercase;">Security & Visitors (Summary)</h4>
-        <div style="min-height: 60px; border: 1px dashed #DEE2E6; padding: 10px; font-size: 13px; color: #6C757D;">
-           [Manual Input Area - No security incidents reported in system]
-        </div>
-      `;
-  }
+            </thead>
+            <tbody>
+              ${dailyTickets.length > 0 ? dailyTickets.map(t => `
+                <tr>
+                  <td style="padding: 6px; border: 1px solid #000;">${t.unit || t.apartment || 'N/A'}</td>
+                  <td style="padding: 6px; border: 1px solid #000;">${t.description || t.complaint || 'N/A'}</td>
+                  <td style="padding: 6px; border: 1px solid #000; text-align:center;">${t.priority || 'Normal'}</td>
+                  <td style="padding: 6px; border: 1px solid #000; text-align:center; font-weight:bold;">${(t.status || 'Pending').toUpperCase()}</td>
+                </tr>
+              `).join('') : `<tr><td colspan="4" style="padding: 10px; text-align:center; font-style: italic;">No incidents logged for this date.</td></tr>`}
+            </tbody>
+          </table>
+          
+          <h4 style="border-bottom: 1px solid #000; padding-bottom: 5px; font-size: 12px; text-transform: uppercase;">Security & Visitors</h4>
+          <div style="min-height: 50px; border: 1px dashed #000; padding: 10px; font-size: 11px; font-style: italic; color: #555;">
+             [Manual Input Area - No security incidents reported in system]
+          </div>
+        `;
+    }
 
-  // -----------------------------------------------------
-  // PHASE 3: KPI DASHBOARD & MONTHLY SUMMARY
-  // -----------------------------------------------------
-  else if (layout === "monthly_fm" || layout === "kpi_dashboard") {
-      const monthStr = document.getElementById('rep-param-month').value; // format: YYYY-MM
-      if (!monthStr) { alert("Please select a month."); return; }
+    // ==========================================
+    // 4. MONTHLY / KPI DASHBOARD
+    // ==========================================
+    else if (layout === "monthly_fm" || layout === "kpi_dashboard") {
+        const monthStr = document.getElementById('rep-param-month').value; 
+        if (!monthStr) { alert("Please select a month."); return; }
 
-      // 1. Data Aggregation
-      const apts = cache.apts || [];
-      const occupied = apts.filter(a => String(a.status || '').toLowerCase() === 'occupied').length;
-      const occPercentage = apts.length > 0 ? Math.round((occupied / apts.length) * 100) : 0;
+        const apts = cache.apts || [];
+        const occupied = apts.filter(a => String(a.status || '').toLowerCase() === 'occupied').length;
+        const occPercentage = apts.length > 0 ? Math.round((occupied / apts.length) * 100) : 0;
 
-      const tickets = cache.tickets || [];
-      const monthlyTickets = tickets.filter(t => t.date && t.date.startsWith(monthStr));
-      const resolvedTickets = monthlyTickets.filter(t => t.status === 'Completed').length;
-      const resPercentage = monthlyTickets.length > 0 ? Math.round((resolvedTickets / monthlyTickets.length) * 100) : 100;
+        let mInflow = 0; let mOutflow = 0;
+        (cache.payments || []).filter(p => p.date && p.date.startsWith(monthStr)).forEach(p => mInflow += parseFloat(p.amount || 0));
+        (cache.cashExpenses || []).filter(c => c.date && c.date.startsWith(monthStr)).forEach(c => mOutflow += parseFloat(c.amount || 0));
 
-      // Calculate Financials for the Month
-      let mInflow = 0; let mOutflow = 0;
-      (cache.payments || []).filter(p => p.date && p.date.startsWith(monthStr)).forEach(p => mInflow += parseFloat(p.amount || 0));
-      (cache.cashExpenses || []).filter(c => c.date && c.date.startsWith(monthStr)).forEach(c => mOutflow += parseFloat(c.amount || 0));
+        const reportTitle = layout === "monthly_fm" ? "MONTHLY FM REPORT" : "EXECUTIVE KPI DASHBOARD";
+        out += generateTitleBar(`${reportTitle} - ${monthStr}`);
 
-      const reportTitle = layout === "monthly_fm" ? "Monthly Facility Management Report" : "Executive KPI Dashboard";
+        // Print-friendly Grayscale KPI blocks
+        out += `
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 25px;">
+             <div style="padding: 15px; border: 1px solid #000; background: #fafafa;">
+                <h4 style="margin: 0; font-size: 11px; text-transform: uppercase;">Occupancy Rate</h4>
+                <p style="margin: 5px 0 0 0; font-size: 24px; font-weight: 900;">${occPercentage}%</p>
+                <p style="margin: 0; font-size: 10px; font-weight: bold;">${occupied} of ${apts.length} Units Occupied</p>
+             </div>
+             <div style="padding: 15px; border: 1px solid #000; background: #fafafa;">
+                <h4 style="margin: 0; font-size: 11px; text-transform: uppercase;">Net Financial Position</h4>
+                <p style="margin: 5px 0 0 0; font-size: 20px; font-weight: 900;">₦ ${formatMoney(mInflow - mOutflow)}</p>
+                <p style="margin: 0; font-size: 10px; font-weight: bold;">In: ₦${formatMoney(mInflow)} | Out: ₦${formatMoney(mOutflow)}</p>
+             </div>
+          </div>
+        `;
 
-      html += `<div style="text-align:center; margin-bottom: 20px;">
-                 <h3 style="margin:0; text-transform:uppercase; font-weight: 900; font-size: 22px;">${reportTitle}</h3>
-                 <p style="margin:5px 0 0 0; font-weight: bold; color: #6C757D; font-size: 16px;">Period: ${monthStr}</p>
-               </div>`;
-
-      // KPI CARDS (CSS Grid Layout)
-      html += `
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 25px;">
-           <div style="padding: 15px; background: #fff; border: 1px solid #DEE2E6; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
-              <div style="display:flex; justify-content: space-between; align-items:center;">
-                 <div>
-                    <h4 style="margin: 0; font-size: 12px; color: #6C757D; text-transform: uppercase;">Occupancy Rate</h4>
-                    <p style="margin: 5px 0 0 0; font-size: 28px; font-weight: 900;">${occPercentage}%</p>
-                    <p style="margin: 0; font-size: 11px; color: #212529;">${occupied} of ${apts.length} Units Occupied</p>
-                 </div>
-                 <div style="width: 50px; height: 50px; border-radius: 50%; background: conic-gradient(#0D6EFD ${occPercentage}%, #E9ECEF 0); display:flex; align-items:center; justify-content:center;">
-                    <div style="width: 35px; height: 35px; background: #fff; border-radius: 50%;"></div>
-                 </div>
+        if (layout === "monthly_fm") {
+            out += `
+              <h4 style="border-bottom: 1px solid #000; padding-bottom: 4px; font-size: 12px; text-transform: uppercase;">Executive Summary</h4>
+              <div style="min-height: 60px; border: 1px solid #000; padding: 10px; font-size: 11px; margin-bottom: 20px;">
+                 <p style="margin:0; font-style:italic;">(Management remarks and overview for ${monthStr}...)</p>
               </div>
-           </div>
+            `;
+        }
+    }
 
-           <div style="padding: 15px; background: #fff; border: 1px solid #DEE2E6; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
-              <div style="display:flex; justify-content: space-between; align-items:center;">
-                 <div>
-                    <h4 style="margin: 0; font-size: 12px; color: #6C757D; text-transform: uppercase;">Resolution Rate</h4>
-                    <p style="margin: 5px 0 0 0; font-size: 28px; font-weight: 900; color: ${resPercentage >= 80 ? '#198754' : '#DC3545'};">${resPercentage}%</p>
-                    <p style="margin: 0; font-size: 11px; color: #212529;">${resolvedTickets} of ${monthlyTickets.length} Tickets Closed</p>
-                 </div>
-                 <div style="width: 50px; height: 50px; border-radius: 50%; background: conic-gradient(${resPercentage >= 80 ? '#198754' : '#DC3545'} ${resPercentage}%, #E9ECEF 0); display:flex; align-items:center; justify-content:center;">
-                    <div style="width: 35px; height: 35px; background: #fff; border-radius: 50%;"></div>
-                 </div>
-              </div>
-           </div>
-
-           <div style="padding: 15px; background: #F8F9FA; border: 1px solid #DEE2E6; border-left: 4px solid #198754; border-radius: 4px;">
-              <h4 style="margin: 0; font-size: 12px; color: #6C757D; text-transform: uppercase;">Monthly Collections</h4>
-              <p style="margin: 5px 0 0 0; font-size: 20px; font-weight: 900; color: #198754;">₦ ${formatMoney(mInflow)}</p>
-           </div>
-
-           <div style="padding: 15px; background: #F8F9FA; border: 1px solid #DEE2E6; border-left: 4px solid #DC3545; border-radius: 4px;">
-              <h4 style="margin: 0; font-size: 12px; color: #6C757D; text-transform: uppercase;">Monthly Expenses</h4>
-              <p style="margin: 5px 0 0 0; font-size: 20px; font-weight: 900; color: #DC3545;">₦ ${formatMoney(mOutflow)}</p>
-           </div>
-        </div>
-      `;
-
-      // If it is the full Monthly FM report, add narrative sections
-      if (layout === "monthly_fm") {
-          html += `
-            <h4 style="border-bottom: 2px solid #212529; padding-bottom: 5px; text-transform: uppercase;">Executive Summary</h4>
-            <div style="min-height: 80px; border: 1px solid #DEE2E6; padding: 10px; font-size: 13px; margin-bottom: 20px; background: #fff;">
-               <p style="margin:0; color:#6C757D; font-style:italic;">(Management remarks and overview for ${monthStr}...)</p>
-            </div>
-
-            <h4 style="border-bottom: 2px solid #212529; padding-bottom: 5px; text-transform: uppercase;">Challenges & Recommendations</h4>
-            <div style="min-height: 80px; border: 1px solid #DEE2E6; padding: 10px; font-size: 13px; margin-bottom: 20px; background: #fff;">
-               <p style="margin:0; color:#6C757D; font-style:italic;">(List major operational challenges and proposed solutions...)</p>
-            </div>
-          `;
-      }
-  }
-      else if (layout === "fin_wo") {
+    // ==========================================
+    // 5. WORK ORDERS FINANCIAL LEDGER
+    // ==========================================
+    else if (layout === "fin_wo") {
         const startDate = new Date(document.getElementById('rep_start_date').value);
         const endDate = new Date(document.getElementById('rep_end_date').value);
         
         if (isNaN(startDate) || isNaN(endDate)) { alert("Please select a valid date range."); return; }
         
-        const diffDays = (endDate - startDate) / (1000 * 60 * 60 * 24);
-        if (diffDays > 30) { alert("Report period cannot exceed 30 days for this table."); return; }
-
         const filteredWOs = (cache.workorders || []).filter(w => {
-          const wDate = parseToLocalDateObject(w.date || w.Date);
-          const isApproved = String(w.status || w.Status) === "Approved";
-          return isApproved && wDate >= startDate && wDate <= endDate;
+            const wDate = parseToLocalDateObject(w.date || w.Date);
+            return String(w.status || w.Status) === "Approved" && wDate >= startDate && wDate <= endDate;
         });
+
+        out += generateTitleBar(`APPROVED WORK ORDERS`);
+        out += `<p style="font-weight:700; font-size:12px; margin-top:-5px; margin-bottom:15px;">Period: ${startDate.toLocaleDateString()} to ${endDate.toLocaleDateString()}</p>`;
 
         let totalBudget = 0;
         let rows = filteredWOs.map(w => {
-          const amt = parseFloat(w.amount || w.Amount || 0);
-          totalBudget += amt;
-          return `<tr>
-            <td style="padding:8px; border:1px solid #000;">${w.workOrderId || w.WorkOrderId}</td>
-            <td style="padding:8px; border:1px solid #000;">${formatDateForDisplay(w.date)}</td>
-            <td style="padding:8px; border:1px solid #000;">${w.description || w.Description || ''}</td>
-            <td style="padding:8px; border:1px solid #000; font-weight:800; text-align:right;">₦${formatMoney(amt)}</td>
-          </tr>`;
+            const amt = parseFloat(w.amount || w.Amount || 0);
+            totalBudget += amt;
+            return `<tr>
+              <td style="padding:6px; border:1px solid #000;">${w.workOrderId || w.WorkOrderId || 'N/A'}</td>
+              <td style="padding:6px; border:1px solid #000;">${formatDateForDisplay(w.date)}</td>
+              <td style="padding:6px; border:1px solid #000;">${w.description || w.Description || ''}</td>
+              <td style="padding:6px; border:1px solid #000; font-weight:800; text-align:right;">₦${formatMoney(amt)}</td>
+            </tr>`;
         }).join('');
 
-        contentHtml = `
-          <h3 style="margin-bottom: 15px; text-transform: uppercase;">Approved Work Orders Ledger</h3>
-          <p style="font-weight:700; margin-bottom:15px;">Period: ${startDate.toLocaleDateString()} to ${endDate.toLocaleDateString()}</p>
-          <table style="width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 15px;">
-            <tr style="background:#f0f0f0;">
-              <th style="padding:8px; border:1px solid #000; text-align:left;">WO #</th>
-              <th style="padding:8px; border:1px solid #000; text-align:left;">Date</th>
-              <th style="padding:8px; border:1px solid #000; text-align:left;">Scope</th>
-              <th style="padding:8px; border:1px solid #000; text-align:right;">Budget (₦)</th>
+        out += `
+          <table style="width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 15px;">
+            <tr style="background:#f4f4f4;">
+              <th style="padding:6px; border:1px solid #000; text-align:left; width: 15%;">WO #</th>
+              <th style="padding:6px; border:1px solid #000; text-align:left; width: 15%;">Date</th>
+              <th style="padding:6px; border:1px solid #000; text-align:left; width: 50%;">Scope</th>
+              <th style="padding:6px; border:1px solid #000; text-align:right; width: 20%;">Budget (₦)</th>
             </tr>
-            ${rows}
+            ${rows || `<tr><td colspan="4" style="padding:10px; text-align:center; font-style:italic;">No approved work orders in this period.</td></tr>`}
             <tr>
-              <td colspan="3" style="padding:10px; border:1px solid #000; font-weight:900; text-align:right;">TOTAL BUDGET EXPENDITURE:</td>
-              <td style="padding:10px; border:1px solid #000; font-weight:900; font-size:16px; text-align:right;">₦${formatMoney(totalBudget)}</td>
+              <td colspan="3" style="padding:8px; border:1px solid #000; font-weight:900; text-align:right; font-size:12px;">TOTAL BUDGET EXPENDITURE:</td>
+              <td style="padding:8px; border:1px solid #000; font-weight:900; font-size:14px; text-align:right;">₦${formatMoney(totalBudget)}</td>
             </tr>
           </table>`;
-      }
-      else {
-          contentHtml = `<p>This specific financial report layout is under construction. Please use the Work Orders layout to test the date filters.</p>`;
-      }
-
-      const out = headerStr + contentHtml;
-      document.getElementById('report-preview-viewport').innerHTML = out;
-      document.getElementById('report-print-container').innerHTML = out;
-      document.getElementById('report-onscreen-preview-card').style.display = "block";
     }
+
+    out += `</div>`; // Close universal wrapper
+
+    // Output to viewport
+    if(viewport) viewport.innerHTML = out;
+    const printContainer = document.getElementById('report-print-container');
+    if(printContainer) printContainer.innerHTML = out;
+    
+    const previewCard = document.getElementById('report-onscreen-preview-card');
+    if(previewCard) previewCard.style.display = "block";
+}
 
     function downloadCurrentReportPDF() {
       const htmlData = document.getElementById('report-preview-viewport').innerHTML;
