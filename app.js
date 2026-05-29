@@ -188,10 +188,7 @@
 
         format: 'a4',
 
-        orientation:
-          htmlContent.includes('<table')
-            ? 'landscape'
-            : 'portrait'
+        orientation: 'portrait'
       }
     };
 
