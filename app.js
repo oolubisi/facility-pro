@@ -2465,7 +2465,8 @@
             out += `<p style="font-weight:700; font-size:12px; margin-top:-5px; margin-bottom:15px;">Period: ${startRaw} to ${endRaw}</p>
                     <div style="border: 1px solid #000; padding: 20px; text-align: center; font-style: italic;">Records successfully filtered. (Financial tables rendered below in full view).</div>`;
         }
-    
+
+        out = out.replace(/T\d{2}:\d{2}:\d{2}[\.a-zA-Z0-9]*/g, '');
         out += `</div>`; // Close universal wrapper
     
         // Output to viewport
@@ -2478,6 +2479,7 @@
     }
 
 function downloadCurrentReportPDF() {
+    window.scrollTo(0, 0);
       const htmlData = document.getElementById('report-preview-viewport').innerHTML;
       compileAndDownloadUnifiedPDF(htmlData, [], "Facility_Report_" + new Date().getTime());
     }
