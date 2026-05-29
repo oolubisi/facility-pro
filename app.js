@@ -78,16 +78,17 @@
     const opt = {
       margin:       20,             // <--- This forces a 20mm (2cm) margin on ALL 4 sides
       filename:     filename + '.pdf',
-      image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: { 
+      image:        { type: 'jpeg', quality: 0.98 },
+      html2canvas:  { 
         scale: 2, 
         useCORS: true, 
         logging: false,
         scrollY: 0, // Anchors capture to the top
-        scrollX: 0, 
-        windowY: 0  
+        scrollX: 0,  
+        windowY: 0,
+        windowWidth: 800  // <--- ADD THIS to fix the right-side cropping
       },
-      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+      jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
 
     // 5. Native Promise resolution for the ArrayBuffer
@@ -2071,7 +2072,7 @@
     // ==========================================
     // 1. UNIVERSAL EVERGREEN HEADER
     // ==========================================
-    let out = `<div style="font-family: 'Helvetica', 'Inter', sans-serif; color: #000; background: #fff; padding: 10px;">`;
+    let out = `<div style="font-family: 'Helvetica', 'Inter', sans-serif; color: #000; background: #fff; padding: 0px 10px; box-sizing: border-box; width: 100%; max-width: 800px; margin: 0 auto;">`;
 
     out += `
       <div style="text-align: center; margin-bottom: 20px;">
