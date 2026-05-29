@@ -52,8 +52,7 @@
   // 2. THE "PRINT PREVIEW" FIX: Show it actively on screen!
   const renderBox = document.createElement('div');
   renderBox.id = 'pdf-render-box';
-  renderBox.style.cssText = 'position:fixed; top:0; left:0; width:100vw; height:100vh; background:#e9ecef; z-index:99998; overflow:auto; display:block; text-align:center; padding-top:20px;';
-  
+  renderBox.style.cssText = 'position:fixed; top:0; left:0; width:100vw; height:100vh; background:#e9ecef; z-index:99998; overflow:hidden; display:block; text-align:center; padding-top:20px;';
   // Wrap the HTML in an 800px card so html2canvas captures a perfect rectangle
   renderBox.innerHTML = `
     <div id="pdf-capture-target" style="width:800px; background:#ffffff; margin:0 auto 40px auto; text-align:left; box-shadow:0 5px 15px rgba(0,0,0,0.1);">
@@ -76,19 +75,17 @@
     const target = document.getElementById('pdf-capture-target');
     
     const opt = {
-      margin:       20,             // <--- This forces a 20mm (2cm) margin on ALL 4 sides
+      margin:       20,             // 20mm margin on all 4 sides
       filename:     filename + '.pdf',
       image:        { type: 'jpeg', quality: 0.98 },
       html2canvas:  { 
         scale: 2, 
         useCORS: true, 
         logging: false,
-        windowWidth: 800,  // <--- This is the missing piece
+        windowWidth: 800,           // Force the capture width to 800px
         windowHeight: 1200,
-        scrollY: 0, // Anchors capture to the top
-        scrollX: 0,  
-      //  windowY: 0,
-        windowWidth: 800  // <--- ADD THIS to fix the right-side cropping
+        scrollY: 0,                 // Anchor capture to the very top
+        scrollX: 0                  // Ensure no horizontal shifting
       },
       jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
