@@ -83,6 +83,8 @@
         scale: 2, 
         useCORS: true, 
         logging: false,
+        windowWidth: 800,  // <--- This is the missing piece
+        windowHeight: 1200,
         scrollY: 0, // Anchors capture to the top
         scrollX: 0,  
         windowY: 0,
@@ -2094,7 +2096,8 @@
         if (!layout) return;
     
         // 1. UNIVERSAL EVERGREEN HEADER & WRAPPER (Includes cropping fix)
-        let out = `<div style="font-family: 'Helvetica', 'Inter', sans-serif; color: #000; background: #fff; box-sizing: border-box; width: 100%;">`;
+        // Force the container to a fixed 800px width so it never shrinks based on the screen
+        let out = `<div style="font-family: 'Helvetica', 'Inter', sans-serif; color: #000; background: #fff; box-sizing: border-box; width: 800px; padding: 0;">`;
     
         out += `
           <div style="text-align: center; margin-bottom: 20px;">
