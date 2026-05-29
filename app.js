@@ -45,102 +45,428 @@
       return null;
     }
 
-    async function compileAndDownloadUnifiedPDF(htmlContent, attachmentUrls, filename) {
-  // 1. Bulletproof Cleanup: Remove ALL stuck layers from previous runs
-  document.querySelectorAll('#pdf-render-box, #pdf-toast').forEach(el => el.remove());
+    async function compileAndDownloadUnifiedPDF(
+  htmlContent,
+  attachmentUrls = [],
+  filename = 'Facility_Report'
+) {
 
-  // 2. THE "PRINT PREVIEW" FIX: Show it actively on screen!
+  // =====================================================
+  // CLEANUP PREVIOUS PDF LAYERS
+  // =====================================================
+
+  document
+    .querySelectorAll('#pdf-render-box, #pdf-toast')
+    .forEach(el => el.remove());
+
+  // =====================================================
+  // RENDER CONTAINER
+  // =====================================================
+
   const renderBox = document.createElement('div');
+
   renderBox.id = 'pdf-render-box';
-  renderBox.style.cssText = 'position:fixed; top:0; left:0; width:100vw; height:100vh; background:#e9ecef; z-index:99998; overflow:hidden; display:block; text-align:center; padding-top:20px;';
-  // Wrap the HTML in an 800px card so html2canvas captures a perfect rectangle
+
+  renderBox.style.cssText = `
+    position:fixed;
+    top:0;
+    left:0;
+    width:100vw;
+    height:100vh;
+    background:#e9ecef;
+    z-index:99998;
+    overflow:auto;
+    display:block;
+    text-align:center;
+    padding:20px;
+  `;
+
   renderBox.innerHTML = `
-    <div id="pdf-capture-target" style="width:800px; background:#ffffff; margin:0 auto 40px auto; text-align:left; box-shadow:0 5px 15px rgba(0,0,0,0.1);">
-       ${htmlContent}
+
+    <div id="pdf-capture-target"
+         style="
+            width:800px;
+            background:#ffffff;
+            margin:0 auto 40px auto;
+            text-align:left;
+            box-shadow:0 5px 15px rgba(0,0,0,0.1);
+            border-radius:12px;
+            overflow:hidden;
+         ">
+
+      ${htmlContent}
+
     </div>
   `;
+
   document.body.appendChild(renderBox);
 
-  // 3. UI Toast for feedback
+  // =====================================================
+  // TOAST
+  // =====================================================
+
   const toast = document.createElement('div');
+
   toast.id = 'pdf-toast';
-  toast.style.cssText = 'position:fixed; bottom:30px; left:50%; transform:translateX(-50%); background:#212529; color:#ffffff; padding:16px 32px; border-radius:50px; font-weight:800; font-size:16px; z-index:99999; box-shadow:0 10px 20px rgba(0,0,0,0.3); display:flex; align-items:center; gap:12px; white-space:nowrap;';
-  toast.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating Document...';
+
+  toast.style.cssText = `
+    position:fixed;
+    bottom:30px;
+    left:50%;
+    transform:translateX(-50%);
+    background:#212529;
+    color:#ffffff;
+    padding:16px 32px;
+    border-radius:50px;
+    font-weight:800;
+    font-size:16px;
+    z-index:99999;
+    box-shadow:0 10px 20px rgba(0,0,0,0.3);
+    display:flex;
+    align-items:center;
+    gap:12px;
+    white-space:nowrap;
+  `;
+
+  toast.innerHTML = `
+    <i class="fas fa-spinner fa-spin"></i>
+    Generating Document...
+  `;
+
   document.body.appendChild(toast);
 
-  // 4. Force browser GPU to paint the document
+  // =====================================================
+  // GPU RENDER DELAY
+  // =====================================================
+
   await new Promise(resolve => setTimeout(resolve, 800));
 
   try {
+
     const target = document.getElementById('pdf-capture-target');
-    
+
+    // =====================================================
+    // PDF SETTINGS
+    // =====================================================
+
     const opt = {
-      margin:       20,             // 20mm margin on all 4 sides
-      filename:     filename + '.pdf',
-      image:        { type: 'jpeg', quality: 0.98 },
-      html2canvas:  { 
-        scale: 2, 
-        useCORS: true, 
-        logging: false,
-        windowWidth: 800,           // Force the capture width to 800px
-        windowHeight: 1200,
-        scrollY: 0,                 // Anchor capture to the very top
-        scrollX: 0                  // Ensure no horizontal shifting
+
+      margin: 10,
+
+      filename: filename + '.pdf',
+
+      image: {
+        type: 'jpeg',
+        quality: 0.98
       },
-      jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+
+      html2canvas: {
+
+        scale:
+          window.devicePixelRatio > 1
+            ? 2
+            : 1.5,
+
+        useCORS: true,
+
+        logging: false,
+
+        backgroundColor: '#ffffff',
+
+        windowWidth: 800,
+
+        windowHeight: target.scrollHeight,
+
+        scrollY: 0,
+
+        scrollX: 0
+      },
+
+      jsPDF: {
+
+        unit: 'mm',
+
+        format: 'a4',
+
+        orientation:
+          htmlContent.includes('<table')
+            ? 'landscape'
+            : 'portrait'
+      }
     };
 
-    // 5. Native Promise resolution for the ArrayBuffer
-    const htmlPdfBuffer = await html2pdf().set(opt).from(target).output('arraybuffer');
-    
-    // 6. Merge Attachments
-    const { PDFDocument } = PDFLib;
-    const masterPdf = await PDFDocument.load(htmlPdfBuffer);
+    // =====================================================
+    // GENERATE HTML PDF BUFFER
+    // =====================================================
 
-    if (attachmentUrls && attachmentUrls.length > 0) {
-      toast.innerHTML = '<i class="fas fa-cog fa-spin"></i> Stitching Attachments...';
+    const htmlPdfBuffer =
+      await html2pdf()
+        .set(opt)
+        .from(target)
+        .output('arraybuffer');
+
+    // =====================================================
+    // LOAD PDFLIB
+    // =====================================================
+
+    const { PDFDocument, degrees, rgb } = PDFLib;
+
+    const masterPdf =
+      await PDFDocument.load(htmlPdfBuffer);
+
+    // =====================================================
+    // ATTACHMENT MERGING
+    // =====================================================
+
+    if (
+      attachmentUrls &&
+      attachmentUrls.length > 0
+    ) {
+
+      toast.innerHTML = `
+        <i class="fas fa-cog fa-spin"></i>
+        Stitching Attachments...
+      `;
+
       for (let url of attachmentUrls) {
+
         const fileId = extractDriveFileId(url);
+
         if (!fileId) continue;
+
         try {
-          const fileData = await callApi('getFileBase64', { id: fileId });
-          if (fileData?.status === 'success') {
-            const bytes = Uint8Array.from(atob(fileData.base64.replace(/\s/g, '')), c => c.charCodeAt(0));
-            if (fileData.mimeType === 'application/pdf') {
-              const extPdf = await PDFDocument.load(bytes);
-              const pages = await masterPdf.copyPages(extPdf, extPdf.getPageIndices());
-              pages.forEach(p => masterPdf.addPage(p));
-            } else if (fileData.mimeType.startsWith('image/')) {
-              const img = fileData.mimeType === 'image/png' ? await masterPdf.embedPng(bytes) : await masterPdf.embedJpg(bytes);
-              const p = masterPdf.addPage();
-              const dims = img.scale(0.5);
-              p.drawImage(img, { x: 50, y: 50, width: dims.width, height: dims.height });
+
+          const fileData =
+            await callApi(
+              'getFileBase64',
+              { id: fileId }
+            );
+
+          if (
+            fileData?.status === 'success'
+          ) {
+
+            const bytes = Uint8Array.from(
+
+              atob(
+                fileData.base64.replace(/\s/g, '')
+              ),
+
+              c => c.charCodeAt(0)
+            );
+
+            // =============================================
+            // PDF ATTACHMENTS
+            // =============================================
+
+            if (
+              fileData.mimeType ===
+              'application/pdf'
+            ) {
+
+              const extPdf =
+                await PDFDocument.load(bytes);
+
+              const pages =
+                await masterPdf.copyPages(
+                  extPdf,
+                  extPdf.getPageIndices()
+                );
+
+              pages.forEach(p =>
+                masterPdf.addPage(p)
+              );
+            }
+
+            // =============================================
+            // IMAGE ATTACHMENTS
+            // =============================================
+
+            else if (
+              fileData.mimeType.startsWith('image/')
+            ) {
+
+              const img =
+                fileData.mimeType === 'image/png'
+                  ? await masterPdf.embedPng(bytes)
+                  : await masterPdf.embedJpg(bytes);
+
+              const page =
+                masterPdf.addPage();
+
+              const pageWidth =
+                page.getWidth();
+
+              const pageHeight =
+                page.getHeight();
+
+              const maxWidth =
+                pageWidth - 80;
+
+              const maxHeight =
+                pageHeight - 80;
+
+              const widthRatio =
+                maxWidth / img.width;
+
+              const heightRatio =
+                maxHeight / img.height;
+
+              const ratio =
+                Math.min(
+                  widthRatio,
+                  heightRatio,
+                  1
+                );
+
+              const imgWidth =
+                img.width * ratio;
+
+              const imgHeight =
+                img.height * ratio;
+
+              page.drawImage(img, {
+
+                x:
+                  (pageWidth - imgWidth) / 2,
+
+                y:
+                  (pageHeight - imgHeight) / 2,
+
+                width: imgWidth,
+
+                height: imgHeight
+              });
             }
           }
-        } catch (e) { console.error("Attachment error", e); }
+
+        } catch (e) {
+
+          console.error(
+            'Attachment merge error:',
+            e
+          );
+        }
       }
     }
 
-    // 7. Finalize & Direct Download
-    toast.innerHTML = '<i class="fas fa-download"></i> Saving to device...';
-    const finalPdfBytes = await masterPdf.save();
-    const blob = new Blob([finalPdfBytes], { type: 'application/pdf' });
+    // =====================================================
+    // PAGE NUMBERS + WATERMARK
+    // =====================================================
 
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = filename + '.pdf';
-    
-    // Append, click, and remove for maximum browser compatibility
+    const pages = masterPdf.getPages();
+
+    pages.forEach((page, index) => {
+
+      const { width, height } =
+        page.getSize();
+
+      // ===============================================
+      // PAGE NUMBER
+      // ===============================================
+
+      page.drawText(
+
+        `Page ${index + 1} of ${pages.length}`,
+
+        {
+          x: width - 110,
+          y: 20,
+          size: 10,
+          color: rgb(0.4, 0.4, 0.4)
+        }
+      );
+
+      // ===============================================
+      // WATERMARK
+      // ===============================================
+
+      page.drawText(
+
+        'Facility Pro',
+
+        {
+          x: width / 4,
+          y: height / 2,
+
+          size: 48,
+
+          rotate: degrees(-45),
+
+          opacity: 0.08,
+
+          color: rgb(0.5, 0.5, 0.5)
+        }
+      );
+    });
+
+    // =====================================================
+    // FINALIZE PDF
+    // =====================================================
+
+    toast.innerHTML = `
+      <i class="fas fa-download"></i>
+      Saving to device...
+    `;
+
+    const finalPdfBytes =
+      await masterPdf.save();
+
+    const blob = new Blob(
+      [finalPdfBytes],
+      { type: 'application/pdf' }
+    );
+
+    const link =
+      document.createElement('a');
+
+    link.href =
+      URL.createObjectURL(blob);
+
+    link.download =
+      filename + '.pdf';
+
     document.body.appendChild(link);
+
     link.click();
+
     document.body.removeChild(link);
 
+    setTimeout(() => {
+      URL.revokeObjectURL(link.href);
+    }, 3000);
+
+    toast.innerHTML = `
+      <i class="fas fa-check-circle"></i>
+      PDF Downloaded Successfully
+    `;
+
+    setTimeout(() => {
+      toast.remove();
+    }, 2000);
+
   } catch (err) {
-    console.error("PDF Fail:", err);
-    alert("PDF Generation Failed. Check console.");
+
+    console.error(
+      'PDF Generation Failed:',
+      err
+    );
+
+    alert(
+      'PDF Generation Failed. Check console.'
+    );
+
   } finally {
-    // 8. Bulletproof Cleanup: Ensure all layers are destroyed on exit
-    document.querySelectorAll('#pdf-render-box, #pdf-toast').forEach(el => el.remove());
+
+    // =====================================================
+    // CLEANUP
+    // =====================================================
+
+    document
+      .querySelectorAll(
+        '#pdf-render-box, #pdf-toast'
+      )
+      .forEach(el => el.remove());
   }
 }
     
