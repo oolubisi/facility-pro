@@ -2071,7 +2071,6 @@
     // ==========================================
     // 1. UNIVERSAL EVERGREEN HEADER
     // ==========================================
-    // This wrapper enforces the professional print font and colors across ALL reports
     let out = `<div style="font-family: 'Helvetica', 'Inter', sans-serif; color: #000; background: #fff; padding: 10px;">`;
 
     out += `
@@ -2082,7 +2081,6 @@
       </div>
     `;
 
-    // Helper to generate the standard Title & Date bar
     const generateTitleBar = (titleText) => `
       <div style="border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: flex-end;">
         <h2 style="margin: 0; font-size: 18px; font-weight: 900; text-transform: uppercase;">${titleText}</h2>
@@ -2105,6 +2103,16 @@
             let meterNo = a.meterNo || a.MeterNo || ((cache.utilities || []).find(u => String(getUnitNumber(u)) === String(uNum) && String(u.type) === 'Electricity') || {}).meterNo || 'N/A';
             const relatedAssets = (cache.assets || []).filter(ast => String(getUnitNumber(ast)) === String(uNum) && String(ast.status || ast.Status || '') !== 'Archived');
 
+            let assetRows = "";
+            for (let i = 0; i < relatedAssets.length; i += 2) {
+                assetRows += "<tr>";
+                for (let j = 0; j < 2; j++) {
+                    const ast = relatedAssets[i + j];
+                    assetRows += ast ? `<td style="width: 50%; padding: 4px; border: 1px dashed #555;">• <strong>${ast.type || 'Asset'}</strong> (${ast.tag || ''}) - ${ast.specs || ''}</td>` : `<td style="width: 50%;"></td>`;
+                }
+                assetRows += "</tr>";
+            }
+
             out += `
               <div style="margin-bottom: 25px; page-break-inside: avoid;">
                 <table style="width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 8px;">
@@ -2122,17 +2130,76 @@
                   </tr>
                 </table>
                 <div style="font-weight: bold; font-size: 11px; margin-bottom: 4px; text-transform: uppercase;">REGISTERED ASSETS:</div>
-                <div style="font-size: 11px; line-height: 1.5; padding-left: 10px;">
-                  ${relatedAssets.length > 0 
-                      ? relatedAssets.map(ast => `<div>• ${ast.type || 'Appliance'} (${ast.tag || 'N/A'}) - ${ast.specs || ''}</div>`).join('') 
-                      : `<div style="color:#777; font-style:italic;">No active assets registered.</div>`}
-                </div>
+                ${relatedAssets.length > 0 
+                  ? `<table style="width: 100%; border-collapse: collapse; font-size: 10px;">${assetRows}</table>` 
+                  : `<div style="font-size: 11px; color:#555; font-style:italic;">No active assets registered.</div>`}
               </div>`;
         });
     }
 
     // ==========================================
-    // 3. DAILY OPERATIONS REPORT
+    // 3. DETAILED APARTMENT PROFILE
+    // ==========================================
+    else if (layout === "detailed_profile") {
+        const unit = document.getElementById('rep-param-unit').value;
+        if (!unit) { alert("Please select a unit to generate the profile."); return; }
+        
+        const apt = (cache.apts || []).find(a => String(a.unit || a.Unit || getUnitNumber(a)) === String(unit)) || {};
+        const unitAssets = (cache.assets || []).filter(a => String(a.location || a.loc || a.unit || getUnitNumber(a)) === String(unit) && String(a.status || a.Status || '') !== 'Archived');
+        let meterNo = apt.meterNo || apt.MeterNo || ((cache.utilities || []).find(u => String(getUnitNumber(u)) === String(unit) && String(u.type) === 'Electricity') || {}).meterNo || 'N/A';
+
+        out += generateTitleBar('APARTMENT DETAILED DOSSIER');
+
+        out += `
+          <table style="width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 20px; text-align: left;">
+            <tr style="background: #f4f4f4;">
+              <th style="padding: 8px; border: 1px solid #000;">Unit Reference</th>
+              <th style="padding: 8px; border: 1px solid #000;">Type</th>
+              <th style="padding: 8px; border: 1px solid #000;">Status</th>
+              <th style="padding: 8px; border: 1px solid #000;">Meter No</th>
+            </tr>
+            <tr>
+              <td style="padding: 8px; border: 1px solid #000; font-weight: 900; font-size: 14px;">${unit}</td>
+              <td style="padding: 8px; border: 1px solid #000; font-weight: bold;">${apt.type || apt.Type || 'Standard'}</td>
+              <td style="padding: 8px; border: 1px solid #000; font-weight: bold;">${apt.status || apt.Status || 'Vacant'}</td>
+              <td style="padding: 8px; border: 1px solid #000; font-weight: bold;">${meterNo}</td>
+            </tr>
+          </table>
+
+          <h3 style="font-size: 14px; margin-bottom: 15px; text-transform: uppercase;">Registered Assets:</h3>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+        `;
+
+        if (unitAssets.length > 0) {
+            unitAssets.forEach(asset => {
+                out += `
+                  <div style="border: 1px solid #000; padding: 10px; display: flex; gap: 15px; align-items: center; background: #fafafa; page-break-inside: avoid;">
+                    <div style="width: 80px; height: 80px; border: 1px dashed #000; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #555; background: #fff;">
+                      ${asset.photos ? `<img src="${getDirectImageUrl(asset.photos.split(',')[0])}" style="max-width:100%; max-height:100%; object-fit:cover;">` : 'No Image'}
+                    </div>
+                    <div style="flex: 1; font-size: 11px; line-height: 1.6;">
+                      <div style="font-size: 13px; font-weight: 900; text-transform: uppercase; margin-bottom: 4px;">${asset.type || asset.Type || 'Appliance'}</div>
+                      <div><strong>Specs:</strong> ${asset.specs || asset.Specs || 'N/A'}</div>
+                      <div style="margin: 4px 0;">
+                         <strong>Tag:</strong> <span style="border: 1px dashed #000; padding: 2px 6px; letter-spacing: 0.5px; font-weight: bold;">${asset.tag || asset.Tag || 'N/A'}</span>
+                      </div>
+                      <div><strong>Loc:</strong> ${asset.loc || asset.Loc || 'N/A'}</div>
+                      <div style="margin-top: 4px;">
+                         <strong>Status:</strong> <span style="font-weight: 900;">${(asset.status || asset.Status || 'OPERATIONAL').toUpperCase()}</span>
+                      </div>
+                    </div>
+                  </div>
+                `;
+            });
+        } else {
+            out += `<div style="grid-column: span 2; font-style: italic; color: #555; padding: 10px; border: 1px dashed #000; text-align: center;">No active assets registered to this unit.</div>`;
+        }
+
+        out += `</div>`;
+    }
+
+    // ==========================================
+    // 4. DAILY OPERATIONS REPORT
     // ==========================================
     else if (layout === "daily_operations") {
         const reportDate = document.getElementById('rep-param-date').value;
@@ -2143,7 +2210,6 @@
 
         out += generateTitleBar(`DAILY OPERATIONS: ${formatDateForDisplay(reportDate)}`);
 
-        // Styled specifically for high-contrast print (Grayscale/Black/White instead of colored)
         out += `
           <div style="display: flex; gap: 15px; margin-bottom: 20px;">
              <div style="flex: 1; padding: 15px; border: 2px solid #000; background: #fafafa;">
@@ -2188,7 +2254,7 @@
     }
 
     // ==========================================
-    // 4. MONTHLY / KPI DASHBOARD
+    // 5. MONTHLY / KPI DASHBOARD
     // ==========================================
     else if (layout === "monthly_fm" || layout === "kpi_dashboard") {
         const monthStr = document.getElementById('rep-param-month').value; 
@@ -2205,7 +2271,6 @@
         const reportTitle = layout === "monthly_fm" ? "MONTHLY FM REPORT" : "EXECUTIVE KPI DASHBOARD";
         out += generateTitleBar(`${reportTitle} - ${monthStr}`);
 
-        // Print-friendly Grayscale KPI blocks
         out += `
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 25px;">
              <div style="padding: 15px; border: 1px solid #000; background: #fafafa;">
@@ -2232,7 +2297,7 @@
     }
 
     // ==========================================
-    // 5. WORK ORDERS FINANCIAL LEDGER
+    // 6. APPROVED WORK ORDERS LEDGER
     // ==========================================
     else if (layout === "fin_wo") {
         const startDate = new Date(document.getElementById('rep_start_date').value);
@@ -2276,6 +2341,78 @@
           </table>`;
     }
 
+    // ==========================================
+    // 7. COMPREHENSIVE LEDGER SUMMARY
+    // ==========================================
+    else if (layout === "ledger_summary") {
+        const startDate = new Date(document.getElementById('rep_start_date').value);
+        const endDate = new Date(document.getElementById('rep_end_date').value);
+        
+        if (isNaN(startDate) || isNaN(endDate)) { alert("Please select a valid date range."); return; }
+
+        out += generateTitleBar(`LEDGER SUMMARY`);
+        out += `<p style="font-weight:700; font-size:12px; margin-top:-5px; margin-bottom:15px;">Period: ${startDate.toLocaleDateString()} to ${endDate.toLocaleDateString()}</p>`;
+
+        const combinedPayments = [
+            ...(cache.payments || []), 
+            ...(cache.cashExpenses || []).map(c => ({
+               date: c.date || c.Date,
+               party: 'Cash Expense',
+               reason: c.description || c.Description,
+               direction: 'OUTFLOW',
+               amount: c.amount || c.Amount
+            }))
+        ].filter(p => {
+            const pDate = parseToLocalDateObject(p.date || p.Date);
+            return pDate >= startDate && pDate <= endDate;
+        }).sort((a,b) => {
+            const dateA = parseToLocalDateObject(a.date || a.Date);
+            const dateB = parseToLocalDateObject(b.date || b.Date);
+            return (dateA ? dateA.getTime() : 0) - (dateB ? dateB.getTime() : 0);
+        });
+
+        let totalInflow = 0; let totalOutflow = 0;
+
+        let rows = combinedPayments.map(p => {
+            const amt = parseFloat(p.amount || p.Amount || 0);
+            const isOut = p.direction === 'OUTFLOW';
+            if (isOut) totalOutflow += amt; else totalInflow += amt;
+            
+            return `
+              <tr>
+                <td style="padding: 6px; border: 1px solid #000;">${formatDateForDisplay(p.date || p.Date)}</td>
+                <td style="padding: 6px; border: 1px solid #000;"><strong>${p.party || p.reason || p.type || 'N/A'}</strong><br><span style="font-size:10px; color:#555;">${p.reason || ''}</span></td>
+                <td style="padding: 6px; border: 1px solid #000; font-weight:bold; text-align:center;">${p.direction || 'INFLOW'}</td>
+                <td style="padding: 6px; border: 1px solid #000; text-align:right; font-weight:bold;">${formatMoney(amt)}</td>
+              </tr>
+            `;
+        }).join('');
+
+        out += `
+          <table style="width:100%; border-collapse: collapse; font-size: 11px; margin-bottom: 20px;">
+            <thead>
+              <tr style="background-color: #f4f4f4; text-transform: uppercase;">
+                <th style="padding: 6px; border: 1px solid #000; text-align:left; width: 15%;">Date</th>
+                <th style="padding: 6px; border: 1px solid #000; text-align:left; width: 50%;">Party / Description</th>
+                <th style="padding: 6px; border: 1px solid #000; text-align:center; width: 15%;">Type</th>
+                <th style="padding: 6px; border: 1px solid #000; text-align:right; width: 20%;">Amount (₦)</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows || `<tr><td colspan="4" style="padding: 10px; text-align:center; font-style: italic;">No ledger records found for this period.</td></tr>`}
+            </tbody>
+          </table>
+          
+          <div style="margin-top: 25px; text-align:right; font-size: 12px; border-top: 2px solid #000; padding-top: 10px; page-break-inside: avoid;">
+            <p style="margin: 0 0 4px 0;"><strong>Total Inflow:</strong> ₦ ${formatMoney(totalInflow)}</p>
+            <p style="margin: 0 0 6px 0;"><strong>Total Outflow:</strong> - ₦ ${formatMoney(totalOutflow)}</p>
+            <h3 style="margin: 5px 0 0 0; font-size: 16px; font-weight: 900; text-transform: uppercase;">
+               Net Financial Position: ₦ ${formatMoney(totalInflow - totalOutflow)}
+            </h3>
+          </div>
+        `;
+    }
+
     out += `</div>`; // Close universal wrapper
 
     // Output to viewport
@@ -2286,7 +2423,6 @@
     const previewCard = document.getElementById('report-onscreen-preview-card');
     if(previewCard) previewCard.style.display = "block";
 }
-
     function downloadCurrentReportPDF() {
       const htmlData = document.getElementById('report-preview-viewport').innerHTML;
       compileAndDownloadUnifiedPDF(htmlData, [], "Facility_Report_" + new Date().getTime());
