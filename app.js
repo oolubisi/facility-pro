@@ -83,9 +83,9 @@
         scale: 2, 
         useCORS: true, 
         logging: false,
-   //     scrollY: 0, // Anchors capture to the top
-   //     scrollX: 0,  
-   //     windowY: 0,
+        scrollY: 0, // Anchors capture to the top
+        scrollX: 0,  
+        windowY: 0,
         windowWidth: 800  // <--- ADD THIS to fix the right-side cropping
       },
       jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
@@ -2094,7 +2094,7 @@
         if (!layout) return;
     
         // 1. UNIVERSAL EVERGREEN HEADER & WRAPPER (Includes cropping fix)
-        let out = `<div style="font-family: 'Helvetica', 'Inter', sans-serif; color: #000; background: #fff; padding: 0px 10px; box-sizing: border-box; width: 100%; max-width: 800px; margin: 0 auto;">`;
+        let out = `<div style="font-family: 'Helvetica', 'Inter', sans-serif; color: #000; background: #fff; box-sizing: border-box; width: 100%;">`;
     
         out += `
           <div style="text-align: center; margin-bottom: 20px;">
