@@ -83,9 +83,9 @@
         scale: 2, 
         useCORS: true, 
         logging: false,
-        scrollY: 0, // Anchors capture to the top
-        scrollX: 0,  
-        windowY: 0,
+   //     scrollY: 0, // Anchors capture to the top
+   //     scrollX: 0,  
+   //     windowY: 0,
         windowWidth: 800  // <--- ADD THIS to fix the right-side cropping
       },
       jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
