@@ -47,70 +47,46 @@
 
     async function compileAndDownloadUnifiedPDF(htmlContent, attachmentUrls = [], filename = 'Facility_Report') {
   // 1. CLEANUP PREVIOUS PDF LAYERS
-  document.querySelectorAll('#pdf-capture-target, #pdf-toast').forEach(el => el.remove());
+  document.querySelectorAll('#pdf-render-box, #pdf-toast').forEach(el => el.remove());
 
-  // 2. UNLOCK MOBILE SCREEN BOUNDARIES (Fixes the left-side cropping)
-  const originalOverflow = document.body.style.overflowX;
-  document.body.style.overflowX = 'visible';
-
-  // 3. CREATE STRICTLY-ANCHORED RENDER TARGET
-  const target = document.createElement('div');
-  target.id = 'pdf-capture-target';
-  target.style.cssText = `
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 800px;
-    background: #ffffff;
-    margin: 0 !important;
-    padding: 20px;
-    z-index: 99998;
-    transform-origin: top left;
+  // 2. THE BULLETPROOF RENDER UI
+  // We use your original fixed screen, but force everything flush-left to prevent negative margins (cropping)
+  const renderBox = document.createElement('div');
+  renderBox.id = 'pdf-render-box';
+  renderBox.style.cssText = 'position:fixed; top:0; left:0; width:100vw; height:100vh; background:#e9ecef; z-index:99998; overflow:auto; display:block; text-align:left;';
+  
+  // The 800px target now has margin: 0; so it sits exactly at 0,0 and cannot bleed off the left side.
+  renderBox.innerHTML = `
+    <div id="pdf-capture-target" style="width:800px; background:#ffffff; margin:0; padding:20px; box-sizing: border-box; text-align:left;">
+       ${htmlContent}
+    </div>
   `;
-  target.innerHTML = htmlContent;
-  document.body.appendChild(target);
+  document.body.appendChild(renderBox);
 
-  // 4. TOAST UI (Loading Indicator)
+  // 3. TOAST UI (Loading Indicator)
   const toast = document.createElement('div');
   toast.id = 'pdf-toast';
-  toast.style.cssText = `
-    position: fixed;
-    bottom: 30px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: #212529;
-    color: #ffffff;
-    padding: 16px 32px;
-    border-radius: 50px;
-    font-weight: 800;
-    font-size: 16px;
-    z-index: 99999;
-    box-shadow: 0 10px 20px rgba(0,0,0,0.3);
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    white-space: nowrap;
-  `;
+  toast.style.cssText = 'position:fixed; bottom:30px; left:50%; transform:translateX(-50%); background:#212529; color:#ffffff; padding:16px 32px; border-radius:50px; font-weight:800; font-size:16px; z-index:99999; box-shadow:0 10px 20px rgba(0,0,0,0.3); display:flex; align-items:center; gap:12px; white-space:nowrap;';
   toast.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating Document...';
   document.body.appendChild(toast);
 
-  // 5. GPU RENDER DELAY
+  // 4. GPU RENDER DELAY (Allow fonts and tables to paint)
   await new Promise(resolve => setTimeout(resolve, 800));
 
   try {
-    // 6. PDF SETTINGS
+    const target = document.getElementById('pdf-capture-target');
+    
+    // 5. PDF SETTINGS
+    // Removed the scrollY/scrollX forces so the engine naturally finds the target without shooting blanks.
     const opt = {
       margin: 15,
       filename: filename + '.pdf',
       image: { type: 'jpeg', quality: 0.98 },
       html2canvas: {
-        scale: window.devicePixelRatio > 1 ? 2 : 1.5,
+        scale: 2,
         useCORS: true,
         logging: false,
-        backgroundColor: '#ffffff',
-        windowWidth: 800,  // Locks camera to exactly 800px width
-        scrollY: 0,
-        scrollX: 0
+        windowWidth: 800
       },
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
@@ -119,7 +95,7 @@
     const { PDFDocument, degrees, rgb } = PDFLib;
     const masterPdf = await PDFDocument.load(htmlPdfBuffer);
 
-    // 7. ATTACHMENT MERGING
+    // 6. ATTACHMENT MERGING
     if (attachmentUrls && attachmentUrls.length > 0) {
       toast.innerHTML = '<i class="fas fa-cog fa-spin"></i> Stitching Attachments...';
       for (let url of attachmentUrls) {
@@ -153,7 +129,7 @@
       }
     }
 
-    // 8. WATERMARK & NUMBERS
+    // 7. WATERMARK & NUMBERS
     const pages = masterPdf.getPages();
     pages.forEach((page, index) => {
       const { width, height } = page.getSize();
@@ -161,7 +137,7 @@
       page.drawText('Facility Pro', { x: width / 4, y: height / 2, size: 48, rotate: degrees(-45), opacity: 0.08, color: rgb(0.5, 0.5, 0.5) });
     });
 
-    // 9. FINALIZE & DOWNLOAD
+    // 8. FINALIZE & DOWNLOAD
     toast.innerHTML = '<i class="fas fa-download"></i> Saving to device...';
     const finalPdfBytes = await masterPdf.save();
     const blob = new Blob([finalPdfBytes], { type: 'application/pdf' });
@@ -180,11 +156,11 @@
     console.error('PDF Generation Failed:', err);
     alert('PDF Generation Failed. Check console.');
   } finally {
-    // 10. CRITICAL CLEANUP
-    document.body.style.overflowX = originalOverflow;
-    document.querySelectorAll('#pdf-capture-target, #pdf-toast').forEach(el => el.remove());
+    // 9. CRITICAL CLEANUP
+    document.querySelectorAll('#pdf-render-box, #pdf-toast').forEach(el => el.remove());
   }
-}    
+}
+
     async function callApi(action, data = {}) {
       try {
         const response = await fetch(GAS_URL, { method: "POST", body: JSON.stringify({ action: action, data: data }) });
