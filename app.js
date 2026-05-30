@@ -60,42 +60,36 @@
     .forEach(el => el.remove());
 
   // =====================================================
-  // RENDER CONTAINER
+  // RENDER CONTAINER (THE FIX)
   // =====================================================
 
   const renderBox = document.createElement('div');
-
   renderBox.id = 'pdf-render-box';
 
+  // FIX 1: Anchor absolutely to the top-left. No 100vw, no centering.
   renderBox.style.cssText = `
-    position:fixed;
-    top:0;
-    left:0;
-    width:100vw;
-    height:100vh;
-    background:#e9ecef;
-    z-index:99998;
-    overflow:auto;
-    display:block;
-    text-align:center;
-    padding:20px;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 800px;
+    height: 100vh;
+    background: #ffffff;
+    z-index: 99998;
+    overflow: hidden;
+    display: block;
+    text-align: left;
   `;
 
+  // FIX 2: Remove 'margin: 0 auto'. Push the target flush against the left wall.
   renderBox.innerHTML = `
-
     <div id="pdf-capture-target"
          style="
-            width:760px;
-            background:#ffffff;
-            margin:0 auto 40px auto;
-            text-align:left;
-            box-shadow:0 5px 15px rgba(0,0,0,0.1);
-            border-radius:12px;
-            overflow:hidden;
+            width: 800px;
+            background: #ffffff;
+            box-sizing: border-box;
+            padding: 20px;
          ">
-
       ${htmlContent}
-
     </div>
   `;
 
@@ -146,50 +140,23 @@
     const target = document.getElementById('pdf-capture-target');
 
     // =====================================================
-    // PDF SETTINGS
+    // PDF SETTINGS (THE FIX)
     // =====================================================
 
     const opt = {
-
       margin: 10,
-
       filename: filename + '.pdf',
-
-      image: {
-        type: 'jpeg',
-        quality: 0.98
-      },
-
+      image: { type: 'jpeg', quality: 0.98 },
       html2canvas: {
-
-        scale:
-          window.devicePixelRatio > 1
-            ? 2
-            : 1.5,
-
+        scale: 2, 
         useCORS: true,
-
         logging: false,
-
         backgroundColor: '#ffffff',
-
-        windowWidth: 760,
-
-        windowHeight: target.scrollHeight,
-
+        windowWidth: 800,  // Match the strict 800px width above
         scrollY: 0,
-
         scrollX: 0
       },
-
-      jsPDF: {
-
-        unit: 'mm',
-
-        format: 'a4',
-
-        orientation: 'portrait'
-      }
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
 
     // =====================================================
