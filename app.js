@@ -4,7 +4,7 @@
     // --- FORMATTING HELPERS ---
     function formatMoney(amount) {
       return Number(amount || 0).toLocaleString('en-US', { 
-        minimumFractionDigits: 2, F
+        minimumFractionDigits: 2, 
         maximumFractionDigits: 2 
       });
     }
@@ -45,6 +45,427 @@
       return null;
     }
 
+    async function compileAndDownloadUnifiedPDF(
+  htmlContent,
+  attachmentUrls = [],
+  filename = 'Facility_Report'
+) {
+
+  // =====================================================
+  // CLEANUP PREVIOUS PDF LAYERS
+  // =====================================================
+
+  document
+    .querySelectorAll('#pdf-render-box, #pdf-toast')
+    .forEach(el => el.remove());
+
+  // =====================================================
+  // RENDER CONTAINER
+  // =====================================================
+
+  const renderBox = document.createElement('div');
+
+  renderBox.id = 'pdf-render-box';
+
+  renderBox.style.cssText = `
+    position:fixed;
+    top:0;
+    left:0;
+    width:100vw;
+    height:100vh;
+    background:#e9ecef;
+    z-index:99998;
+    overflow:auto;
+    display:block;
+    text-align:center;
+    padding:20px;
+  `;
+
+  renderBox.innerHTML = `
+
+    <div id="pdf-capture-target"
+         style="
+            width:760px;
+            background:#ffffff;
+            margin:0 auto 40px auto;
+            text-align:left;
+            box-shadow:0 5px 15px rgba(0,0,0,0.1);
+            border-radius:12px;
+            overflow:hidden;
+         ">
+
+      ${htmlContent}
+
+    </div>
+  `;
+
+  document.body.appendChild(renderBox);
+
+  // =====================================================
+  // TOAST
+  // =====================================================
+
+  const toast = document.createElement('div');
+
+  toast.id = 'pdf-toast';
+
+  toast.style.cssText = `
+    position:fixed;
+    bottom:30px;
+    left:50%;
+    transform:translateX(-50%);
+    background:#212529;
+    color:#ffffff;
+    padding:16px 32px;
+    border-radius:50px;
+    font-weight:800;
+    font-size:16px;
+    z-index:99999;
+    box-shadow:0 10px 20px rgba(0,0,0,0.3);
+    display:flex;
+    align-items:center;
+    gap:12px;
+    white-space:nowrap;
+  `;
+
+  toast.innerHTML = `
+    <i class="fas fa-spinner fa-spin"></i>
+    Generating Document...
+  `;
+
+  document.body.appendChild(toast);
+
+  // =====================================================
+  // GPU RENDER DELAY
+  // =====================================================
+
+  await new Promise(resolve => setTimeout(resolve, 800));
+
+  try {
+
+    const target = document.getElementById('pdf-capture-target');
+
+    // =====================================================
+    // PDF SETTINGS
+    // =====================================================
+
+    const opt = {
+
+      margin: 10,
+
+      filename: filename + '.pdf',
+
+      image: {
+        type: 'jpeg',
+        quality: 0.98
+      },
+
+      html2canvas: {
+
+        scale:
+          window.devicePixelRatio > 1
+            ? 2
+            : 1.5,
+
+        useCORS: true,
+
+        logging: false,
+
+        backgroundColor: '#ffffff',
+
+        windowWidth: 760,
+
+        windowHeight: target.scrollHeight,
+
+        scrollY: 0,
+
+        scrollX: 0
+      },
+
+      jsPDF: {
+
+        unit: 'mm',
+
+        format: 'a4',
+
+        orientation: 'portrait'
+      }
+    };
+
+    // =====================================================
+    // GENERATE HTML PDF BUFFER
+    // =====================================================
+
+    const htmlPdfBuffer =
+      await html2pdf()
+        .set(opt)
+        .from(target)
+        .output('arraybuffer');
+
+    // =====================================================
+    // LOAD PDFLIB
+    // =====================================================
+
+    const { PDFDocument, degrees, rgb } = PDFLib;
+
+    const masterPdf =
+      await PDFDocument.load(htmlPdfBuffer);
+
+    // =====================================================
+    // ATTACHMENT MERGING
+    // =====================================================
+
+    if (
+      attachmentUrls &&
+      attachmentUrls.length > 0
+    ) {
+
+      toast.innerHTML = `
+        <i class="fas fa-cog fa-spin"></i>
+        Stitching Attachments...
+      `;
+
+      for (let url of attachmentUrls) {
+
+        const fileId = extractDriveFileId(url);
+
+        if (!fileId) continue;
+
+        try {
+
+          const fileData =
+            await callApi(
+              'getFileBase64',
+              { id: fileId }
+            );
+
+          if (
+            fileData?.status === 'success'
+          ) {
+
+            const bytes = Uint8Array.from(
+
+              atob(
+                fileData.base64.replace(/\s/g, '')
+              ),
+
+              c => c.charCodeAt(0)
+            );
+
+            // =============================================
+            // PDF ATTACHMENTS
+            // =============================================
+
+            if (
+              fileData.mimeType ===
+              'application/pdf'
+            ) {
+
+              const extPdf =
+                await PDFDocument.load(bytes);
+
+              const pages =
+                await masterPdf.copyPages(
+                  extPdf,
+                  extPdf.getPageIndices()
+                );
+
+              pages.forEach(p =>
+                masterPdf.addPage(p)
+              );
+            }
+
+            // =============================================
+            // IMAGE ATTACHMENTS
+            // =============================================
+
+            else if (
+              fileData.mimeType.startsWith('image/')
+            ) {
+
+              const img =
+                fileData.mimeType === 'image/png'
+                  ? await masterPdf.embedPng(bytes)
+                  : await masterPdf.embedJpg(bytes);
+
+              const page =
+                masterPdf.addPage();
+
+              const pageWidth =
+                page.getWidth();
+
+              const pageHeight =
+                page.getHeight();
+
+              const maxWidth =
+                pageWidth - 80;
+
+              const maxHeight =
+                pageHeight - 80;
+
+              const widthRatio =
+                maxWidth / img.width;
+
+              const heightRatio =
+                maxHeight / img.height;
+
+              const ratio =
+                Math.min(
+                  widthRatio,
+                  heightRatio,
+                  1
+                );
+
+              const imgWidth =
+                img.width * ratio;
+
+              const imgHeight =
+                img.height * ratio;
+
+              page.drawImage(img, {
+
+                x:
+                  (pageWidth - imgWidth) / 2,
+
+                y:
+                  (pageHeight - imgHeight) / 2,
+
+                width: imgWidth,
+
+                height: imgHeight
+              });
+            }
+          }
+
+        } catch (e) {
+
+          console.error(
+            'Attachment merge error:',
+            e
+          );
+        }
+      }
+    }
+
+    // =====================================================
+    // PAGE NUMBERS + WATERMARK
+    // =====================================================
+
+    const pages = masterPdf.getPages();
+
+    pages.forEach((page, index) => {
+
+      const { width, height } =
+        page.getSize();
+
+      // ===============================================
+      // PAGE NUMBER
+      // ===============================================
+
+      page.drawText(
+
+        `Page ${index + 1} of ${pages.length}`,
+
+        {
+          x: width - 110,
+          y: 20,
+          size: 10,
+          color: rgb(0.4, 0.4, 0.4)
+        }
+      );
+
+      // ===============================================
+      // WATERMARK
+      // ===============================================
+
+      page.drawText(
+
+        'Facility Pro',
+
+        {
+          x: width / 4,
+          y: height / 2,
+
+          size: 48,
+
+          rotate: degrees(-45),
+
+          opacity: 0.08,
+
+          color: rgb(0.5, 0.5, 0.5)
+        }
+      );
+    });
+
+    // =====================================================
+    // FINALIZE PDF
+    // =====================================================
+
+    toast.innerHTML = `
+      <i class="fas fa-download"></i>
+      Saving to device...
+    `;
+
+    const finalPdfBytes =
+      await masterPdf.save();
+
+    const blob = new Blob(
+      [finalPdfBytes],
+      { type: 'application/pdf' }
+    );
+
+    const link =
+      document.createElement('a');
+
+    link.href =
+      URL.createObjectURL(blob);
+
+    link.download =
+      filename + '.pdf';
+
+    document.body.appendChild(link);
+
+    link.click();
+
+    document.body.removeChild(link);
+
+    setTimeout(() => {
+      URL.revokeObjectURL(link.href);
+    }, 3000);
+
+    toast.innerHTML = `
+      <i class="fas fa-check-circle"></i>
+      PDF Downloaded Successfully
+    `;
+
+    setTimeout(() => {
+      toast.remove();
+    }, 2000);
+
+  } catch (err) {
+
+    console.error(
+      'PDF Generation Failed:',
+      err
+    );
+
+    alert(
+      'PDF Generation Failed. Check console.'
+    );
+
+  } finally {
+
+    // =====================================================
+    // CLEANUP
+    // =====================================================
+
+    document
+      .querySelectorAll(
+        '#pdf-render-box, #pdf-toast'
+      )
+      .forEach(el => el.remove());
+  }
+}
     
     async function callApi(action, data = {}) {
       try {
@@ -2380,186 +2801,36 @@
         if(previewCard) previewCard.style.display = "block";
     }
 
-// =========================================================
-// PDF GENERATION ENGINE
-// =========================================================
-
 function downloadCurrentReportPDF() {
-  window.scrollTo(0, 0);
-  const htmlData = document.getElementById('report-preview-viewport').innerHTML;
-  if (!htmlData) {
-      alert("No report preview found. Please generate a preview first.");
-      return;
-  }
-  compileAndDownloadUnifiedPDF(htmlData, [], "Facility_Report_" + new Date().getTime());
-}
-
-async function compileAndDownloadUnifiedPDF(htmlContent, attachmentUrls = [], filename = 'Facility_Report') {
-  // 1. CLEANUP PREVIOUS PDF LAYERS
-  document.querySelectorAll('#pdf-capture-target, #pdf-toast').forEach(el => el.remove());
-
-  // 2. UNLOCK MOBILE SCREEN BOUNDARIES (Fixes the left-side cropping)
-  const originalOverflow = document.body.style.overflowX;
-  document.body.style.overflowX = 'visible';
-
-  // 3. CREATE STRICTLY-ANCHORED RENDER TARGET
-  const target = document.createElement('div');
-  target.id = 'pdf-capture-target';
-  target.style.cssText = `
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 800px;
-    background: #ffffff;
-    margin: 0 !important;
-    padding: 20px;
-    z-index: 99998;
-    transform-origin: top left;
-  `;
-  target.innerHTML = htmlContent;
-  document.body.appendChild(target);
-
-  // 4. TOAST UI (Loading Indicator)
-  const toast = document.createElement('div');
-  toast.id = 'pdf-toast';
-  toast.style.cssText = `
-    position: fixed;
-    bottom: 30px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: #212529;
-    color: #ffffff;
-    padding: 16px 32px;
-    border-radius: 50px;
-    font-weight: 800;
-    font-size: 16px;
-    z-index: 99999;
-    box-shadow: 0 10px 20px rgba(0,0,0,0.3);
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    white-space: nowrap;
-  `;
-  toast.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating Document...';
-  document.body.appendChild(toast);
-
-  // 5. GPU RENDER DELAY
-  await new Promise(resolve => setTimeout(resolve, 800));
-
-  try {
-    // 6. PDF SETTINGS
-    const opt = {
-      margin: 15, // 15mm margins on all sides
-      filename: filename + '.pdf',
-      image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: {
-        scale: window.devicePixelRatio > 1 ? 2 : 1.5,
-        useCORS: true,
-        logging: false,
-        backgroundColor: '#ffffff',
-        windowWidth: 800,  // Locks the camera to 800px width
-        scrollY: 0,
-        scrollX: 0
-      },
-      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-    };
-
-    const htmlPdfBuffer = await html2pdf().set(opt).from(target).output('arraybuffer');
-    const { PDFDocument, degrees, rgb } = PDFLib;
-    const masterPdf = await PDFDocument.load(htmlPdfBuffer);
-
-    // 7. ATTACHMENT MERGING
-    if (attachmentUrls && attachmentUrls.length > 0) {
-      toast.innerHTML = '<i class="fas fa-cog fa-spin"></i> Stitching Attachments...';
-      for (let url of attachmentUrls) {
-        if (!url) continue;
-        let fileId = null;
-        try { fileId = extractDriveFileId(url); } catch(e) {}
-        if (!fileId) continue;
-
-        try {
-          const fileData = await callApi('getFileBase64', { id: fileId });
-          if (fileData?.status === 'success') {
-            const bytes = Uint8Array.from(atob(fileData.base64.replace(/\s/g, '')), c => c.charCodeAt(0));
-            if (fileData.mimeType === 'application/pdf') {
-              const extPdf = await PDFDocument.load(bytes);
-              const pages = await masterPdf.copyPages(extPdf, extPdf.getPageIndices());
-              pages.forEach(p => masterPdf.addPage(p));
-            } else if (fileData.mimeType.startsWith('image/')) {
-              const img = fileData.mimeType === 'image/png' ? await masterPdf.embedPng(bytes) : await masterPdf.embedJpg(bytes);
-              const page = masterPdf.addPage();
-              const pageWidth = page.getWidth();
-              const pageHeight = page.getHeight();
-              const ratio = Math.min((pageWidth - 80) / img.width, (pageHeight - 80) / img.height, 1);
-              const imgWidth = img.width * ratio;
-              const imgHeight = img.height * ratio;
-              page.drawImage(img, { x: (pageWidth - imgWidth) / 2, y: (pageHeight - imgHeight) / 2, width: imgWidth, height: imgHeight });
-            }
-          }
-        } catch (e) {
-          console.error('Attachment merge error:', e);
-        }
-      }
+    window.scrollTo(0, 0);
+      const htmlData = document.getElementById('report-preview-viewport').innerHTML;
+      compileAndDownloadUnifiedPDF(htmlData, [], "Facility_Report_" + new Date().getTime());
     }
+    
+    // ---------------------------------------------------------
+    // OFFLINE SYNC & PWA REGISTRATION
+    // ---------------------------------------------------------
+    
+    window.addEventListener('online', async () => {
+      document.getElementById('sync-status').style.display = 'none';
+      const queue = JSON.parse(localStorage.getItem('facility_pro_sync_queue') || '[]');
+      if (queue.length === 0) return;
 
-    // 8. WATERMARK & NUMBERS
-    const pages = masterPdf.getPages();
-    pages.forEach((page, index) => {
-      const { width, height } = page.getSize();
-      page.drawText(`Page ${index + 1} of ${pages.length}`, { x: width - 110, y: 20, size: 10, color: rgb(0.4, 0.4, 0.4) });
-      page.drawText('Facility Pro', { x: width / 4, y: height / 2, size: 48, rotate: degrees(-45), opacity: 0.08, color: rgb(0.5, 0.5, 0.5) });
+      alert("Connection restored! Syncing offline records to the server...");
+      
+      for (const item of queue) {
+        await fetch(GAS_URL, { method: "POST", body: JSON.stringify({ action: item.action, data: item.data }) });
+      }
+      
+      localStorage.removeItem('facility_pro_sync_queue');
+      bootstrapDataRegistriesPipeline(); 
     });
 
-    // 9. FINALIZE & DOWNLOAD
-    toast.innerHTML = '<i class="fas fa-download"></i> Saving to device...';
-    const finalPdfBytes = await masterPdf.save();
-    const blob = new Blob([finalPdfBytes], { type: 'application/pdf' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = filename + '.pdf';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    setTimeout(() => URL.revokeObjectURL(link.href), 3000);
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js')
+          .then(reg => console.log('Service Worker Registered Successfully!', reg))
+          .catch(err => console.error('Service Worker Registration Failed:', err));
+      });
+    }
 
-    toast.innerHTML = '<i class="fas fa-check-circle"></i> Success!';
-    setTimeout(() => toast.remove(), 2000);
-
-  } catch (err) {
-    console.error('PDF Generation Failed:', err);
-    alert('PDF Generation Failed. Check console.');
-  } finally {
-    // 10. CRITICAL CLEANUP
-    document.body.style.overflowX = originalOverflow;
-    document.querySelectorAll('#pdf-capture-target, #pdf-toast').forEach(el => el.remove());
-  }
-}
-
-// =========================================================
-// OFFLINE SYNC & PWA REGISTRATION
-// =========================================================
-
-window.addEventListener('online', async () => {
-  document.getElementById('sync-status').style.display = 'none';
-  const queue = JSON.parse(localStorage.getItem('facility_pro_sync_queue') || '[]');
-  if (queue.length === 0) return;
-
-  alert("Connection restored! Syncing offline records to the server...");
-  
-  for (const item of queue) {
-    await fetch(GAS_URL, { method: "POST", body: JSON.stringify({ action: item.action, data: item.data }) });
-  }
-  
-  localStorage.removeItem('facility_pro_sync_queue');
-  if(typeof bootstrapDataRegistriesPipeline === 'function') {
-      bootstrapDataRegistriesPipeline(); 
-  }
-});
-
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('sw.js')
-      .then(reg => console.log('Service Worker Registered Successfully!', reg))
-      .catch(err => console.error('Service Worker Registration Failed:', err));
-  });
-}
