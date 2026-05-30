@@ -85,7 +85,7 @@
 
     <div id="pdf-capture-target"
          style="
-            width:800px;
+            width:760px;
             background:#ffffff;
             margin:0 auto 40px auto;
             text-align:left;
@@ -173,7 +173,7 @@
 
         backgroundColor: '#ffffff',
 
-        windowWidth: 800,
+        windowWidth: 760,
 
         windowHeight: target.scrollHeight,
 
