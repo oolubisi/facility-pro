@@ -2441,8 +2441,8 @@ async function callApi(action, data = {}) {
             out += generateTitleBar('APARTMENTS MANIFEST');
     
             filteredApts.forEach((a) => {
-                const uNum = a.unit || a.Unit || 'N/A';
-                let meterNo = a.meterNo || a.MeterNo || 'N/A';
+                const uNum = a.apt || 'N/A';
+                let meterNo = a.meterNo || 'N/A';
                 const relatedAssets = (cache.assets || []).filter(ast => String(ast.location || ast.loc || ast.unit) === String(uNum) && String(ast.status || ast.Status || '') !== 'Archived');
     
                 let assetRows = "";
