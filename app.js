@@ -49,7 +49,7 @@
 // PDF ENGINE
 // =========================================================
 
-async function compileAndDownloadUnifiedPDF(htmlContent, attachmentUrls = [], filename = 'Facility_Report') {
+async function compileAndDownloadUnifiedPDF(sourceElement, attachmentUrls = [], filename = 'Facility_Report') {
   // 1. SHOW FULLSCREEN LOADING UI
   const loadingScreen = document.createElement('div');
   loadingScreen.id = 'pdf-loading-screen';
@@ -67,18 +67,72 @@ async function compileAndDownloadUnifiedPDF(htmlContent, attachmentUrls = [], fi
   document.body.appendChild(loadingScreen);
 
   try {
-    // 2. WRAP HTML WITH STRICT SERVER CSS
-    // Google's PDF engine relies on standard CSS, so we give it a clean foundation
+    // ============================================================
+    // 2. THE "INPUT BAKER" (Fixes the missing Unit/Meter data)
+    // ============================================================
+    // Clone the report so we don't mess up the actual screen
+    const clone = sourceElement.cloneNode(true);
+    
+    // Find all inputs in the live screen, and their counterparts in the clone
+    const originalInputs = sourceElement.querySelectorAll('input, select, textarea');
+    const clonedInputs = clone.querySelectorAll('input, select, textarea');
+    
+    originalInputs.forEach((original, index) => {
+      const cloneNode = clonedInputs[index];
+      const span = document.createElement('span');
+      
+      // Extract the live value. If it's a checkbox, use checkmark symbols
+      if (original.type === 'checkbox' || original.type === 'radio') {
+        span.innerHTML = original.checked ? '<b>☑</b> ' : '☐ ';
+        span.style.fontSize = '14px';
+      } else {
+        span.innerText = original.value || original.innerText || ''; 
+      }
+      
+      // Make it look like bold document text
+      span.style.display = 'inline-block';
+      span.style.fontWeight = 'bold';
+      span.style.color = '#000';
+      
+      // Replace the <input> with the plain text <span>
+      if (cloneNode.parentNode) {
+        cloneNode.parentNode.replaceChild(span, cloneNode);
+      }
+    });
+
+    // Now grab the cleaned, fully-populated HTML
+    const htmlContent = clone.innerHTML;
+    // ============================================================
+
+    // 3. WRAP HTML WITH STRICT SERVER CSS (Fixes the table borders)
     const cleanHTML = `
       <!DOCTYPE html>
       <html>
         <head>
           <style>
-            body { font-family: Arial, sans-serif; color: #333; background: #fff; padding: 20px; font-size: 12px; }
+            body { font-family: Arial, sans-serif; color: #333; background: #fff; padding: 20px; font-size: 11px; }
             * { box-sizing: border-box; }
-            table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
-            th, td { text-align: left; padding: 8px; border-bottom: 1px solid #eee; }
-            .grid, .flex-row { display: table; width: 100%; } /* Fallback for flexbox */
+            
+            /* FIX: Uniform Table Borders */
+            table { 
+              width: 100%; 
+              border-collapse: collapse; 
+              margin-bottom: 15px; 
+              border: 1px solid #444 !important; /* Outer border */
+            }
+            th, td { 
+              text-align: left; 
+              padding: 8px; 
+              border: 1px solid #ccc !important; /* Equal inner lines on all sides */
+            }
+            th { background-color: #f8f9fa; }
+            
+            /* Fallback layout for Google's engine */
+            .grid, .flex-row { display: table; width: 100%; }
+            .col { display: table-cell; padding: 4px; vertical-align: middle; }
+            
+            /* Prevent messy text wrapping */
+            td, th, span, label, strong { white-space: nowrap; }
           </style>
         </head>
         <body>
@@ -87,7 +141,7 @@ async function compileAndDownloadUnifiedPDF(htmlContent, attachmentUrls = [], fi
       </html>
     `;
 
-    // 3. SEND TO GOOGLE APPS SCRIPT
+    // 4. SEND TO GOOGLE APPS SCRIPT
     const response = await fetch(GAS_URL, {
       method: 'POST',
       body: JSON.stringify({
@@ -99,7 +153,7 @@ async function compileAndDownloadUnifiedPDF(htmlContent, attachmentUrls = [], fi
 
     if (result.status !== 'success') throw new Error(result.message);
 
-    // 4. LOAD THE SERVER-GENERATED PDF INTO PDF-LIB
+    // 5. LOAD THE SERVER-GENERATED PDF INTO PDF-LIB
     loadingScreen.querySelector('h2').innerText = "Processing Attachments...";
     const { PDFDocument, degrees, rgb } = PDFLib;
     
@@ -107,7 +161,7 @@ async function compileAndDownloadUnifiedPDF(htmlContent, attachmentUrls = [], fi
     const pdfBytes = Uint8Array.from(atob(result.base64), c => c.charCodeAt(0));
     const masterPdf = await PDFDocument.load(pdfBytes);
 
-    // 5. STITCH ATTACHMENTS (Your existing logic)
+    // 6. STITCH ATTACHMENTS 
     if (attachmentUrls && attachmentUrls.length > 0) {
       for (let url of attachmentUrls) {
         if (!url) continue;
@@ -134,7 +188,7 @@ async function compileAndDownloadUnifiedPDF(htmlContent, attachmentUrls = [], fi
       }
     }
 
-    // 6. WATERMARK & NUMBERS
+    // 7. WATERMARK & NUMBERS
     const pages = masterPdf.getPages();
     pages.forEach((page, index) => {
       const { width, height } = page.getSize();
@@ -142,7 +196,7 @@ async function compileAndDownloadUnifiedPDF(htmlContent, attachmentUrls = [], fi
       page.drawText('Facility Pro', { x: width / 4, y: height / 2, size: 48, rotate: degrees(-45), opacity: 0.08, color: rgb(0.5, 0.5, 0.5) });
     });
 
-    // 7. SHARE OR DOWNLOAD
+    // 8. SHARE OR DOWNLOAD
     loadingScreen.querySelector('h2').innerText = "Finishing up...";
     const finalPdfBytes = await masterPdf.save();
     const file = new File([finalPdfBytes], filename + '.pdf', { type: 'application/pdf' });
@@ -172,6 +226,7 @@ async function compileAndDownloadUnifiedPDF(htmlContent, attachmentUrls = [], fi
     }, 2500);
   }
 }
+
 
 async function callApi(action, data = {}) {
       try {
@@ -2551,20 +2606,15 @@ async function callApi(action, data = {}) {
 // =========================================================
 
 function downloadCurrentReportPDF() {
-
-    const source =
-        document.getElementById('report-preview-viewport');
-
-    if (!source || !source.innerHTML.trim()) {
-
-        alert('Please generate a report first.');
-
-        return;
-    }
-
-    compileAndDownloadUnifiedPDF(
-        source.innerHTML,
-        [],
-        'Facility_Report_' + Date.now()
-    );
+  // CRITICAL CHANGE: We grab the ACTUAL DOM element now, 
+  // not just the .innerHTML string.
+  const source = document.getElementById('report-preview-viewport');
+  
+  if (!source || !source.innerHTML.trim()) {
+      alert('Please generate a report first.');
+      return;
+  }
+  
+  // Pass the element itself into the engine
+  compileAndDownloadUnifiedPDF(source, [], 'Facility_Report_' + Date.now());
 }
