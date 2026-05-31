@@ -1571,7 +1571,7 @@ async function compileAndDownloadUnifiedPDF(htmlContent, attachmentUrls = [], fi
             .catch(() => { submit.disabled = false; submit.innerHTML = isEdit ? "Update" : "Save"; });
         };
       }
-          }
+          
       else if (type === 'inventory') {
         const uniqueItem = isEdit ? (editData.itemId || editData.ItemId) : generateNextId('INV', cache.inventory, 'itemId');
         title.innerText = isEdit ? "Edit Stock Ledger Item" : "Register New Inventory Item";
