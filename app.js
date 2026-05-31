@@ -82,12 +82,71 @@ async function compileAndDownloadUnifiedPDF(htmlContent, attachmentUrls = [], fi
   `;
 
   // Inject the CSS to fix the squished "Tenant / VACANT" text seen in your uploaded PDF
+  // Inject CSS to strictly control column widths, font sizes, and layout gaps
   renderBox.innerHTML = `
     <style>
-      #pdf-render-box * { overflow: visible !important; height: auto !important; max-height: none !important; }
-      #pdf-render-box .modal, #pdf-render-box .app, #pdf-render-box .container { max-width: 100% !important; width: 100% !important; border: none !important; margin: 0 !important; }
-      #pdf-render-box .grid, #pdf-render-box .flex-row, #pdf-render-box [style*="display: flex"] { flex-wrap: nowrap !important; gap: 10px !important; }
-      #pdf-render-box td, #pdf-render-box th, #pdf-render-box span, #pdf-render-box div { white-space: nowrap !important; }
+      /* 1. Global Reset & Scale Down Font Size */
+      #pdf-render-box * { 
+        overflow: visible !important; 
+        height: auto !important; 
+        max-height: none !important; 
+        font-size: 12px !important; /* Shrink text slightly to fit A4 perfectly */
+      }
+      
+      /* 2. Container Boundaries */
+      #pdf-render-box .modal, 
+      #pdf-render-box .app, 
+      #pdf-render-box .container { 
+        max-width: 100% !important; 
+        width: 100% !important; 
+        border: none !important; 
+        margin: 0 !important; 
+        padding: 0 !important; 
+      }
+      
+      /* 3. Force Rows into a strict, non-wrapping horizontal line */
+      #pdf-render-box .grid, 
+      #pdf-render-box .flex-row, 
+      #pdf-render-box [style*="display: flex"],
+      #pdf-render-box [style*="display: grid"] { 
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important; 
+        gap: 5px !important; /* Tighter gap between columns */
+        align-items: center !important;
+        padding: 4px 0 !important; /* Reduce vertical padding */
+      }
+
+      /* 4. REDUCE COLUMN WIDTHS: Target the Labels (Tenant, Meter No) */
+      #pdf-render-box label,
+      #pdf-render-box strong {
+        flex: 0 0 auto !important;
+        min-width: 50px !important;
+        max-width: 70px !important; /* Force columns to be narrow */
+        white-space: nowrap !important;
+        margin: 0 !important;
+        color: #666 !important; /* Make labels slightly lighter */
+      }
+
+      /* 5. Target the Values (VACANT, N/A) to take the remaining space */
+      #pdf-render-box span,
+      #pdf-render-box input,
+      #pdf-render-box .value {
+        flex: 1 1 auto !important; /* Allow values to stretch */
+        min-width: 40px !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        font-weight: bold !important;
+      }
+      
+      /* 6. Keep Checkboxes small */
+      #pdf-render-box input[type="checkbox"] {
+        width: 16px !important;
+        height: 16px !important;
+        margin: 0 5px 0 0 !important;
+        flex: 0 0 16px !important;
+      }
     </style>
     <div style="width: 100%; background: #ffffff; color: #000; font-family: Arial, sans-serif;">
       ${htmlContent}
