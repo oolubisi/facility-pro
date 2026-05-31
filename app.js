@@ -49,364 +49,172 @@
 // PDF ENGINE
 // =========================================================
 
-async function compileAndDownloadUnifiedPDF(
-    htmlContent,
-    attachmentUrls = [],
-    filename = 'Facility_Report'
-) {
+async function compileAndDownloadUnifiedPDF(htmlContent, attachmentUrls = [], filename = 'Facility_Report') {
+  // 1. CLEANUP PREVIOUS LAYERS
+  document.querySelectorAll('#pdf-render-box, #pdf-toast').forEach(el => el.remove());
 
-    document
-        .querySelectorAll(
-            '#pdf-render-box,#pdf-toast'
-        )
-        .forEach(el => el.remove());
+  // 2. THE "BEHIND-THE-SCENES" CONTAINER
+  const renderBox = document.createElement('div');
+  renderBox.id = 'pdf-render-box';
+  
+  // FIX 1: Place at 0,0 so the browser physically paints it, but hide it behind the app
+  renderBox.style.cssText = `
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 800px !important;
+    height: auto !important;
+    min-height: 100vh !important;
+    z-index: -9999 !important;
+    background: #ffffff !important;
+    padding: 20px !important;
+    box-sizing: border-box !important;
+    overflow: visible !important;
+    pointer-events: none !important;
+  `;
 
-// -----------------------------------------------------
-    // OFFSCREEN PRINT CONTAINER
-    // -----------------------------------------------------
-
-    const renderBox = document.createElement('div');
-    renderBox.id = 'pdf-render-box';
-
-    // FIX 1: Add height: auto, max-height: none, and overflow: visible
-    renderBox.style.cssText = `
-        position: absolute !important;
-        left: -99999px !important;
-        top: 0 !important;
-        width: 760px !important;
-        background: #ffffff !important;
-        padding: 15px !important;
-        box-sizing: border-box !important;
-        z-index: -1 !important;
-        height: auto !important;
-        max-height: none !important;
+  // FIX 2: Inject a CSS reset to force all internal elements to expand fully
+  renderBox.innerHTML = `
+    <style>
+      #pdf-render-box * {
         overflow: visible !important;
-    `;
+        max-height: none !important;
+        height: auto !important;
+      }
+    </style>
+    <div style="width: 100%; background: #ffffff; color: #000; font-family: Arial, sans-serif;">
+      ${htmlContent}
+    </div>
+  `;
+  document.body.appendChild(renderBox);
 
-    renderBox.innerHTML = `
-        <div id="pdf-capture-target"
-             style="
-                width: 730px !important;
-                background: #ffffff !important;
-                font-family: Arial, sans-serif !important;
-                color: #000 !important;
-                height: auto !important;
-                max-height: none !important;
-                overflow: visible !important;
-             ">
-            ${htmlContent}
-        </div>
-    `;
+  // 3. TOAST UI
+  const toast = document.createElement('div');
+  toast.id = 'pdf-toast';
+  toast.style.cssText = `
+    position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
+    background: #212529; color: #ffffff; padding: 16px 32px; border-radius: 50px;
+    font-weight: 800; font-size: 16px; z-index: 99999; box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+  `;
+  toast.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating Document...';
+  document.body.appendChild(toast);
 
-    document.body.appendChild(renderBox);
-    
-    // -----------------------------------------------------
-    // TOAST
-    // -----------------------------------------------------
+  // 4. WAIT FOR BROWSER TO PAINT THE EXPANDED LAYOUT
+  await new Promise(resolve => setTimeout(resolve, 800));
 
-    const toast =
-        document.createElement('div');
+  try {
+    // FIX 3: Measure the EXACT physical height of the fully expanded element
+    const exactHeight = renderBox.scrollHeight;
 
-    toast.id = 'pdf-toast';
-
-    toast.style.cssText = `
-        position:fixed;
-        bottom:30px;
-        left:50%;
-        transform:translateX(-50%);
-        background:#212529;
-        color:#fff;
-        padding:14px 24px;
-        border-radius:40px;
-        z-index:99999;
-        font-weight:700;
-    `;
-
-    toast.innerHTML =
-        'Generating PDF...';
-
-    document.body.appendChild(toast);
-
-    await new Promise(r => setTimeout(r, 800));
-
-    try {
-
-        const target =
-            document.getElementById(
-                'pdf-capture-target'
-            );
-
-        const opt = {
-            margin: 8,
-            filename: filename + '.pdf',
-            image: { 
-                type: 'jpeg', 
-                quality: 0.98 
-            },
-            html2canvas: {
-                scale: 2,
-                useCORS: true,
-                logging: false,
-                backgroundColor: '#ffffff',
-                windowWidth: 760,
-                // FIX 2: Remove windowHeight completely so it calculates naturally
-                scrollX: 0,
-                scrollY: 0
-            },
-            pagebreak: {
-                // FIX 3: Remove 'avoid-all'. Let it slice naturally across A4 pages.
-                mode: ['css', 'legacy']
-            },
-            jsPDF: {
-                unit: 'mm',
-                format: 'a4',
-                orientation: 'portrait'
-            }
-        };
-
-        // -------------------------------------------------
-        // HTML TO PDF
-        // -------------------------------------------------
-
-        const htmlPdfBuffer =
-            await html2pdf()
-                .set(opt)
-                .from(target)
-                .output('arraybuffer');
-
-        const {
-            PDFDocument,
-            degrees,
-            rgb
-        } = PDFLib;
-
-        const masterPdf =
-            await PDFDocument.load(
-                htmlPdfBuffer
-            );
-
-        // -------------------------------------------------
-        // ATTACHMENTS
-        // -------------------------------------------------
-
-        if (
-            attachmentUrls &&
-            attachmentUrls.length
-        ) {
-
-            toast.innerHTML =
-                'Merging Attachments...';
-
-            for (const url of attachmentUrls) {
-
-                const fileId =
-                    extractDriveFileId(url);
-
-                if (!fileId) continue;
-
-                try {
-
-                    const fileData =
-                        await callApi(
-                            'getFileBase64',
-                            { id:fileId }
-                        );
-
-                    if (
-                        fileData?.status !==
-                        'success'
-                    ) continue;
-
-                    const bytes =
-                        Uint8Array.from(
-
-                            atob(
-                                fileData.base64
-                                    .replace(/\s/g,'')
-                            ),
-
-                            c =>
-                            c.charCodeAt(0)
-                        );
-
-                    if (
-                        fileData.mimeType ===
-                        'application/pdf'
-                    ) {
-
-                        const extPdf =
-                            await PDFDocument.load(
-                                bytes
-                            );
-
-                        const copied =
-                            await masterPdf.copyPages(
-                                extPdf,
-                                extPdf.getPageIndices()
-                            );
-
-                        copied.forEach(
-                            p =>
-                            masterPdf.addPage(p)
-                        );
-                    }
-                }
-
-                catch(err) {
-
-                    console.error(
-                        err
-                    );
-                }
-            }
+    // 5. PDF SETTINGS
+    const opt = {
+      margin: 10, // Uniform 10mm margins
+      filename: filename + '.pdf',
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: {
+        scale: 2, 
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#ffffff',
+        // Lock the camera dimensions perfectly to the element dimensions
+        width: 800,
+        height: exactHeight,
+        windowWidth: 800,
+        windowHeight: exactHeight,
+        scrollX: 0,
+        scrollY: 0,
+        // Final fallback to ensure the cloned document expands
+        onclone: function(clonedDoc) {
+           clonedDoc.body.style.overflow = 'visible';
+           clonedDoc.body.style.height = 'auto';
         }
+      },
+      pagebreak: { mode: ['css', 'legacy'] }, // Allows natural cutting across pages
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
 
-        // -------------------------------------------------
-        // WATERMARK + PAGE NUMBERS
-        // -------------------------------------------------
+    const htmlPdfBuffer = await html2pdf().set(opt).from(renderBox).output('arraybuffer');
+    const { PDFDocument, degrees, rgb } = PDFLib;
+    const masterPdf = await PDFDocument.load(htmlPdfBuffer);
 
-        const pages =
-            masterPdf.getPages();
+    // 6. ATTACHMENT MERGING
+    if (attachmentUrls && attachmentUrls.length > 0) {
+      toast.innerHTML = '<i class="fas fa-cog fa-spin"></i> Stitching Attachments...';
+      for (let url of attachmentUrls) {
+        if (!url) continue;
+        let fileId = null;
+        try { fileId = extractDriveFileId(url); } catch(e) {}
+        if (!fileId) continue;
 
-        pages.forEach(
-            (page,index) => {
-
-                const {
-                    width,
-                    height
-                } =
-                page.getSize();
-
-                page.drawText(
-
-                    `Page ${index+1} of ${pages.length}`,
-
-                    {
-
-                        x:
-                            width - 110,
-
-                        y:
-                            20,
-
-                        size:
-                            9,
-
-                        color:
-                            rgb(
-                                0.45,
-                                0.45,
-                                0.45
-                            )
-                    }
-                );
-
-                page.drawText(
-
-                    'Facility Pro',
-
-                    {
-
-                        x:
-                            width * 0.22,
-
-                        y:
-                            height * 0.45,
-
-                        size:
-                            30,
-
-                        opacity:
-                            0.04,
-
-                        rotate:
-                            degrees(-45),
-
-                        color:
-                            rgb(
-                                0.6,
-                                0.6,
-                                0.6
-                            )
-                    }
-                );
+        try {
+          const fileData = await callApi('getFileBase64', { id: fileId });
+          if (fileData?.status === 'success') {
+            const bytes = Uint8Array.from(atob(fileData.base64.replace(/\s/g, '')), c => c.charCodeAt(0));
+            if (fileData.mimeType === 'application/pdf') {
+              const extPdf = await PDFDocument.load(bytes);
+              const pages = await masterPdf.copyPages(extPdf, extPdf.getPageIndices());
+              pages.forEach(p => masterPdf.addPage(p));
+            } else if (fileData.mimeType.startsWith('image/')) {
+              const img = fileData.mimeType === 'image/png' ? await masterPdf.embedPng(bytes) : await masterPdf.embedJpg(bytes);
+              const page = masterPdf.addPage();
+              const pageWidth = page.getWidth();
+              const pageHeight = page.getHeight();
+              const ratio = Math.min((pageWidth - 80) / img.width, (pageHeight - 80) / img.height, 1);
+              const imgWidth = img.width * ratio;
+              const imgHeight = img.height * ratio;
+              page.drawImage(img, { x: (pageWidth - imgWidth) / 2, y: (pageHeight - imgHeight) / 2, width: imgWidth, height: imgHeight });
             }
-        );
-
-        // -------------------------------------------------
-        // SAVE
-        // -------------------------------------------------
-
-        toast.innerHTML =
-            'Preparing Download...';
-
-        const finalPdfBytes =
-            await masterPdf.save();
-
-        const blob =
-            new Blob(
-
-                [finalPdfBytes],
-
-                {
-                    type:
-                    'application/pdf'
-                }
-            );
-
-        const link =
-            document.createElement('a');
-
-        link.href =
-            URL.createObjectURL(blob);
-
-        link.download =
-            filename + '.pdf';
-
-        document.body.appendChild(
-            link
-        );
-
-        link.click();
-
-        document.body.removeChild(
-            link
-        );
-
-        setTimeout(
-            () =>
-            URL.revokeObjectURL(
-                link.href
-            ),
-            3000
-        );
-
+          }
+        } catch (e) {
+          console.error('Attachment merge error:', e);
+        }
+      }
     }
 
-    catch(err) {
+    // 7. WATERMARK & NUMBERS
+    const pages = masterPdf.getPages();
+    pages.forEach((page, index) => {
+      const { width, height } = page.getSize();
+      page.drawText(`Page ${index + 1} of ${pages.length}`, { x: width - 110, y: 20, size: 10, color: rgb(0.4, 0.4, 0.4) });
+      page.drawText('Facility Pro', { x: width / 4, y: height / 2, size: 48, rotate: degrees(-45), opacity: 0.08, color: rgb(0.5, 0.5, 0.5) });
+    });
 
-        console.error(
-            'PDF Generation Failed',
-            err
-        );
+    // 8. NATIVE SHARE OR DOWNLOAD
+    toast.innerHTML = '<i class="fas fa-share"></i> Preparing File...';
+    const finalPdfBytes = await masterPdf.save();
+    
+    const file = new File([finalPdfBytes], filename + '.pdf', { type: 'application/pdf' });
 
-        alert(
-            'PDF Generation Failed. Check console.'
-        );
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({
+        title: 'Facility Report',
+        text: 'Generated from Facility Pro Dashboard.',
+        files: [file]
+      });
+      toast.innerHTML = '<i class="fas fa-check-circle"></i> File Shared Successfully!';
+    } else {
+      toast.innerHTML = '<i class="fas fa-download"></i> Saving to device...';
+      const blob = new Blob([finalPdfBytes], { type: 'application/pdf' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = filename + '.pdf';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(link.href), 3000);
+      toast.innerHTML = '<i class="fas fa-check-circle"></i> Downloaded Successfully!';
     }
 
-    finally {
+    setTimeout(() => toast.remove(), 2500);
 
-        document
-            .querySelectorAll(
-                '#pdf-render-box,#pdf-toast'
-            )
-            .forEach(
-                el => el.remove()
-            );
-    }
+  } catch (err) {
+    console.error('PDF Generation Failed:', err);
+    alert('PDF Generation Failed. Check console for details.');
+  } finally {
+    // 9. CLEANUP
+    document.querySelectorAll('#pdf-render-box, #pdf-toast').forEach(el => el.remove());
+  }
 }
-
 
 async function callApi(action, data = {}) {
       try {
