@@ -56,11 +56,11 @@
       margin-bottom: 15px; 
     }
     
-    .nav-card {
+.nav-card {
       background: var(--card); 
       border: 2px solid var(--border); 
       border-radius: 24px; 
-      padding: 16px;
+      padding: 12px;           /* Reduced padding from 16px */
       text-align: center; 
       display: flex; 
       flex-direction: column;
@@ -69,12 +69,12 @@
       cursor: pointer; 
       box-shadow: 0 2px 4px rgba(0,0,0,0.05);
       height: 100%; 
-      min-height: 110px; 
+      min-height: 110px;       /* Reduced from 145px to make buttons shorter */
     }
     .nav-card:active { background: var(--card-light); transform: scale(0.98); }
-    .nav-card i { font-size: 36px; color: var(--primary); margin-bottom: 6px; } 
-    .nav-card .count { font-size: 38px; font-weight: 900; color: var(--text); line-height: 1.1; } 
-    .nav-card small { font-size: 16px; text-transform: uppercase; color: var(--text); font-weight: 800; margin-top: 4px; } 
+    .nav-card i { font-size: 32px; color: var(--primary); margin-bottom: 4px; } /* Slightly smaller icon */
+    .nav-card .count { font-size: 32px; font-weight: 900; color: var(--text); line-height: 1.1; } /* Scaled down from 38px */
+    .nav-card small { font-size: 14px; text-transform: uppercase; color: var(--text); font-weight: 800; margin-top: 4px; }
 
     .nav-card-small {
       background: var(--card); border: 2px solid var(--border); border-radius: 16px; 
