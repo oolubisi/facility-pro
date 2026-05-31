@@ -531,10 +531,7 @@ async function compileAndDownloadUnifiedPDF(htmlContent, attachmentUrls = [], fi
       const balEl = document.getElementById('s-ledger-balance');
       if (!balEl) return;
       
-      let totalInflow = 0;
-      let totalOutflow = 0;
-      
-      // Initialize both Cleared and Pending trackers
+      // Initialize both Cleared and Pending trackers (No duplicates!)
       let totalInflow = 0;       // Actual money in the bank
       let totalOutflow = 0;      // Actual money spent
       let pendingInflow = 0;     // Expected receivables
@@ -571,7 +568,7 @@ async function compileAndDownloadUnifiedPDF(htmlContent, attachmentUrls = [], fi
       balEl.innerText = `${netBalance >= 0 ? '+' : '-'}₦${formatMoney(Math.abs(netBalance))}`;
       balEl.style.color = netBalance >= 0 ? 'var(--success)' : 'var(--danger)';
     }
-    
+
     function updateDashboardCounters() {
       const tenancyCount = cache.apts ? cache.apts.filter(a => {
         var status = String(a.status || a.Status || '').toLowerCase();
