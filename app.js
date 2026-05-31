@@ -49,14 +49,14 @@ async function compileAndDownloadUnifiedPDF(htmlContent, attachmentUrls = [], fi
   // 1. CLEANUP PREVIOUS PDF LAYERS
   document.querySelectorAll('#pdf-capture-target, #pdf-toast').forEach(el => el.remove());
 
-  // 2. UNLOCK MOBILE SCREEN BOUNDARIES (Fixes the left-side cropping)
+  // 2. UNLOCK MOBILE SCREEN BOUNDARIES
   const originalOverflow = document.body.style.overflowX;
   document.body.style.overflowX = 'visible';
 
   // 3. CREATE STRICTLY-ANCHORED RENDER TARGET
   const target = document.createElement('div');
   target.id = 'pdf-capture-target';
-  // Use fixed positioning off-screen instead of absolute for better browser stability
+  // Use fixed positioning off-screen
   target.style.cssText = `
     position: fixed;
     top: 0;
@@ -74,31 +74,16 @@ async function compileAndDownloadUnifiedPDF(htmlContent, attachmentUrls = [], fi
   const toast = document.createElement('div');
   toast.id = 'pdf-toast';
   toast.style.cssText = `
-    position: fixed;
-    bottom: 30px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: #212529;
-    color: #ffffff;
-    padding: 16px 32px;
-    border-radius: 50px;
-    font-weight: 800;
-    font-size: 16px;
-    z-index: 99999;
-    box-shadow: 0 10px 20px rgba(0,0,0,0.3);
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    white-space: nowrap;
+    position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
+    background: #212529; color: #ffffff; padding: 16px 32px; border-radius: 50px;
+    font-weight: 800; font-size: 16px; z-index: 99999;
+    box-shadow: 0 10px 20px rgba(0,0,0,0.3); display: flex; align-items: center; gap: 12px;
   `;
   toast.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating Document...';
   document.body.appendChild(toast);
 
-  / 5. GPU RENDER DELAY - The "Double Frame" Wait
-  // This ensures the browser has calculated the layout and styles (fonts, tables)
+  // 5. GPU RENDER DELAY - Fixed syntax error
   await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-  
-  // Optional: Add a small buffer after the layout wait just for heavy images
   await new Promise(resolve => setTimeout(resolve, 500));
     
   try {
@@ -108,13 +93,13 @@ async function compileAndDownloadUnifiedPDF(htmlContent, attachmentUrls = [], fi
       filename: filename + '.pdf',
       image: { type: 'jpeg', quality: 0.98 },
       html2canvas: {
-        scale: 2, // Fixed scale for uniform high-quality A4 rendering
+        scale: 2, 
         useCORS: true,
         logging: false,
         backgroundColor: '#ffffff',
-        windowWidth: 800,  
-        scrollY: 0,
-        scrollX: 0
+        // REMOVED windowWidth: 800. html2canvas will now detect the target's width automatically.
+        foreignObjectRendering: false,
+        removeContainer: true
       },
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
@@ -123,7 +108,7 @@ async function compileAndDownloadUnifiedPDF(htmlContent, attachmentUrls = [], fi
     const { PDFDocument, degrees, rgb } = PDFLib;
     const masterPdf = await PDFDocument.load(htmlPdfBuffer);
 
-    // 7. ATTACHMENT MERGING
+    // 7. ATTACHMENT MERGING (Your existing logic is fine, keep it here)
     if (attachmentUrls && attachmentUrls.length > 0) {
       toast.innerHTML = '<i class="fas fa-cog fa-spin"></i> Stitching Attachments...';
       for (let url of attachmentUrls) {
@@ -131,7 +116,6 @@ async function compileAndDownloadUnifiedPDF(htmlContent, attachmentUrls = [], fi
         let fileId = null;
         try { fileId = extractDriveFileId(url); } catch(e) {}
         if (!fileId) continue;
-
         try {
           const fileData = await callApi('getFileBase64', { id: fileId });
           if (fileData?.status === 'success') {
@@ -151,9 +135,7 @@ async function compileAndDownloadUnifiedPDF(htmlContent, attachmentUrls = [], fi
               page.drawImage(img, { x: (pageWidth - imgWidth) / 2, y: (pageHeight - imgHeight) / 2, width: imgWidth, height: imgHeight });
             }
           }
-        } catch (e) {
-          console.error('Attachment merge error:', e);
-        }
+        } catch (e) { console.error('Attachment merge error:', e); }
       }
     }
 
@@ -165,24 +147,14 @@ async function compileAndDownloadUnifiedPDF(htmlContent, attachmentUrls = [], fi
       page.drawText('Facility Pro', { x: width / 4, y: height / 2, size: 48, rotate: degrees(-45), opacity: 0.08, color: rgb(0.5, 0.5, 0.5) });
     });
 
-    // 9. NATIVE SHARE API INTEGRATION
+    // 9. SHARE OR DOWNLOAD
     toast.innerHTML = '<i class="fas fa-share"></i> Preparing File...';
     const finalPdfBytes = await masterPdf.save();
-    
-    // Create a physical File object from the PDF bytes
     const file = new File([finalPdfBytes], filename + '.pdf', { type: 'application/pdf' });
 
-    // Check if the user's device supports Native Sharing (iOS/Android)
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
-      await navigator.share({
-        title: 'Facility Report',
-        text: 'Generated from Facility Pro Dashboard.',
-        files: [file]
-      });
-      toast.innerHTML = '<i class="fas fa-check-circle"></i> File Shared Successfully!';
+      await navigator.share({ title: 'Facility Report', files: [file] });
     } else {
-      // Fallback: If sharing isn't supported (e.g. desktop), auto-download the file
-      toast.innerHTML = '<i class="fas fa-download"></i> Saving to device...';
       const blob = new Blob([finalPdfBytes], { type: 'application/pdf' });
       const link = document.createElement('a');
       link.href = URL.createObjectURL(blob);
@@ -191,21 +163,19 @@ async function compileAndDownloadUnifiedPDF(htmlContent, attachmentUrls = [], fi
       link.click();
       document.body.removeChild(link);
       setTimeout(() => URL.revokeObjectURL(link.href), 3000);
-      toast.innerHTML = '<i class="fas fa-check-circle"></i> Downloaded Successfully!';
     }
-
-    setTimeout(() => toast.remove(), 2500);
+    toast.remove();
 
   } catch (err) {
     console.error('PDF Generation Failed:', err);
-    alert('PDF Generation or Sharing Failed. Check console.');
+    alert('PDF Generation failed. Check console.');
   } finally {
-    // 10. CRITICAL CLEANUP
     document.body.style.overflowX = originalOverflow;
     document.querySelectorAll('#pdf-capture-target, #pdf-toast').forEach(el => el.remove());
   }
 }
-    async function callApi(action, data = {}) {
+
+async function callApi(action, data = {}) {
       try {
         const response = await fetch(GAS_URL, { method: "POST", body: JSON.stringify({ action: action, data: data }) });
         const result = await response.json();
