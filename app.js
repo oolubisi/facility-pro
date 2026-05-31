@@ -49,15 +49,31 @@ async function compileAndDownloadUnifiedPDF(sourceElement, attachmentUrls = [], 
   // 1. CLEANUP PREVIOUS TOASTS
   document.querySelectorAll('#pdf-toast').forEach(el => el.remove());
 
-  // 2. LOCK THE LIVE ELEMENT'S DIMENSIONS (Prevents Mobile Cropping)
-  // We temporarily stretch the live element to perfectly fit A4 size
-  const originalWidth = sourceElement.style.width;
-  const originalMaxWidth = sourceElement.style.maxWidth;
-  const originalOverflow = document.body.style.overflowX;
+  // 2. THE EXTRACTION METHOD: BREAK OUT OF PARENT CONSTRAINTS
+  // We save exactly where the element lives so we can put it back later
+  const originalParent = sourceElement.parentNode;
+  const originalNextSibling = sourceElement.nextSibling;
+  const originalCssText = sourceElement.style.cssText;
 
-  sourceElement.style.width = '800px';
-  sourceElement.style.maxWidth = '800px';
-  document.body.style.overflowX = 'visible';
+  // Move the element directly to the body to escape modal max-heights and hidden overflows
+  document.body.appendChild(sourceElement);
+
+  // Force absolute dimensions so it sits on top, fully expanded, with zero cropping
+  sourceElement.style.cssText = `
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 800px !important;
+    max-width: none !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    background: #ffffff !important;
+    z-index: 99998 !important;
+    margin: 0 !important;
+    padding: 20px !important;
+    box-sizing: border-box !important;
+  `;
 
   // 3. TOAST UI
   const toast = document.createElement('div');
@@ -71,7 +87,7 @@ async function compileAndDownloadUnifiedPDF(sourceElement, attachmentUrls = [], 
   toast.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating Document...';
   document.body.appendChild(toast);
 
-  // 4. WAIT FOR BROWSER TO APPLY THE WIDTH STRETCH
+  // 4. WAIT FOR BROWSER TO APPLY THE UNLOCKED DIMENSIONS
   await new Promise(resolve => setTimeout(resolve, 400));
 
   try {
@@ -83,13 +99,16 @@ async function compileAndDownloadUnifiedPDF(sourceElement, attachmentUrls = [], 
       html2canvas: {
         scale: 2, 
         useCORS: true,
-        logging: true, // TRUE: Will print exact error in F12 Console if an image blocks it
-        backgroundColor: '#ffffff'
+        logging: false,
+        backgroundColor: '#ffffff',
+        windowWidth: 800, // Lock the camera view to exactly match our extracted element
+        scrollY: 0,
+        scrollX: 0
       },
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
 
-    // 6. GENERATE DIRECTLY FROM THE LIVE SCREEN ELEMENT
+    // 6. GENERATE DIRECTLY FROM THE FULLY EXPANDED ELEMENT
     const htmlPdfBuffer = await html2pdf().set(opt).from(sourceElement).output('arraybuffer');
     const { PDFDocument, degrees, rgb } = PDFLib;
     const masterPdf = await PDFDocument.load(htmlPdfBuffer);
@@ -168,10 +187,13 @@ async function compileAndDownloadUnifiedPDF(sourceElement, attachmentUrls = [], 
     console.error('PDF Generation Failed:', err);
     alert('PDF Generation Failed. Check console for details.');
   } finally {
-    // 10. CRITICAL: REVERT THE LIVE ELEMENT BACK TO NORMAL MOBILE WIDTH
-    sourceElement.style.width = originalWidth;
-    sourceElement.style.maxWidth = originalMaxWidth;
-    document.body.style.overflowX = originalOverflow;
+    // 10. CRITICAL SAFETY NET: RESTORE THE ELEMENT TO ITS ORIGINAL HOME
+    sourceElement.style.cssText = originalCssText;
+    if (originalNextSibling) {
+      originalParent.insertBefore(sourceElement, originalNextSibling);
+    } else {
+      originalParent.appendChild(sourceElement);
+    }
     document.querySelectorAll('#pdf-toast').forEach(el => el.remove());
   }
 }
