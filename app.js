@@ -45,32 +45,21 @@
       return null;
     }
 
-async function compileAndDownloadUnifiedPDF(htmlContent, attachmentUrls = [], filename = 'Facility_Report') {
-  // 1. CLEANUP PREVIOUS PDF LAYERS
-  document.querySelectorAll('#pdf-capture-target, #pdf-toast').forEach(el => el.remove());
+async function compileAndDownloadUnifiedPDF(sourceElement, attachmentUrls = [], filename = 'Facility_Report') {
+  // 1. CLEANUP PREVIOUS TOASTS
+  document.querySelectorAll('#pdf-toast').forEach(el => el.remove());
 
-  // 2. UNLOCK MOBILE SCREEN BOUNDARIES
+  // 2. LOCK THE LIVE ELEMENT'S DIMENSIONS (Prevents Mobile Cropping)
+  // We temporarily stretch the live element to perfectly fit A4 size
+  const originalWidth = sourceElement.style.width;
+  const originalMaxWidth = sourceElement.style.maxWidth;
   const originalOverflow = document.body.style.overflowX;
+
+  sourceElement.style.width = '800px';
+  sourceElement.style.maxWidth = '800px';
   document.body.style.overflowX = 'visible';
 
-  // 3. CREATE STRICTLY-ANCHORED RENDER TARGET
-  const target = document.createElement('div');
-  target.id = 'pdf-capture-target';
-  // Use fixed positioning off-screen
-  target.style.cssText = `
-    position: fixed;
-    top: 0;
-    left: -9999px;
-    width: 800px;
-    background: #ffffff;
-    padding: 20px;
-    z-index: -1;
-    visibility: visible;
-  `;
-  target.innerHTML = htmlContent;
-  document.body.appendChild(target);
-    
-  // 4. TOAST UI
+  // 3. TOAST UI
   const toast = document.createElement('div');
   toast.id = 'pdf-toast';
   toast.style.cssText = `
@@ -82,12 +71,11 @@ async function compileAndDownloadUnifiedPDF(htmlContent, attachmentUrls = [], fi
   toast.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating Document...';
   document.body.appendChild(toast);
 
-  // 5. GPU RENDER DELAY - Fixed syntax error
-  await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-  await new Promise(resolve => setTimeout(resolve, 500));
-    
+  // 4. WAIT FOR BROWSER TO APPLY THE WIDTH STRETCH
+  await new Promise(resolve => setTimeout(resolve, 400));
+
   try {
-    // 6. PDF SETTINGS
+    // 5. PDF SETTINGS
     const opt = {
       margin: 15,
       filename: filename + '.pdf',
@@ -95,20 +83,18 @@ async function compileAndDownloadUnifiedPDF(htmlContent, attachmentUrls = [], fi
       html2canvas: {
         scale: 2, 
         useCORS: true,
-        logging: false,
-        backgroundColor: '#ffffff',
-        // REMOVED windowWidth: 800. html2canvas will now detect the target's width automatically.
-        foreignObjectRendering: false,
-        removeContainer: true
+        logging: true, // TRUE: Will print exact error in F12 Console if an image blocks it
+        backgroundColor: '#ffffff'
       },
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
 
-    const htmlPdfBuffer = await html2pdf().set(opt).from(target).output('arraybuffer');
+    // 6. GENERATE DIRECTLY FROM THE LIVE SCREEN ELEMENT
+    const htmlPdfBuffer = await html2pdf().set(opt).from(sourceElement).output('arraybuffer');
     const { PDFDocument, degrees, rgb } = PDFLib;
     const masterPdf = await PDFDocument.load(htmlPdfBuffer);
 
-    // 7. ATTACHMENT MERGING (Your existing logic is fine, keep it here)
+    // 7. ATTACHMENT MERGING
     if (attachmentUrls && attachmentUrls.length > 0) {
       toast.innerHTML = '<i class="fas fa-cog fa-spin"></i> Stitching Attachments...';
       for (let url of attachmentUrls) {
@@ -116,6 +102,7 @@ async function compileAndDownloadUnifiedPDF(htmlContent, attachmentUrls = [], fi
         let fileId = null;
         try { fileId = extractDriveFileId(url); } catch(e) {}
         if (!fileId) continue;
+
         try {
           const fileData = await callApi('getFileBase64', { id: fileId });
           if (fileData?.status === 'success') {
@@ -135,7 +122,9 @@ async function compileAndDownloadUnifiedPDF(htmlContent, attachmentUrls = [], fi
               page.drawImage(img, { x: (pageWidth - imgWidth) / 2, y: (pageHeight - imgHeight) / 2, width: imgWidth, height: imgHeight });
             }
           }
-        } catch (e) { console.error('Attachment merge error:', e); }
+        } catch (e) {
+          console.error('Attachment merge error:', e);
+        }
       }
     }
 
@@ -147,14 +136,21 @@ async function compileAndDownloadUnifiedPDF(htmlContent, attachmentUrls = [], fi
       page.drawText('Facility Pro', { x: width / 4, y: height / 2, size: 48, rotate: degrees(-45), opacity: 0.08, color: rgb(0.5, 0.5, 0.5) });
     });
 
-    // 9. SHARE OR DOWNLOAD
+    // 9. NATIVE SHARE API INTEGRATION
     toast.innerHTML = '<i class="fas fa-share"></i> Preparing File...';
     const finalPdfBytes = await masterPdf.save();
+    
     const file = new File([finalPdfBytes], filename + '.pdf', { type: 'application/pdf' });
 
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
-      await navigator.share({ title: 'Facility Report', files: [file] });
+      await navigator.share({
+        title: 'Facility Report',
+        text: 'Generated from Facility Pro Dashboard.',
+        files: [file]
+      });
+      toast.innerHTML = '<i class="fas fa-check-circle"></i> File Shared Successfully!';
     } else {
+      toast.innerHTML = '<i class="fas fa-download"></i> Saving to device...';
       const blob = new Blob([finalPdfBytes], { type: 'application/pdf' });
       const link = document.createElement('a');
       link.href = URL.createObjectURL(blob);
@@ -163,15 +159,20 @@ async function compileAndDownloadUnifiedPDF(htmlContent, attachmentUrls = [], fi
       link.click();
       document.body.removeChild(link);
       setTimeout(() => URL.revokeObjectURL(link.href), 3000);
+      toast.innerHTML = '<i class="fas fa-check-circle"></i> Downloaded Successfully!';
     }
-    toast.remove();
+
+    setTimeout(() => toast.remove(), 2500);
 
   } catch (err) {
     console.error('PDF Generation Failed:', err);
-    alert('PDF Generation failed. Check console.');
+    alert('PDF Generation Failed. Check console for details.');
   } finally {
+    // 10. CRITICAL: REVERT THE LIVE ELEMENT BACK TO NORMAL MOBILE WIDTH
+    sourceElement.style.width = originalWidth;
+    sourceElement.style.maxWidth = originalMaxWidth;
     document.body.style.overflowX = originalOverflow;
-    document.querySelectorAll('#pdf-capture-target, #pdf-toast').forEach(el => el.remove());
+    document.querySelectorAll('#pdf-toast').forEach(el => el.remove());
   }
 }
 
@@ -2548,37 +2549,20 @@ async function callApi(action, data = {}) {
         if(previewCard) previewCard.style.display = "block";
     }
 
+// =========================================================
+// 1. THE TRIGGER FUNCTION
+// =========================================================
 function downloadCurrentReportPDF() {
   window.scrollTo(0, 0);
-  const htmlData = document.getElementById('report-preview-viewport').innerHTML;
-  compileAndDownloadUnifiedPDF(htmlData, [], "Facility_Report_" + new Date().getTime());
-}
-    
-// ---------------------------------------------------------
-// OFFLINE SYNC & PWA REGISTRATION
-// ---------------------------------------------------------
-    
-window.addEventListener('online', async () => {
-  document.getElementById('sync-status').style.display = 'none';
-  const queue = JSON.parse(localStorage.getItem('facility_pro_sync_queue') || '[]');
-  if (queue.length === 0) return;
-
-  alert("Connection restored! Syncing offline records to the server...");
   
-  for (const item of queue) {
-    await fetch(GAS_URL, { method: "POST", body: JSON.stringify({ action: item.action, data: item.data }) });
+  // Grab the ACTUAL DOM Element, not just the HTML string
+  const targetElement = document.getElementById('report-preview-viewport');
+  
+  if (!targetElement) {
+      alert("No report preview found. Please generate a preview first.");
+      return;
   }
   
-  localStorage.removeItem('facility_pro_sync_queue');
-  if(typeof bootstrapDataRegistriesPipeline === 'function') {
-      bootstrapDataRegistriesPipeline(); 
-  }
-});
-
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('sw.js')
-      .then(reg => console.log('Service Worker Registered Successfully!', reg))
-      .catch(err => console.error('Service Worker Registration Failed:', err));
-  });
+  // Pass the element directly to the engine
+  compileAndDownloadUnifiedPDF(targetElement, [], "Facility_Report_" + new Date().getTime());
 }
