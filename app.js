@@ -45,48 +45,72 @@
       return null;
     }
 
-    async function compileAndDownloadUnifiedPDF(htmlContent, attachmentUrls = [], filename = 'Facility_Report') {
+async function compileAndDownloadUnifiedPDF(htmlContent, attachmentUrls = [], filename = 'Facility_Report') {
   // 1. CLEANUP PREVIOUS PDF LAYERS
-  document.querySelectorAll('#pdf-render-box, #pdf-toast').forEach(el => el.remove());
+  document.querySelectorAll('#pdf-capture-target, #pdf-toast').forEach(el => el.remove());
 
-  // 2. THE BULLETPROOF RENDER UI
-  // We use your original fixed screen, but force everything flush-left to prevent negative margins (cropping)
-  const renderBox = document.createElement('div');
-  renderBox.id = 'pdf-render-box';
-  renderBox.style.cssText = 'position:fixed; top:0; left:0; width:100vw; height:100vh; background:#e9ecef; z-index:99998; overflow:auto; display:block; text-align:left;';
-  
-  // The 800px target now has margin: 0; so it sits exactly at 0,0 and cannot bleed off the left side.
-  renderBox.innerHTML = `
-    <div id="pdf-capture-target" style="width:800px; background:#ffffff; margin:0; padding:20px; box-sizing: border-box; text-align:left;">
-       ${htmlContent}
-    </div>
+  // 2. UNLOCK MOBILE SCREEN BOUNDARIES (Fixes the left-side cropping)
+  const originalOverflow = document.body.style.overflowX;
+  document.body.style.overflowX = 'visible';
+
+  // 3. CREATE STRICTLY-ANCHORED RENDER TARGET
+  const target = document.createElement('div');
+  target.id = 'pdf-capture-target';
+  target.style.cssText = `
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 800px;
+    background: #ffffff;
+    margin: 0 !important;
+    padding: 20px;
+    z-index: 99998;
+    transform-origin: top left;
   `;
-  document.body.appendChild(renderBox);
+  target.innerHTML = htmlContent;
+  document.body.appendChild(target);
 
-  // 3. TOAST UI (Loading Indicator)
+  // 4. TOAST UI
   const toast = document.createElement('div');
   toast.id = 'pdf-toast';
-  toast.style.cssText = 'position:fixed; bottom:30px; left:50%; transform:translateX(-50%); background:#212529; color:#ffffff; padding:16px 32px; border-radius:50px; font-weight:800; font-size:16px; z-index:99999; box-shadow:0 10px 20px rgba(0,0,0,0.3); display:flex; align-items:center; gap:12px; white-space:nowrap;';
+  toast.style.cssText = `
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #212529;
+    color: #ffffff;
+    padding: 16px 32px;
+    border-radius: 50px;
+    font-weight: 800;
+    font-size: 16px;
+    z-index: 99999;
+    box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    white-space: nowrap;
+  `;
   toast.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating Document...';
   document.body.appendChild(toast);
 
-  // 4. GPU RENDER DELAY (Allow fonts and tables to paint)
+  // 5. GPU RENDER DELAY
   await new Promise(resolve => setTimeout(resolve, 800));
 
   try {
-    const target = document.getElementById('pdf-capture-target');
-    
-    // 5. PDF SETTINGS
-    // Removed the scrollY/scrollX forces so the engine naturally finds the target without shooting blanks.
+    // 6. PDF SETTINGS
     const opt = {
       margin: 15,
       filename: filename + '.pdf',
       image: { type: 'jpeg', quality: 0.98 },
       html2canvas: {
-        scale: 2,
+        scale: 2, // Fixed scale for uniform high-quality A4 rendering
         useCORS: true,
         logging: false,
-        windowWidth: 800
+        backgroundColor: '#ffffff',
+        windowWidth: 800,  
+        scrollY: 0,
+        scrollX: 0
       },
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
@@ -95,7 +119,7 @@
     const { PDFDocument, degrees, rgb } = PDFLib;
     const masterPdf = await PDFDocument.load(htmlPdfBuffer);
 
-    // 6. ATTACHMENT MERGING
+    // 7. ATTACHMENT MERGING
     if (attachmentUrls && attachmentUrls.length > 0) {
       toast.innerHTML = '<i class="fas fa-cog fa-spin"></i> Stitching Attachments...';
       for (let url of attachmentUrls) {
@@ -129,7 +153,7 @@
       }
     }
 
-    // 7. WATERMARK & NUMBERS
+    // 8. WATERMARK & NUMBERS
     const pages = masterPdf.getPages();
     pages.forEach((page, index) => {
       const { width, height } = page.getSize();
@@ -137,30 +161,46 @@
       page.drawText('Facility Pro', { x: width / 4, y: height / 2, size: 48, rotate: degrees(-45), opacity: 0.08, color: rgb(0.5, 0.5, 0.5) });
     });
 
-    // 8. FINALIZE & DOWNLOAD
-    toast.innerHTML = '<i class="fas fa-download"></i> Saving to device...';
+    // 9. NATIVE SHARE API INTEGRATION
+    toast.innerHTML = '<i class="fas fa-share"></i> Preparing File...';
     const finalPdfBytes = await masterPdf.save();
-    const blob = new Blob([finalPdfBytes], { type: 'application/pdf' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = filename + '.pdf';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    setTimeout(() => URL.revokeObjectURL(link.href), 3000);
+    
+    // Create a physical File object from the PDF bytes
+    const file = new File([finalPdfBytes], filename + '.pdf', { type: 'application/pdf' });
 
-    toast.innerHTML = '<i class="fas fa-check-circle"></i> Success!';
-    setTimeout(() => toast.remove(), 2000);
+    // Check if the user's device supports Native Sharing (iOS/Android)
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({
+        title: 'Facility Report',
+        text: 'Generated from Facility Pro Dashboard.',
+        files: [file]
+      });
+      toast.innerHTML = '<i class="fas fa-check-circle"></i> File Shared Successfully!';
+    } else {
+      // Fallback: If sharing isn't supported (e.g. desktop), auto-download the file
+      toast.innerHTML = '<i class="fas fa-download"></i> Saving to device...';
+      const blob = new Blob([finalPdfBytes], { type: 'application/pdf' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = filename + '.pdf';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(link.href), 3000);
+      toast.innerHTML = '<i class="fas fa-check-circle"></i> Downloaded Successfully!';
+    }
+
+    setTimeout(() => toast.remove(), 2500);
 
   } catch (err) {
     console.error('PDF Generation Failed:', err);
-    alert('PDF Generation Failed. Check console.');
+    alert('PDF Generation or Sharing Failed. Check console.');
   } finally {
-    // 9. CRITICAL CLEANUP
-    document.querySelectorAll('#pdf-render-box, #pdf-toast').forEach(el => el.remove());
+    // 10. CRITICAL CLEANUP
+    document.body.style.overflowX = originalOverflow;
+    document.querySelectorAll('#pdf-capture-target, #pdf-toast').forEach(el => el.remove());
   }
 }
-
     async function callApi(action, data = {}) {
       try {
         const response = await fetch(GAS_URL, { method: "POST", body: JSON.stringify({ action: action, data: data }) });
