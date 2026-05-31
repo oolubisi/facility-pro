@@ -534,16 +534,35 @@ async function compileAndDownloadUnifiedPDF(htmlContent, attachmentUrls = [], fi
       let totalInflow = 0;
       let totalOutflow = 0;
       
+      // Initialize both Cleared and Pending trackers
+      let totalInflow = 0;       // Actual money in the bank
+      let totalOutflow = 0;      // Actual money spent
+      let pendingInflow = 0;     // Expected receivables
+      let pendingOutflow = 0;    // Unpaid payables
+
       if (cache.payments) {
         cache.payments.forEach(p => {
-          if (p.direction === 'OUTFLOW') totalOutflow += parseFloat(p.amount || p.Amount || 0);
-          else totalInflow += parseFloat(p.amount || p.Amount || 0);
+          const amt = parseFloat(p.amount || p.Amount || 0);
+          // Check if the record has the paid flag
+          const isCleared = (String(p.isPaid).toUpperCase() === 'TRUE' || p.isPaid === true);
+
+          if (p.direction === 'OUTFLOW') {
+            if (isCleared) totalOutflow += amt;
+            else pendingOutflow += amt;
+          } else {
+            if (isCleared) totalInflow += amt;
+            else pendingInflow += amt;
+          }
         });
       }
       
       if (cache.cashExpenses) {
         cache.cashExpenses.forEach(c => {
-          totalOutflow += parseFloat(c.amount || c.Amount || 0);
+          const amt = parseFloat(c.amount || c.Amount || 0);
+          const isCleared = (String(c.isPaid).toUpperCase() === 'TRUE' || c.isPaid === true);
+
+          if (isCleared) totalOutflow += amt;
+          else pendingOutflow += amt;
         });
       }
       
@@ -1366,6 +1385,10 @@ async function compileAndDownloadUnifiedPDF(htmlContent, attachmentUrls = [], fi
         const uniqueId = isEdit ? (editData.paymentId) : generateNextId('PAY', cache.payments, 'paymentId');
         title.innerText = isEdit ? "Edit Ledger Record" : "Log Financial Ledger";
         
+        // 1. DETERMINE IF RECORD IS LOCKED
+        const isAlreadyPaid = isEdit && (String(editData.isPaid).toUpperCase() === 'TRUE' || editData.isPaid === true);
+        const disabledState = isAlreadyPaid ? 'disabled' : ''; // Applies to all inputs if locked
+
         if (isEdit && (editData.attachments || editData.Attachments)) {
             currentModalFiles = (editData.attachments || editData.Attachments).split(',').filter(Boolean);
         }
@@ -1410,65 +1433,84 @@ async function compileAndDownloadUnifiedPDF(htmlContent, attachmentUrls = [], fi
         body.innerHTML = `
           <label ${labelStyle}>Payment ID</label><input type="text" value="${uniqueId}" disabled ${largeInput} style="background:#e9ecef; font-weight:900;">
           <label ${labelStyle}>Transaction Direction</label>
-          <select id="p_direction" ${largeInput}>
+          <select id="p_direction" ${largeInput} ${disabledState}>
             <option value="INFLOW" ${isEdit && editData.direction==='INFLOW'?'selected':''}>INFLOW (+ Receivables)</option>
             <option value="OUTFLOW" ${isEdit && editData.direction==='OUTFLOW'?'selected':''}>OUTFLOW (- Payables)</option>
           </select>
           
           <label ${labelStyle}>Party / Payer / Payee Name</label>
-          <input list="party_list" id="p_party" value="${isEdit ? (editData.party || '') : ''}" placeholder="Type or select from list..." ${largeInput}>
+          <input list="party_list" id="p_party" value="${isEdit ? (editData.party || '') : ''}" placeholder="Type or select from list..." ${largeInput} ${disabledState}>
           <datalist id="party_list">${partyOpts}</datalist>
           
           <label ${labelStyle}>Bank Name</label>
-          <input list="bank_list" id="p_bank" type="text" value="${isEdit ? (editData.bank || editData.Bank || '') : ''}" placeholder="e.g. GTBank, Zenith, Access" ${largeInput}>
+          <input list="bank_list" id="p_bank" type="text" value="${isEdit ? (editData.bank || editData.Bank || '') : ''}" placeholder="e.g. GTBank, Zenith, Access" ${largeInput} ${disabledState}>
           <datalist id="bank_list">
             <option value="Access Bank"><option value="First Bank"><option value="GTBank"><option value="Kuda Bank"><option value="Moniepoint"><option value="Opay"><option value="UBA"><option value="Zenith Bank">
           </datalist>
 
           <label ${labelStyle}>Account Number (10 Digits)</label>
-          <input id="p_account" type="text" inputmode="numeric" maxlength="10" oninput="this.value=this.value.replace(/[^0-9]/g,'')" value="${isEdit ? (editData.account || editData.Account || '') : ''}" placeholder="e.g. 0123456789" ${largeInput}>
+          <input id="p_account" type="text" inputmode="numeric" maxlength="10" oninput="this.value=this.value.replace(/[^0-9]/g,'')" value="${isEdit ? (editData.account || editData.Account || '') : ''}" placeholder="e.g. 0123456789" ${largeInput} ${disabledState}>
           
           <label ${labelStyle}>Linked Record</label>
-          <select id="p_reference" ${largeInput}></select>
+          <select id="p_reference" ${largeInput} ${disabledState}></select>
 
-          <label ${labelStyle}>Classification Note</label><input id="p_type" value="${isEdit ? (editData.type || '') : ''}" placeholder="e.g. Rent, Vendor Payment" ${largeInput}>
-          <label ${labelStyle}>Reason / Justification</label><textarea id="p_reason" rows="2" placeholder="Describe the transaction..." ${largeInput}>${isEdit ? (editData.reason || '') : ''}</textarea>
+          <label ${labelStyle}>Classification Note</label><input id="p_type" value="${isEdit ? (editData.type || '') : ''}" placeholder="e.g. Rent, Vendor Payment" ${largeInput} ${disabledState}>
+          <label ${labelStyle}>Reason / Justification</label><textarea id="p_reason" rows="2" placeholder="Describe the transaction..." ${largeInput} ${disabledState}>${isEdit ? (editData.reason || '') : ''}</textarea>
           
           <div style="background:#f8f9fa; padding:15px; border-radius:8px; border:1px solid #dee2e6; margin:15px 0;">
             <h4 style="margin-top:0; margin-bottom:10px; font-size:13px; color:#6c757d; text-transform:uppercase; letter-spacing:0.5px;">Contract Financials</h4>
             
             <label ${labelStyle}>Total Job Value (₦)</label>
-            <input id="p_total_job" type="number" value="${isEdit ? (editData.totalJobValue || editData.TotalJobValue || '') : ''}" placeholder="e.g. 500000" ${largeInput}>
+            <input id="p_total_job" type="number" value="${isEdit ? (editData.totalJobValue || editData.TotalJobValue || '') : ''}" placeholder="e.g. 500000" ${largeInput} ${disabledState}>
             
             <label ${labelStyle}>Paid to Date (₦)</label>
-            <input id="p_paid_todate" type="number" value="${isEdit ? (editData.paidToDate || editData.PaidToDate || '') : ''}" placeholder="Amount already paid" ${largeInput}>
+            <input id="p_paid_todate" type="number" value="${isEdit ? (editData.paidToDate || editData.PaidToDate || '') : ''}" placeholder="Amount already paid" ${largeInput} ${disabledState}>
             
             <label ${labelStyle}>Amount to Pay (₦)</label>
-            <input id="p_amount" type="number" required value="${isEdit ? (editData.amount || '') : ''}" placeholder="Current payment amount" ${largeInput} style="border-color:var(--primary); border-width:3px;">
+            <input id="p_amount" type="number" required value="${isEdit ? (editData.amount || '') : ''}" placeholder="Current payment amount" ${largeInput} style="border-color:var(--primary); border-width:3px;" ${disabledState}>
             
             <label ${labelStyle}>Balance Due (₦)</label>
-            <input id="p_balance_due" type="number" value="${isEdit ? (editData.balanceDue || editData.BalanceDue || '') : ''}" placeholder="Remaining balance" ${largeInput}>
+            <input id="p_balance_due" type="number" value="${isEdit ? (editData.balanceDue || editData.BalanceDue || '') : ''}" placeholder="Remaining balance" ${largeInput} ${disabledState}>
           </div>
 
-          <label ${labelStyle}>Date</label><input id="p_date" type="date" value="${isEdit ? fromSheetDate(editData.date) : new Date().toISOString().split('T')[0]}" ${largeInput}>
+          <label ${labelStyle}>Date</label><input id="p_date" type="date" value="${isEdit ? fromSheetDate(editData.date) : new Date().toISOString().split('T')[0]}" ${largeInput} ${disabledState}>
           
-          <label ${labelStyle}>Supporting Attachments</label>
-          <div id="paymentPreviews" class="modal-preview-grid" style="display:none;"></div>
-          <label class="icon-upload-label"><i class="fas fa-paperclip"></i><input type="file" id="p_multi_uploader" accept="image/*,application/pdf" multiple style="display:none"></label>
+          <div style="margin-top: 15px; padding: 12px; border: 2px solid ${isAlreadyPaid ? '#198754' : '#DEE2E6'}; border-radius: 12px; background: ${isAlreadyPaid ? '#E8F5E9' : '#F8F9FA'};">
+            <label style="display: flex; align-items: center; gap: 10px; margin: 0; cursor: pointer;">
+              <input type="checkbox" id="p_is_paid" style="width: 24px; height: 24px; margin: 0;" 
+                     ${isAlreadyPaid ? 'checked disabled' : ''}>
+              <span style="color: ${isAlreadyPaid ? '#198754' : '#212529'}; font-weight: 900; font-size: 16px;">
+                 ${isAlreadyPaid ? '<i class="fas fa-lock"></i> STATUS: PAID & LOCKED' : 'MARK AS PAID / CLEARED'}
+              </span>
+            </label>
+            ${isAlreadyPaid ? '<p style="margin: 4px 0 0 0; font-size: 12px; color: #198754;">This ledger record has been settled and cannot be modified.</p>' : ''}
+          </div>
+
+          <label ${labelStyle} style="margin-top:15px;">Supporting Attachments</label>
+          <div id="paymentPreviews" class="modal-preview-grid" style="${currentModalFiles.length > 0 ? '' : 'display:none;'}"></div>
+          
+          ${isAlreadyPaid ? '' : `<label class="icon-upload-label"><i class="fas fa-paperclip"></i><input type="file" id="p_multi_uploader" accept="image/*,application/pdf" multiple style="display:none"></label>`}
         `;
         
+        // 3. HIDE THE SAVE BUTTON IF LOCKED
+        if (isAlreadyPaid) {
+            submit.style.display = 'none';
+        } else {
+            submit.style.display = 'block';
+        }
+
         const pDir = document.getElementById('p_direction');
         const pRef = document.getElementById('p_reference');
         
         const updateRefDropdown = () => { pRef.innerHTML = pDir.value === 'INFLOW' ? inflowRefOpts : outflowRefOpts; };
         pDir.addEventListener('change', updateRefDropdown);
         updateRefDropdown(); 
+        
         // Auto-fill account details when a Staff or Vendor is selected
         document.getElementById('p_party').addEventListener('change', (e) => {
             const selectedParty = e.target.value.trim();
             if (!selectedParty) return;
 
-            // 1. Check Vendors Registry
             const vendorMatch = cache.vendors.find(v => (v.company || v.Company) === selectedParty);
             if (vendorMatch && (vendorMatch.account || vendorMatch.Account)) {
                 document.getElementById('p_bank').value = vendorMatch.bank || vendorMatch.Bank || '';
@@ -1476,7 +1518,6 @@ async function compileAndDownloadUnifiedPDF(htmlContent, attachmentUrls = [], fi
                 return;
             }
 
-            // 2. Check Staff Registry
             const staffMatch = cache.staff.find(s => (s.name || s.Name) === selectedParty);
             if (staffMatch && (staffMatch.account || staffMatch.Account)) {
                 document.getElementById('p_bank').value = staffMatch.bank || staffMatch.Bank || '';
@@ -1497,17 +1538,19 @@ async function compileAndDownloadUnifiedPDF(htmlContent, attachmentUrls = [], fi
         });
 
         if(isEdit && currentModalFiles.length > 0) populateModalInlineImageGalleryPreviews('paymentPreviews');
-        document.getElementById('p_multi_uploader').onchange = (e) => { processIncomingMultiAttachments(e.target.files, 'paymentPreviews'); };
+        
+        const uploader = document.getElementById('p_multi_uploader');
+        if (uploader) {
+            uploader.onchange = (e) => { processIncomingMultiAttachments(e.target.files, 'paymentPreviews'); };
+        }
 
         submit.onclick = () => {
           if(!document.getElementById('p_amount').value) { alert("Amount to Pay is required."); return; }
           
-          // Grab the account and pad it to 10 digits if it exists
           let accVal = document.getElementById('p_account').value;
           if (accVal) accVal = String(accVal).padStart(10, '0');
-
-          // (Optional) You can keep this check if you want to ensure they didn't type more than 10 digits
           if (accVal && accVal.length !== 10) { alert("Account Number must be exactly 10 digits."); return; }
+          
           submit.disabled = true;
           submit.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...'; 
 
@@ -1516,18 +1559,16 @@ async function compileAndDownloadUnifiedPDF(htmlContent, attachmentUrls = [], fi
             direction: document.getElementById('p_direction').value, 
             party: document.getElementById('p_party').value,
             bank: document.getElementById('p_bank').value,
-            account: accVal, // Send the padded value
+            account: accVal,
             reference: document.getElementById('p_reference').value,
             type: document.getElementById('p_type').value, 
             reason: document.getElementById('p_reason').value,
-            
-            // Send new payload items
             totalJobValue: document.getElementById('p_total_job').value,
             paidToDate: document.getElementById('p_paid_todate').value,
             amount: document.getElementById('p_amount').value, 
             balanceDue: document.getElementById('p_balance_due').value,
-            
             date: toSheetDate(document.getElementById('p_date').value),
+            isPaid: document.getElementById('p_is_paid').checked, // 4. SEND PAID STATUS
             attachments: currentModalFiles.join(',')
           }).then(() => { closeModal(); refreshData('payments'); })
             .catch(() => { submit.disabled = false; submit.innerHTML = isEdit ? "Update" : "Save"; });
