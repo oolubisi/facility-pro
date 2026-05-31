@@ -61,40 +61,45 @@ async function compileAndDownloadUnifiedPDF(
         )
         .forEach(el => el.remove());
 
-    // -----------------------------------------------------
+// -----------------------------------------------------
     // OFFSCREEN PRINT CONTAINER
     // -----------------------------------------------------
 
-    const renderBox =
-        document.createElement('div');
-
+    const renderBox = document.createElement('div');
     renderBox.id = 'pdf-render-box';
 
+    // FIX 1: Add height: auto, max-height: none, and overflow: visible
     renderBox.style.cssText = `
-        position:absolute;
-        left:-99999px;
-        top:0;
-        width:760px;
-        background:#ffffff;
-        padding:15px;
-        box-sizing:border-box;
-        z-index:-1;
+        position: absolute !important;
+        left: -99999px !important;
+        top: 0 !important;
+        width: 760px !important;
+        background: #ffffff !important;
+        padding: 15px !important;
+        box-sizing: border-box !important;
+        z-index: -1 !important;
+        height: auto !important;
+        max-height: none !important;
+        overflow: visible !important;
     `;
 
     renderBox.innerHTML = `
         <div id="pdf-capture-target"
              style="
-                width:730px;
-                background:#ffffff;
-                font-family:Arial,sans-serif;
-                color:#000;
+                width: 730px !important;
+                background: #ffffff !important;
+                font-family: Arial, sans-serif !important;
+                color: #000 !important;
+                height: auto !important;
+                max-height: none !important;
+                overflow: visible !important;
              ">
             ${htmlContent}
         </div>
     `;
 
     document.body.appendChild(renderBox);
-
+    
     // -----------------------------------------------------
     // TOAST
     // -----------------------------------------------------
@@ -132,55 +137,30 @@ async function compileAndDownloadUnifiedPDF(
             );
 
         const opt = {
-
             margin: 8,
-
-            filename:
-                filename + '.pdf',
-
-            image: {
-                type: 'jpeg',
-                quality: 0.98
+            filename: filename + '.pdf',
+            image: { 
+                type: 'jpeg', 
+                quality: 0.98 
             },
-
             html2canvas: {
-
                 scale: 2,
-
                 useCORS: true,
-
                 logging: false,
-
-                backgroundColor:
-                    '#ffffff',
-
+                backgroundColor: '#ffffff',
                 windowWidth: 760,
-
-                windowHeight:
-                    target.scrollHeight,
-
+                // FIX 2: Remove windowHeight completely so it calculates naturally
                 scrollX: 0,
-
                 scrollY: 0
             },
-
             pagebreak: {
-
-                mode: [
-                    'avoid-all',
-                    'css',
-                    'legacy'
-                ]
+                // FIX 3: Remove 'avoid-all'. Let it slice naturally across A4 pages.
+                mode: ['css', 'legacy']
             },
-
             jsPDF: {
-
                 unit: 'mm',
-
                 format: 'a4',
-
-                orientation:
-                    'portrait'
+                orientation: 'portrait'
             }
         };
 
