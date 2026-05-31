@@ -74,19 +74,45 @@ async function compileAndDownloadUnifiedPDF(htmlContent, attachmentUrls = [], fi
   `;
 
   // FIX 2: Inject a CSS reset to force all internal elements to expand fully
+  // AND force grid/flex layouts to behave perfectly on an 800px A4 page
   renderBox.innerHTML = `
     <style>
+      /* 1. Un-restrict all heights */
       #pdf-render-box * {
         overflow: visible !important;
         max-height: none !important;
         height: auto !important;
+      }
+      
+      /* 2. Force mobile layout constraints to stretch to A4 width */
+      #pdf-render-box .modal,
+      #pdf-render-box .app,
+      #pdf-render-box .container {
+        max-width: 100% !important; 
+        width: 100% !important;
+        margin: 0 !important;
+        border: none !important;
+      }
+
+      /* 3. Stop grids/flexboxes from collapsing text */
+      #pdf-render-box .grid, 
+      #pdf-render-box .flex-row,
+      #pdf-render-box [style*="display: flex"] {
+        flex-wrap: nowrap !important;
+        gap: 15px !important;
+      }
+      
+      /* 4. Ensure text never wraps aggressively in cards */
+      #pdf-render-box td, 
+      #pdf-render-box th,
+      #pdf-render-box span {
+        white-space: nowrap !important;
       }
     </style>
     <div style="width: 100%; background: #ffffff; color: #000; font-family: Arial, sans-serif;">
       ${htmlContent}
     </div>
   `;
-  document.body.appendChild(renderBox);
 
   // 3. TOAST UI
   const toast = document.createElement('div');
