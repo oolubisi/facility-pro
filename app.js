@@ -51,111 +51,77 @@
 
 async function compileAndDownloadUnifiedPDF(htmlContent, attachmentUrls = [], filename = 'Facility_Report') {
   // 1. CLEANUP PREVIOUS LAYERS
-  document.querySelectorAll('#pdf-render-box, #pdf-toast').forEach(el => el.remove());
+  document.querySelectorAll('#pdf-render-box, #pdf-loading-screen').forEach(el => el.remove());
 
-  // 2. THE "BEHIND-THE-SCENES" CONTAINER
+  // 2. THE BLACKOUT OVERLAY (Hacks the Desktop Browser)
+  // This fullscreen loading screen hides the rendering process from the user.
+  const loadingScreen = document.createElement('div');
+  loadingScreen.id = 'pdf-loading-screen';
+  loadingScreen.style.cssText = `
+    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+    background: rgba(0,0,0,0.92); z-index: 99999;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    color: white; font-family: sans-serif;
+  `;
+  loadingScreen.innerHTML = `
+    <i class="fas fa-spinner fa-spin" style="font-size: 50px; margin-bottom: 20px;"></i>
+    <h2 style="margin: 0; letter-spacing: 1px;">Processing Document</h2>
+    <p style="margin-top: 8px; color: #aaa; font-size: 14px;">Please wait...</p>
+  `;
+  document.body.appendChild(loadingScreen);
+
+  // 3. THE RENDER BOX
+  // We put this physically on the screen (z-index 99998) so the Desktop MUST render it, 
+  // but it's hidden under the loading screen (z-index 99999).
   const renderBox = document.createElement('div');
   renderBox.id = 'pdf-render-box';
-  
-  // FIX 1: Place at 0,0 so the browser physically paints it, but hide it behind the app
   renderBox.style.cssText = `
-    position: absolute !important;
-    top: 0 !important;
-    left: 0 !important;
-    width: 800px !important;
-    height: auto !important;
-    min-height: 100vh !important;
-    z-index: -9999 !important;
-    background: #ffffff !important;
-    padding: 20px !important;
-    box-sizing: border-box !important;
-    overflow: visible !important;
-    pointer-events: none !important;
+    position: absolute; top: 0; left: 0; width: 800px;
+    background: #ffffff; z-index: 99998;
+    padding: 20px; box-sizing: border-box;
   `;
 
-  // FIX 2: Inject a CSS reset to force all internal elements to expand fully
-  // AND force grid/flex layouts to behave perfectly on an 800px A4 page
+  // Inject the CSS to fix the squished "Tenant / VACANT" text seen in your uploaded PDF
   renderBox.innerHTML = `
     <style>
-      /* 1. Un-restrict all heights */
-      #pdf-render-box * {
-        overflow: visible !important;
-        max-height: none !important;
-        height: auto !important;
-      }
-      
-      /* 2. Force mobile layout constraints to stretch to A4 width */
-      #pdf-render-box .modal,
-      #pdf-render-box .app,
-      #pdf-render-box .container {
-        max-width: 100% !important; 
-        width: 100% !important;
-        margin: 0 !important;
-        border: none !important;
-      }
-
-      /* 3. Stop grids/flexboxes from collapsing text */
-      #pdf-render-box .grid, 
-      #pdf-render-box .flex-row,
-      #pdf-render-box [style*="display: flex"] {
-        flex-wrap: nowrap !important;
-        gap: 15px !important;
-      }
-      
-      /* 4. Ensure text never wraps aggressively in cards */
-      #pdf-render-box td, 
-      #pdf-render-box th,
-      #pdf-render-box span {
-        white-space: nowrap !important;
-      }
+      #pdf-render-box * { overflow: visible !important; height: auto !important; max-height: none !important; }
+      #pdf-render-box .modal, #pdf-render-box .app, #pdf-render-box .container { max-width: 100% !important; width: 100% !important; border: none !important; margin: 0 !important; }
+      #pdf-render-box .grid, #pdf-render-box .flex-row, #pdf-render-box [style*="display: flex"] { flex-wrap: nowrap !important; gap: 10px !important; }
+      #pdf-render-box td, #pdf-render-box th, #pdf-render-box span, #pdf-render-box div { white-space: nowrap !important; }
     </style>
     <div style="width: 100%; background: #ffffff; color: #000; font-family: Arial, sans-serif;">
       ${htmlContent}
     </div>
   `;
-
-  // 3. TOAST UI
-  const toast = document.createElement('div');
-  toast.id = 'pdf-toast';
-  toast.style.cssText = `
-    position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
-    background: #212529; color: #ffffff; padding: 16px 32px; border-radius: 50px;
-    font-weight: 800; font-size: 16px; z-index: 99999; box-shadow: 0 10px 20px rgba(0,0,0,0.3);
-  `;
-  toast.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating Document...';
-  document.body.appendChild(toast);
+  document.body.appendChild(renderBox);
+  
+  // Scroll to the top so the browser engine looks directly at the element
+  window.scrollTo(0, 0);
 
   // 4. WAIT FOR BROWSER TO PAINT THE EXPANDED LAYOUT
   await new Promise(resolve => setTimeout(resolve, 800));
 
   try {
-    // FIX 3: Measure the EXACT physical height of the fully expanded element
     const exactHeight = renderBox.scrollHeight;
 
     // 5. PDF SETTINGS
     const opt = {
-      margin: 10, // Uniform 10mm margins
+      margin: 10,
       filename: filename + '.pdf',
       image: { type: 'jpeg', quality: 0.98 },
       html2canvas: {
         scale: 2, 
-        useCORS: true,
-        logging: false,
+        useCORS: true, 
+        logging: false, 
         backgroundColor: '#ffffff',
-        // Lock the camera dimensions perfectly to the element dimensions
-        width: 800,
-        height: exactHeight,
-        windowWidth: 800,
+        width: 800, 
+        height: exactHeight, 
+        windowWidth: 800, 
         windowHeight: exactHeight,
-        scrollX: 0,
-        scrollY: 0,
-        // Final fallback to ensure the cloned document expands
-        onclone: function(clonedDoc) {
-           clonedDoc.body.style.overflow = 'visible';
-           clonedDoc.body.style.height = 'auto';
-        }
+        scrollY: 0, 
+        scrollX: 0
       },
-      pagebreak: { mode: ['css', 'legacy'] }, // Allows natural cutting across pages
+      pagebreak: { mode: ['css', 'legacy'] },
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
 
@@ -165,7 +131,7 @@ async function compileAndDownloadUnifiedPDF(htmlContent, attachmentUrls = [], fi
 
     // 6. ATTACHMENT MERGING
     if (attachmentUrls && attachmentUrls.length > 0) {
-      toast.innerHTML = '<i class="fas fa-cog fa-spin"></i> Stitching Attachments...';
+      loadingScreen.querySelector('p').innerText = "Stitching Attachments...";
       for (let url of attachmentUrls) {
         if (!url) continue;
         let fileId = null;
@@ -183,17 +149,11 @@ async function compileAndDownloadUnifiedPDF(htmlContent, attachmentUrls = [], fi
             } else if (fileData.mimeType.startsWith('image/')) {
               const img = fileData.mimeType === 'image/png' ? await masterPdf.embedPng(bytes) : await masterPdf.embedJpg(bytes);
               const page = masterPdf.addPage();
-              const pageWidth = page.getWidth();
-              const pageHeight = page.getHeight();
-              const ratio = Math.min((pageWidth - 80) / img.width, (pageHeight - 80) / img.height, 1);
-              const imgWidth = img.width * ratio;
-              const imgHeight = img.height * ratio;
-              page.drawImage(img, { x: (pageWidth - imgWidth) / 2, y: (pageHeight - imgHeight) / 2, width: imgWidth, height: imgHeight });
+              const ratio = Math.min((page.getWidth() - 80) / img.width, (page.getHeight() - 80) / img.height, 1);
+              page.drawImage(img, { x: (page.getWidth() - img.width * ratio) / 2, y: (page.getHeight() - img.height * ratio) / 2, width: img.width * ratio, height: img.height * ratio });
             }
           }
-        } catch (e) {
-          console.error('Attachment merge error:', e);
-        }
+        } catch (e) { console.error('Attachment merge error:', e); }
       }
     }
 
@@ -206,20 +166,15 @@ async function compileAndDownloadUnifiedPDF(htmlContent, attachmentUrls = [], fi
     });
 
     // 8. NATIVE SHARE OR DOWNLOAD
-    toast.innerHTML = '<i class="fas fa-share"></i> Preparing File...';
+    loadingScreen.querySelector('h2').innerText = "Finishing Up...";
     const finalPdfBytes = await masterPdf.save();
-    
     const file = new File([finalPdfBytes], filename + '.pdf', { type: 'application/pdf' });
 
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
-      await navigator.share({
-        title: 'Facility Report',
-        text: 'Generated from Facility Pro Dashboard.',
-        files: [file]
-      });
-      toast.innerHTML = '<i class="fas fa-check-circle"></i> File Shared Successfully!';
+      await navigator.share({ title: 'Facility Report', files: [file] });
+      loadingScreen.innerHTML = '<i class="fas fa-check-circle" style="font-size: 50px; margin-bottom: 20px; color: #198754;"></i><h2 style="margin: 0;">Shared Successfully!</h2>';
     } else {
-      toast.innerHTML = '<i class="fas fa-download"></i> Saving to device...';
+      loadingScreen.innerHTML = '<i class="fas fa-download" style="font-size: 50px; margin-bottom: 20px; color: #0D6EFD;"></i><h2 style="margin: 0;">Downloading...</h2>';
       const blob = new Blob([finalPdfBytes], { type: 'application/pdf' });
       const link = document.createElement('a');
       link.href = URL.createObjectURL(blob);
@@ -228,17 +183,17 @@ async function compileAndDownloadUnifiedPDF(htmlContent, attachmentUrls = [], fi
       link.click();
       document.body.removeChild(link);
       setTimeout(() => URL.revokeObjectURL(link.href), 3000);
-      toast.innerHTML = '<i class="fas fa-check-circle"></i> Downloaded Successfully!';
     }
 
-    setTimeout(() => toast.remove(), 2500);
+    setTimeout(() => loadingScreen.remove(), 2500);
 
   } catch (err) {
     console.error('PDF Generation Failed:', err);
     alert('PDF Generation Failed. Check console for details.');
+    loadingScreen.remove();
   } finally {
     // 9. CLEANUP
-    document.querySelectorAll('#pdf-render-box, #pdf-toast').forEach(el => el.remove());
+    document.querySelectorAll('#pdf-render-box').forEach(el => el.remove());
   }
 }
 
