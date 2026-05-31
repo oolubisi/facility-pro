@@ -50,147 +50,65 @@
 // =========================================================
 
 async function compileAndDownloadUnifiedPDF(htmlContent, attachmentUrls = [], filename = 'Facility_Report') {
-  // 1. CLEANUP PREVIOUS LAYERS
-  document.querySelectorAll('#pdf-render-box, #pdf-loading-screen').forEach(el => el.remove());
-
-  // 2. THE BLACKOUT OVERLAY (Hacks the Desktop Browser)
-  // This fullscreen loading screen hides the rendering process from the user.
+  // 1. SHOW FULLSCREEN LOADING UI
   const loadingScreen = document.createElement('div');
   loadingScreen.id = 'pdf-loading-screen';
   loadingScreen.style.cssText = `
     position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-    background: rgba(0,0,0,0.92); z-index: 99999;
+    background: rgba(0,0,0,0.92); z-index: 999999;
     display: flex; flex-direction: column; align-items: center; justify-content: center;
     color: white; font-family: sans-serif;
   `;
   loadingScreen.innerHTML = `
-    <i class="fas fa-spinner fa-spin" style="font-size: 50px; margin-bottom: 20px;"></i>
-    <h2 style="margin: 0; letter-spacing: 1px;">Processing Document</h2>
-    <p style="margin-top: 8px; color: #aaa; font-size: 14px;">Please wait...</p>
+    <i class="fas fa-server fa-spin" style="font-size: 50px; margin-bottom: 20px; color: #0D6EFD;"></i>
+    <h2 style="margin: 0; letter-spacing: 1px;">Server Generating PDF...</h2>
+    <p style="margin-top: 8px; color: #aaa; font-size: 14px;">Ensuring perfect A4 formatting.</p>
   `;
   document.body.appendChild(loadingScreen);
 
-  // 3. THE RENDER BOX
-  // We put this physically on the screen (z-index 99998) so the Desktop MUST render it, 
-  // but it's hidden under the loading screen (z-index 99999).
-  const renderBox = document.createElement('div');
-  renderBox.id = 'pdf-render-box';
-  renderBox.style.cssText = `
-    position: absolute; top: 0; left: 0; width: 800px;
-    background: #ffffff; z-index: 99998;
-    padding: 20px; box-sizing: border-box;
-  `;
-
-  // Inject the CSS to fix the squished "Tenant / VACANT" text seen in your uploaded PDF
-  // Inject CSS to strictly control column widths, font sizes, and layout gaps
-  renderBox.innerHTML = `
-    <style>
-      /* 1. Global Reset & Scale Down Font Size */
-      #pdf-render-box * { 
-        overflow: visible !important; 
-        height: auto !important; 
-        max-height: none !important; 
-        font-size: 12px !important; /* Shrink text slightly to fit A4 perfectly */
-      }
-      
-      /* 2. Container Boundaries */
-      #pdf-render-box .modal, 
-      #pdf-render-box .app, 
-      #pdf-render-box .container { 
-        max-width: 100% !important; 
-        width: 100% !important; 
-        border: none !important; 
-        margin: 0 !important; 
-        padding: 0 !important; 
-      }
-      
-      /* 3. Force Rows into a strict, non-wrapping horizontal line */
-      #pdf-render-box .grid, 
-      #pdf-render-box .flex-row, 
-      #pdf-render-box [style*="display: flex"],
-      #pdf-render-box [style*="display: grid"] { 
-        display: flex !important;
-        flex-direction: row !important;
-        flex-wrap: nowrap !important; 
-        gap: 5px !important; /* Tighter gap between columns */
-        align-items: center !important;
-        padding: 4px 0 !important; /* Reduce vertical padding */
-      }
-
-      /* 4. REDUCE COLUMN WIDTHS: Target the Labels (Tenant, Meter No) */
-      #pdf-render-box label,
-      #pdf-render-box strong {
-        flex: 0 0 auto !important;
-        min-width: 50px !important;
-        max-width: 70px !important; /* Force columns to be narrow */
-        white-space: nowrap !important;
-        margin: 0 !important;
-        color: #666 !important; /* Make labels slightly lighter */
-      }
-
-      /* 5. Target the Values (VACANT, N/A) to take the remaining space */
-      #pdf-render-box span,
-      #pdf-render-box input,
-      #pdf-render-box .value {
-        flex: 1 1 auto !important; /* Allow values to stretch */
-        min-width: 40px !important;
-        white-space: nowrap !important;
-        overflow: hidden !important;
-        text-overflow: ellipsis !important;
-        font-weight: bold !important;
-      }
-      
-      /* 6. Keep Checkboxes small */
-      #pdf-render-box input[type="checkbox"] {
-        width: 16px !important;
-        height: 16px !important;
-        margin: 0 5px 0 0 !important;
-        flex: 0 0 16px !important;
-      }
-    </style>
-    <div style="width: 100%; background: #ffffff; color: #000; font-family: Arial, sans-serif;">
-      ${htmlContent}
-    </div>
-  `;
-  document.body.appendChild(renderBox);
-  
-  // Scroll to the top so the browser engine looks directly at the element
-  window.scrollTo(0, 0);
-
-  // 4. WAIT FOR BROWSER TO PAINT THE EXPANDED LAYOUT
-  await new Promise(resolve => setTimeout(resolve, 800));
-
   try {
-    const exactHeight = renderBox.scrollHeight;
+    // 2. WRAP HTML WITH STRICT SERVER CSS
+    // Google's PDF engine relies on standard CSS, so we give it a clean foundation
+    const cleanHTML = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <style>
+            body { font-family: Arial, sans-serif; color: #333; background: #fff; padding: 20px; font-size: 12px; }
+            * { box-sizing: border-box; }
+            table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
+            th, td { text-align: left; padding: 8px; border-bottom: 1px solid #eee; }
+            .grid, .flex-row { display: table; width: 100%; } /* Fallback for flexbox */
+          </style>
+        </head>
+        <body>
+          ${htmlContent}
+        </body>
+      </html>
+    `;
 
-    // 5. PDF SETTINGS
-    const opt = {
-      margin: 10,
-      filename: filename + '.pdf',
-      image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: {
-        scale: 2, 
-        useCORS: true, 
-        logging: false, 
-        backgroundColor: '#ffffff',
-        width: 800, 
-        height: exactHeight, 
-        windowWidth: 800, 
-        windowHeight: exactHeight,
-        scrollY: 0, 
-        scrollX: 0
-      },
-      pagebreak: { mode: ['css', 'legacy'] },
-      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-    };
+    // 3. SEND TO GOOGLE APPS SCRIPT
+    const response = await fetch(GAS_URL, {
+      method: 'POST',
+      body: JSON.stringify({
+        action: 'generatePDF',
+        html: cleanHTML
+      })
+    });
+    const result = await response.json();
 
-    const htmlPdfBuffer = await html2pdf().set(opt).from(renderBox).output('arraybuffer');
+    if (result.status !== 'success') throw new Error(result.message);
+
+    // 4. LOAD THE SERVER-GENERATED PDF INTO PDF-LIB
+    loadingScreen.querySelector('h2').innerText = "Processing Attachments...";
     const { PDFDocument, degrees, rgb } = PDFLib;
-    const masterPdf = await PDFDocument.load(htmlPdfBuffer);
+    
+    // Convert the Base64 string from Google back into raw PDF bytes
+    const pdfBytes = Uint8Array.from(atob(result.base64), c => c.charCodeAt(0));
+    const masterPdf = await PDFDocument.load(pdfBytes);
 
-    // 6. ATTACHMENT MERGING
+    // 5. STITCH ATTACHMENTS (Your existing logic)
     if (attachmentUrls && attachmentUrls.length > 0) {
-      loadingScreen.querySelector('p').innerText = "Stitching Attachments...";
       for (let url of attachmentUrls) {
         if (!url) continue;
         let fileId = null;
@@ -212,11 +130,11 @@ async function compileAndDownloadUnifiedPDF(htmlContent, attachmentUrls = [], fi
               page.drawImage(img, { x: (page.getWidth() - img.width * ratio) / 2, y: (page.getHeight() - img.height * ratio) / 2, width: img.width * ratio, height: img.height * ratio });
             }
           }
-        } catch (e) { console.error('Attachment merge error:', e); }
+        } catch (e) { console.error('Attachment error:', e); }
       }
     }
 
-    // 7. WATERMARK & NUMBERS
+    // 6. WATERMARK & NUMBERS
     const pages = masterPdf.getPages();
     pages.forEach((page, index) => {
       const { width, height } = page.getSize();
@@ -224,8 +142,8 @@ async function compileAndDownloadUnifiedPDF(htmlContent, attachmentUrls = [], fi
       page.drawText('Facility Pro', { x: width / 4, y: height / 2, size: 48, rotate: degrees(-45), opacity: 0.08, color: rgb(0.5, 0.5, 0.5) });
     });
 
-    // 8. NATIVE SHARE OR DOWNLOAD
-    loadingScreen.querySelector('h2').innerText = "Finishing Up...";
+    // 7. SHARE OR DOWNLOAD
+    loadingScreen.querySelector('h2').innerText = "Finishing up...";
     const finalPdfBytes = await masterPdf.save();
     const file = new File([finalPdfBytes], filename + '.pdf', { type: 'application/pdf' });
 
@@ -233,7 +151,7 @@ async function compileAndDownloadUnifiedPDF(htmlContent, attachmentUrls = [], fi
       await navigator.share({ title: 'Facility Report', files: [file] });
       loadingScreen.innerHTML = '<i class="fas fa-check-circle" style="font-size: 50px; margin-bottom: 20px; color: #198754;"></i><h2 style="margin: 0;">Shared Successfully!</h2>';
     } else {
-      loadingScreen.innerHTML = '<i class="fas fa-download" style="font-size: 50px; margin-bottom: 20px; color: #0D6EFD;"></i><h2 style="margin: 0;">Downloading...</h2>';
+      loadingScreen.innerHTML = '<i class="fas fa-download" style="font-size: 50px; margin-bottom: 20px; color: #198754;"></i><h2 style="margin: 0;">Downloading...</h2>';
       const blob = new Blob([finalPdfBytes], { type: 'application/pdf' });
       const link = document.createElement('a');
       link.href = URL.createObjectURL(blob);
@@ -244,15 +162,14 @@ async function compileAndDownloadUnifiedPDF(htmlContent, attachmentUrls = [], fi
       setTimeout(() => URL.revokeObjectURL(link.href), 3000);
     }
 
-    setTimeout(() => loadingScreen.remove(), 2500);
-
   } catch (err) {
-    console.error('PDF Generation Failed:', err);
-    alert('PDF Generation Failed. Check console for details.');
-    loadingScreen.remove();
+    console.error('Server PDF Generation Failed:', err);
+    alert('Server PDF Generation Failed. Please check your internet connection.');
   } finally {
-    // 9. CLEANUP
-    document.querySelectorAll('#pdf-render-box').forEach(el => el.remove());
+    setTimeout(() => {
+      const screen = document.getElementById('pdf-loading-screen');
+      if (screen) screen.remove();
+    }, 2500);
   }
 }
 
