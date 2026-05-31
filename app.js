@@ -56,20 +56,20 @@ async function compileAndDownloadUnifiedPDF(htmlContent, attachmentUrls = [], fi
   // 3. CREATE STRICTLY-ANCHORED RENDER TARGET
   const target = document.createElement('div');
   target.id = 'pdf-capture-target';
+  // Use fixed positioning off-screen instead of absolute for better browser stability
   target.style.cssText = `
-    position: absolute;
+    position: fixed;
     top: 0;
-    left: 0;
+    left: -9999px;
     width: 800px;
     background: #ffffff;
-    margin: 0 !important;
     padding: 20px;
-    z-index: 99998;
-    transform-origin: top left;
+    z-index: -1;
+    visibility: visible;
   `;
   target.innerHTML = htmlContent;
   document.body.appendChild(target);
-
+    
   // 4. TOAST UI
   const toast = document.createElement('div');
   toast.id = 'pdf-toast';
@@ -94,9 +94,13 @@ async function compileAndDownloadUnifiedPDF(htmlContent, attachmentUrls = [], fi
   toast.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating Document...';
   document.body.appendChild(toast);
 
-  // 5. GPU RENDER DELAY
-  await new Promise(resolve => setTimeout(resolve, 800));
-
+  / 5. GPU RENDER DELAY - The "Double Frame" Wait
+  // This ensures the browser has calculated the layout and styles (fonts, tables)
+  await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+  
+  // Optional: Add a small buffer after the layout wait just for heavy images
+  await new Promise(resolve => setTimeout(resolve, 500));
+    
   try {
     // 6. PDF SETTINGS
     const opt = {
