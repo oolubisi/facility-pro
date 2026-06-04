@@ -2214,6 +2214,23 @@ async function callApi(action, data = {}) {
         const layout = document.getElementById('rep-layout-selector').value;
         const viewport = document.getElementById('report-preview-viewport');
         if (!layout) return;
+
+        // =========================================================
+        // 🚀 NEW INTERCEPTS FOR HIGH-FIDELITY PDF LAYOUTS
+        // =========================================================
+        if (layout === "apt_custom_print") {
+            generateApartmentManifestReport(); // Call the custom function
+            return; // Stop the rest of this master function from running
+        }
+        if (layout === "detailed_profile") {
+            const unit = document.getElementById('rep-param-unit').value;
+            if (!unit) { 
+                alert("Please select a unit to generate the profile."); 
+                return; 
+            }
+            generateApartmentDossierReport(unit); // Call the custom function with the selected unit
+            return; // Stop the rest of this master function from running
+        }
     
         // 1. UNIVERSAL EVERGREEN HEADER & WRAPPER (Includes cropping fix)
         // Force the container to a fixed 800px width so it never shrinks based on the screen
