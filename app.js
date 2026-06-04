@@ -2809,7 +2809,21 @@ function generateApartmentDossierReport(targetUnitId) {
     if(unitAssets.length > 0) {
         unitAssets.forEach(asset => {
              // Try to render the photo, fallback to "No Image"
-             let imgHtml = `<div style="height: 120px; background: #eee; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; color: #aaa; border-bottom: 1px solid #ccc;">No Image</div>`;
+             let imgHtml = `<div style="height: 120px; background: #eee; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; color: #aaa; border-bottom: 1px solid #ccc; -webkit-print-color-adjust: exact; print-color-adjust: exact;">No Image</div>`;
+
+            if (asset.photos || asset.Photos) {
+                const firstPhoto = (asset.photos || asset.Photos).split(',')[0];
+                if (firstPhoto) {
+                    // Safely parse the URL (assuming getDirectImageUrl exists in your app)
+                    const imgUrl = typeof getDirectImageUrl === 'function' ? getDirectImageUrl(firstPhoto) : firstPhoto;
+                    
+                    // Use an actual <img> tag instead of a background image so the print engine forces it to show
+                    imgHtml = `
+                    <div style="height: 120px; border-bottom: 1px solid #ccc; display: flex; align-items: center; justify-content: center; overflow: hidden; background: #fff;">
+                        <img src="${imgUrl}" style="max-width: 100%; max-height: 100%; object-fit: contain;">
+                    </div>`;
+                }
+            }
              if (asset.photos || asset.Photos) {
                  const firstPhoto = (asset.photos || asset.Photos).split(',')[0];
                  if(firstPhoto) {
