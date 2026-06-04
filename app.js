@@ -2211,412 +2211,331 @@ async function callApi(action, data = {}) {
     }
 
     function compileReportPreview() {
-        const layout = document.getElementById('rep-layout-selector').value;
-        const viewport = document.getElementById('report-preview-viewport');
-        if (!layout) return;
+    const layout = document.getElementById('rep-layout-selector').value;
+    const viewport = document.getElementById('report-preview-viewport');
+    if (!layout) return;
 
-        // =========================================================
-        // 🚀 NEW INTERCEPTS FOR HIGH-FIDELITY PDF LAYOUTS
-        // =========================================================
-        if (layout === "apt_custom_print") {
-            generateApartmentManifestReport(); // Call the custom function
-            return; // Stop the rest of this master function from running
-        }
-        if (layout === "detailed_profile") {
-            const unit = document.getElementById('rep-param-unit').value;
-            if (!unit) { 
-                alert("Please select a unit to generate the profile."); 
-                return; 
-            }
-            generateApartmentDossierReport(unit); // Call the custom function with the selected unit
-            return; // Stop the rest of this master function from running
-        }
-    
-        // 1. UNIVERSAL EVERGREEN HEADER & WRAPPER (Includes cropping fix)
-        // Force the container to a fixed 800px width so it never shrinks based on the screen
-        let out = `<div style="font-family: 'Helvetica', 'Inter', sans-serif; color: #000; background: #fff; box-sizing: border-box; width: 800px; padding: 0;">`;
-    
-        out += `
-          <div style="text-align: center; margin-bottom: 20px;">
-            <h1 style="margin: 0; font-size: 24px; font-weight: 900; letter-spacing: 1px; text-transform: uppercase;">${appSettings.estateName || 'EVERGREEN ESTATE'}</h1>
-            <p style="margin: 4px 0; font-size: 11px;">${appSettings.estateAddress || 'Plot 62, Amos Adamu Close, Parkview Estate, Ikoyi, Lagos'}</p>
-            <p style="margin: 0; font-size: 11px; font-weight: bold;">Managed by: ${appSettings.fmName || 'PI PROJECTS'}</p>
-          </div>
-        `;
-    
-        const generateTitleBar = (titleText) => `
-          <div style="border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: flex-end;">
-            <h2 style="margin: 0; font-size: 18px; font-weight: 900; text-transform: uppercase;">${titleText}</h2>
-            <div style="text-align: right; font-size: 12px;">
-              <p style="margin: 0; color: #555;">RUN DATE:</p>
-              <p style="margin: 2px 0 0 0; font-weight: bold;">${new Date().toLocaleDateString('en-GB')}</p>
-            </div>
-          </div>
-        `;
-    
-        // ---------------------------------------------------------
-        // PHASE 1: APARTMENT OCCUPANCY REPORT
-        // ---------------------------------------------------------
-        if (layout === "occupancy_report") {
-            const apts = cache.apts || [];
-            out += generateTitleBar('APARTMENT OCCUPANCY REPORT');
-    
-            let rows = apts.map(a => {
-                const isOcc = String(a.status || '').toLowerCase() === 'occupied';
-                return `<tr>
-                  <td style="padding:6px; border:1px solid #000;">${a.unit || a.Unit || 'N/A'}</td>
-                  <td style="padding:6px; border:1px solid #000;">${a.type || a.Type || 'N/A'}</td>
-                  <td style="padding:6px; border:1px solid #000; font-weight:bold; color:${isOcc ? '#198754' : '#DC3545'};">${(a.status || 'VACANT').toUpperCase()}</td>
-                  <td style="padding:6px; border:1px solid #000;">${a.tenant || a.Tenant || 'N/A'}</td>
-                  <td style="padding:6px; border:1px solid #000;">${a.leaseEnd || 'N/A'}</td>
-                </tr>`;
-            }).join('');
-    
-            out += `
-              <table style="width:100%; border-collapse: collapse; font-size: 11px; margin-bottom: 20px;">
-                <thead>
-                  <tr style="background-color: #f4f4f4; text-transform: uppercase;">
-                    <th style="padding: 6px; border: 1px solid #000; text-align:left;">Unit</th>
-                    <th style="padding: 6px; border: 1px solid #000; text-align:left;">Type</th>
-                    <th style="padding: 6px; border: 1px solid #000; text-align:left;">Status</th>
-                    <th style="padding: 6px; border: 1px solid #000; text-align:left;">Tenant Name</th>
-                    <th style="padding: 6px; border: 1px solid #000; text-align:left;">Lease Expiry</th>
-                  </tr>
-                </thead>
-                <tbody>${rows || `<tr><td colspan=\"5\" style=\"padding:10px; text-align:center;\">No data available.</td></tr>`}</tbody>
-              </table>`;
-        }
-    
-        // ---------------------------------------------------------
-        // PHASE 2: GENERATOR & DIESEL LOG
-        // ---------------------------------------------------------
-        else if (layout === "generator_log") {
-            const startRaw = document.getElementById('rep_start_date').value;
-            const endRaw = document.getElementById('rep_end_date').value;
-            if (!startRaw || !endRaw) { alert("Please select a date range."); return; }
-    
-            const startDate = new Date(startRaw); const endDate = new Date(endRaw);
-            const gens = (cache.utilities || []).filter(u => String(u.type || '').includes('Plant') || String(u.type || '').includes('Generator'));
-            
-            const filteredGens = gens.filter(g => {
-                const gDate = g.date ? new Date(g.date) : new Date(0);
-                return gDate >= startDate && gDate <= endDate;
-            });
-    
-            out += generateTitleBar('GENERATOR & DIESEL LOG');
-            out += `<p style="font-weight:700; font-size:12px; margin-top:-5px; margin-bottom:15px;">Period: ${startDate.toLocaleDateString()} to ${endDate.toLocaleDateString()}</p>`;
-    
-            let totHrs = 0; let totLiters = 0;
-            let rows = filteredGens.map(g => {
-                totHrs += parseFloat(g.runtime || 0); totLiters += parseFloat(g.dieselAdded || 0);
-                return `<tr>
-                  <td style="padding:6px; border:1px solid #000;">${g.date || 'N/A'}</td>
-                  <td style="padding:6px; border:1px solid #000;">${g.startHour || '-'}</td>
-                  <td style="padding:6px; border:1px solid #000;">${g.stopHour || '-'}</td>
-                  <td style="padding:6px; border:1px solid #000; text-align:center;">${g.runtime || 0}</td>
-                  <td style="padding:6px; border:1px solid #000; text-align:center;">${g.dieselAdded || 0}</td>
-                </tr>`;
-            }).join('');
-    
-            out += `
-              <table style="width:100%; border-collapse: collapse; font-size: 11px; margin-bottom: 10px;">
-                <tr style="background-color: #f4f4f4; text-transform: uppercase;">
-                  <th style="padding: 6px; border: 1px solid #000; text-align:left;">Date</th>
-                  <th style="padding: 6px; border: 1px solid #000; text-align:left;">Start Hr</th>
-                  <th style="padding: 6px; border: 1px solid #000; text-align:left;">Stop Hr</th>
-                  <th style="padding: 6px; border: 1px solid #000; text-align:center;">Runtime (Hrs)</th>
-                  <th style="padding: 6px; border: 1px solid #000; text-align:center;">Diesel Added (L)</th>
-                </tr>
-                ${rows || `<tr><td colspan=\"5\" style=\"padding:10px; text-align:center;\">No logs for this period.</td></tr>`}
-                <tr style="font-weight:bold; font-size:12px;">
-                  <td colspan="3" style="padding:6px; border:1px solid #000; text-align:right;">TOTALS:</td>
-                  <td style="padding:6px; border:1px solid #000; text-align:center;">${totHrs} Hrs</td>
-                  <td style="padding:6px; border:1px solid #000; text-align:center;">${totLiters} L</td>
-                </tr>
-              </table>`;
-        }
-    
-        // ---------------------------------------------------------
-        // PHASE 2: PREVENTIVE MAINTENANCE SCHEDULE
-        // ---------------------------------------------------------
-        else if (layout === "pm_schedule") {
-            const assets = (cache.assets || []).filter(a => String(a.status || '') !== 'Archived');
-            out += generateTitleBar('PREVENTIVE MAINTENANCE SCHEDULE');
-    
-            let rows = assets.map(a => {
-                let pmStatus = 'Active'; let color = '#000';
-                if(a.nextService) {
-                    const diff = (new Date(a.nextService) - new Date()) / (1000 * 60 * 60 * 24);
-                    if(diff < 0) { pmStatus = 'Overdue'; color = '#DC3545'; }
-                    else if(diff <= 14) { pmStatus = 'Due Soon'; color = '#FFC107'; }
-                    else { pmStatus = 'Active'; color = '#198754'; }
-                }
-                return `<tr>
-                  <td style="padding:6px; border:1px solid #000;">${a.tag || 'N/A'}</td>
-                  <td style="padding:6px; border:1px solid #000;">${a.type || 'N/A'}</td>
-                  <td style="padding:6px; border:1px solid #000;">${a.location || a.loc || 'N/A'}</td>
-                  <td style="padding:6px; border:1px solid #000;">${a.lastService || '-'}</td>
-                  <td style="padding:6px; border:1px solid #000;">${a.nextService || '-'}</td>
-                  <td style="padding:6px; border:1px solid #000; font-weight:bold; color:${color};">${pmStatus.toUpperCase()}</td>
-                </tr>`;
-            }).join('');
-    
-            out += `
-              <table style="width:100%; border-collapse: collapse; font-size: 11px;">
-                <tr style="background-color: #f4f4f4; text-transform: uppercase;">
-                  <th style="padding: 6px; border: 1px solid #000; text-align:left;">Tag</th>
-                  <th style="padding: 6px; border: 1px solid #000; text-align:left;">Asset Type</th>
-                  <th style="padding: 6px; border: 1px solid #000; text-align:left;">Location</th>
-                  <th style="padding: 6px; border: 1px solid #000; text-align:left;">Last Service</th>
-                  <th style="padding: 6px; border: 1px solid #000; text-align:left;">Next Due</th>
-                  <th style="padding: 6px; border: 1px solid #000; text-align:left;">Status</th>
-                </tr>
-                ${rows || `<tr><td colspan=\"6\" style=\"padding:10px; text-align:center;\">No assets found.</td></tr>`}
-              </table>`;
-        }
-    
-        // ---------------------------------------------------------
-        // PHASE 2: MASTER ASSET REGISTER
-        // ---------------------------------------------------------
-        else if (layout === "asset_register") {
-            const assets = (cache.assets || []).filter(a => String(a.status || '') !== 'Archived');
-            out += generateTitleBar('MASTER ASSET REGISTER');
-    
-            let rows = assets.map(a => {
-                return `<tr>
-                  <td style="padding:6px; border:1px solid #000; font-weight:bold;">${a.tag || 'N/A'}</td>
-                  <td style="padding:6px; border:1px solid #000;">${a.type || 'N/A'}<br><small style="color:#555;">${a.specs || ''}</small></td>
-                  <td style="padding:6px; border:1px solid #000;">${a.location || a.loc || 'N/A'}</td>
-                  <td style="padding:6px; border:1px solid #000;">${a.serialNumber || a.serial || 'N/A'}</td>
-                  <td style="padding:6px; border:1px solid #000;">${a.purchaseDate || 'N/A'}</td>
-                  <td style="padding:6px; border:1px solid #000; text-align:center;">${(a.status || 'OPERATIONAL').toUpperCase()}</td>
-                </tr>`;
-            }).join('');
-    
-            out += `
-              <table style="width:100%; border-collapse: collapse; font-size: 11px;">
-                <tr style="background-color: #f4f4f4; text-transform: uppercase;">
-                  <th style="padding: 6px; border: 1px solid #000; text-align:left;">Asset ID</th>
-                  <th style="padding: 6px; border: 1px solid #000; text-align:left;">Type & Specs</th>
-                  <th style="padding: 6px; border: 1px solid #000; text-align:left;">Location</th>
-                  <th style="padding: 6px; border: 1px solid #000; text-align:left;">Serial No</th>
-                  <th style="padding: 6px; border: 1px solid #000; text-align:left;">Purchase Date</th>
-                  <th style="padding: 6px; border: 1px solid #000; text-align:center;">Condition</th>
-                </tr>
-                ${rows || `<tr><td colspan=\"6\" style=\"padding:10px; text-align:center;\">No assets found.</td></tr>`}
-              </table>`;
-        }
-    
-        // ---------------------------------------------------------
-        // PHASE 2: MAINTENANCE TICKETS REPORT
-        // ---------------------------------------------------------
-        else if (layout === "ticket_report") {
-            const startRaw = document.getElementById('rep_start_date').value;
-            const endRaw = document.getElementById('rep_end_date').value;
-            if (!startRaw || !endRaw) { alert("Please select a date range."); return; }
-    
-            const startDate = new Date(startRaw); const endDate = new Date(endRaw);
-            const filteredTickets = (cache.tickets || []).filter(t => {
-                const tDate = t.date ? new Date(t.date) : new Date(0);
-                return tDate >= startDate && tDate <= endDate;
-            });
-    
-            out += generateTitleBar('MAINTENANCE TICKET REPORT');
-            out += `<p style="font-weight:700; font-size:12px; margin-top:-5px; margin-bottom:15px;">Period: ${startDate.toLocaleDateString()} to ${endDate.toLocaleDateString()}</p>`;
-    
-            let rows = filteredTickets.map(t => {
-                return `<tr>
-                  <td style="padding:6px; border:1px solid #000;">${t.ticketId || t.id || 'N/A'}</td>
-                  <td style="padding:6px; border:1px solid #000;">${t.date || 'N/A'}</td>
-                  <td style="padding:6px; border:1px solid #000;">${t.unit || t.apartment || 'N/A'}</td>
-                  <td style="padding:6px; border:1px solid #000;">${t.description || t.complaint || 'N/A'}</td>
-                  <td style="padding:6px; border:1px solid #000; text-align:center;">${t.priority || 'Normal'}</td>
-                  <td style="padding:6px; border:1px solid #000; font-weight:bold;">${(t.status || 'Pending').toUpperCase()}</td>
-                </tr>`;
-            }).join('');
-    
-            out += `
-              <table style="width:100%; border-collapse: collapse; font-size: 11px;">
-                <tr style="background-color: #f4f4f4; text-transform: uppercase;">
-                  <th style="padding: 6px; border: 1px solid #000; text-align:left;">Ticket ID</th>
-                  <th style="padding: 6px; border: 1px solid #000; text-align:left;">Date</th>
-                  <th style="padding: 6px; border: 1px solid #000; text-align:left;">Unit</th>
-                  <th style="padding: 6px; border: 1px solid #000; text-align:left; width: 35%;">Complaint</th>
-                  <th style="padding: 6px; border: 1px solid #000; text-align:center;">Priority</th>
-                  <th style="padding: 6px; border: 1px solid #000; text-align:left;">Status</th>
-                </tr>
-                ${rows || `<tr><td colspan=\"6\" style=\"padding:10px; text-align:center;\">No tickets logged in this period.</td></tr>`}
-              </table>`;
-        }
-    
-        // ---------------------------------------------------------
-        // (RESTORED) YOUR EXISTING COMPILERS 
-        // ---------------------------------------------------------
-        // APARTMENTS MANIFEST
-        else if (layout === "apt_custom_print") {
-            const filteredApts = (cache.apts || []).filter(a => String(a.type || a.Type || '').toLowerCase() !== 'services');
-            out += generateTitleBar('APARTMENTS MANIFEST');
-    
-            filteredApts.forEach((a) => {
-                const uNum = a.apt || 'N/A';
-                let meterNo = a.meterNo || 'N/A';
-                const relatedAssets = (cache.assets || []).filter(ast => String(ast.location || ast.loc || ast.unit) === String(uNum) && String(ast.status || ast.Status || '') !== 'Archived');
-    
-                let assetRows = "";
-                for (let i = 0; i < relatedAssets.length; i += 2) {
-                    assetRows += "<tr>";
-                    for (let j = 0; j < 2; j++) {
-                        const ast = relatedAssets[i + j];
-                        assetRows += ast ? `<td style="width: 50%; padding: 4px; border: 1px dashed #555;">• <strong>${ast.type || 'Asset'}</strong> (${ast.tag || ''}) - ${ast.specs || ''}</td>` : `<td style="width: 50%;"></td>`;
-                    }
-                    assetRows += "</tr>";
-                }
-    
-                out += `
-                  <div style="margin-bottom: 25px; page-break-inside: avoid;">
-                    <table style="width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 8px;">
-                      <tr>
-                        <td style="padding: 4px 8px; border: 1px solid #000; font-weight: bold; background: #f4f4f4; width: 15%;">Unit</td>
-                        <td style="padding: 4px 8px; border: 1px solid #000; width: 35%;">${uNum}</td>
-                        <td style="padding: 4px 8px; border: 1px solid #000; font-weight: bold; background: #f4f4f4; width: 15%;">Tenant</td>
-                        <td style="padding: 4px 8px; border: 1px solid #000; width: 35%;">${a.tenant || a.Tenant || 'VACANT'}</td>
-                      </tr>
-                      <tr>
-                        <td style="padding: 4px 8px; border: 1px solid #000; font-weight: bold; background: #f4f4f4;">Type</td>
-                        <td style="padding: 4px 8px; border: 1px solid #000;">${a.type || a.Type || 'Standard'}</td>
-                        <td style="padding: 4px 8px; border: 1px solid #000; font-weight: bold; background: #f4f4f4;">Meter No</td>
-                        <td style="padding: 4px 8px; border: 1px solid #000;">${meterNo}</td>
-                      </tr>
-                    </table>
-                    <div style="font-weight: bold; font-size: 11px; margin-bottom: 4px; text-transform: uppercase;">REGISTERED ASSETS:</div>
-                    ${relatedAssets.length > 0 ? `<table style="width: 100%; border-collapse: collapse; font-size: 10px;">${assetRows}</table>` : `<div style="font-size: 11px; color:#555; font-style:italic;">No active assets registered.</div>`}
-                  </div>`;
-            });
-        }
-    
-        // DETAILED APARTMENT PROFILE
-        else if (layout === "detailed_profile") {
-            const unit = document.getElementById('rep-param-unit').value;
-            if (!unit) { alert("Please select a unit to generate the profile."); return; }
-            
-            const apt = (cache.apts || []).find(a => String(a.unit || a.Unit) === String(unit)) || {};
-            const unitAssets = (cache.assets || []).filter(a => String(a.location || a.loc || a.unit) === String(unit) && String(a.status || a.Status || '') !== 'Archived');
-    
-            out += generateTitleBar('APARTMENT DETAILED DOSSIER');
-    
-            out += `
-              <table style="width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 20px; text-align: left;">
-                <tr style="background: #f4f4f4;">
-                  <th style="padding: 8px; border: 1px solid #000;">Unit Reference</th>
-                  <th style="padding: 8px; border: 1px solid #000;">Type</th>
-                  <th style="padding: 8px; border: 1px solid #000;">Status</th>
-                  <th style="padding: 8px; border: 1px solid #000;">Meter No</th>
-                </tr>
-                <tr>
-                  <td style="padding: 8px; border: 1px solid #000; font-weight: 900; font-size: 14px;">${unit}</td>
-                  <td style="padding: 8px; border: 1px solid #000; font-weight: bold;">${apt.type || apt.Type || 'Standard'}</td>
-                  <td style="padding: 8px; border: 1px solid #000; font-weight: bold;">${apt.status || apt.Status || 'Vacant'}</td>
-                  <td style="padding: 8px; border: 1px solid #000; font-weight: bold;">${apt.meterNo || 'N/A'}</td>
-                </tr>
-              </table>
-    
-              <h3 style="font-size: 14px; margin-bottom: 15px; text-transform: uppercase;">Registered Assets:</h3>
-              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
-            `;
-    
-            if (unitAssets.length > 0) {
-                unitAssets.forEach(asset => {
-                    out += `
-                      <div style="border: 1px solid #000; padding: 10px; display: flex; gap: 15px; align-items: center; background: #fafafa; page-break-inside: avoid;">
-                        <div style="width: 80px; height: 80px; border: 1px dashed #000; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #555; background: #fff;">Image</div>
-                        <div style="flex: 1; font-size: 11px; line-height: 1.6;">
-                          <div style="font-size: 13px; font-weight: 900; text-transform: uppercase; margin-bottom: 4px;">${asset.type || asset.Type || 'Appliance'}</div>
-                          <div><strong>Specs:</strong> ${asset.specs || asset.Specs || 'N/A'}</div>
-                          <div style="margin: 4px 0;"><strong>Tag:</strong> <span style="border: 1px dashed #000; padding: 2px 6px; letter-spacing: 0.5px; font-weight: bold;">${asset.tag || asset.Tag || 'N/A'}</span></div>
-                          <div><strong>Loc:</strong> ${asset.loc || asset.Loc || 'N/A'}</div>
-                          <div style="margin-top: 4px;"><strong>Status:</strong> <span style="font-weight: 900;">${(asset.status || asset.Status || 'OPERATIONAL').toUpperCase()}</span></div>
-                        </div>
-                      </div>`;
-                });
-            } else {
-                out += `<div style="grid-column: span 2; font-style: italic; color: #555; padding: 10px; border: 1px dashed #000; text-align: center;">No active assets registered to this unit.</div>`;
-            }
-            out += `</div>`;
-        }
-    
-        // DAILY OPERATIONS REPORT
-        else if (layout === "daily_operations") {
-            const reportDate = document.getElementById('rep-param-date').value;
-            if (!reportDate) { alert("Please select a date."); return; }
-    
-            const dailyTickets = (cache.tickets || []).filter(t => t.date === reportDate);
-            const closedTickets = dailyTickets.filter(t => t.status === 'Completed');
-    
-            out += generateTitleBar(`DAILY OPERATIONS: ${reportDate}`);
-            out += `
-              <div style="display: flex; gap: 15px; margin-bottom: 20px;">
-                 <div style="flex: 1; padding: 15px; border: 2px solid #000; background: #fafafa;">
-                    <h4 style="margin: 0 0 10px 0; font-size: 12px; text-transform: uppercase;">Maintenance Activity</h4>
-                    <p style="margin: 0; font-size: 24px; font-weight: 900;">${dailyTickets.length} <span style="font-size: 11px; font-weight: normal; text-transform: uppercase;">Faults Logged</span></p>
-                    <p style="margin: 5px 0 0 0; font-size: 11px; font-weight: bold;">${closedTickets.length} Resolved Today</p>
-                 </div>
-                 <div style="flex: 1; padding: 15px; border: 2px solid #000; background: #fafafa;">
-                    <h4 style="margin: 0 0 10px 0; font-size: 12px; text-transform: uppercase;">Generator & Power</h4>
-                    <p style="margin: 0; font-size: 11px; font-weight: bold; color: #555; font-style: italic;">* Requires Manual Entry *</p>
-                    <p style="margin: 8px 0 0 0; font-size: 12px; font-weight: bold;">Runtime: ______ hrs &nbsp;&nbsp;|&nbsp;&nbsp; Diesel: ______ Ltrs</p>
-                 </div>
-              </div>`;
-        }
-    
-        // MONTHLY / KPI DASHBOARD
-        else if (layout === "monthly_fm" || layout === "kpi_dashboard") {
-            const monthStr = document.getElementById('rep-param-month').value; 
-            if (!monthStr) { alert("Please select a month."); return; }
-    
-            const apts = cache.apts || [];
-            const occupied = apts.filter(a => String(a.status || '').toLowerCase() === 'occupied').length;
-            const occPercentage = apts.length > 0 ? Math.round((occupied / apts.length) * 100) : 0;
-    
-            let mInflow = 0; let mOutflow = 0;
-            (cache.payments || []).filter(p => p.date && p.date.startsWith(monthStr)).forEach(p => mInflow += parseFloat(p.amount || 0));
-            (cache.cashExpenses || []).filter(c => c.date && c.date.startsWith(monthStr)).forEach(c => mOutflow += parseFloat(c.amount || 0));
-    
-            out += generateTitleBar(`${layout === "monthly_fm" ? "MONTHLY FM REPORT" : "EXECUTIVE KPI DASHBOARD"} - ${monthStr}`);
-            out += `
-              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 25px;">
-                 <div style="padding: 15px; border: 1px solid #000; background: #fafafa;">
-                    <h4 style="margin: 0; font-size: 11px; text-transform: uppercase;">Occupancy Rate</h4>
-                    <p style="margin: 5px 0 0 0; font-size: 24px; font-weight: 900;">${occPercentage}%</p>
-                 </div>
-                 <div style="padding: 15px; border: 1px solid #000; background: #fafafa;">
-                    <h4 style="margin: 0; font-size: 11px; text-transform: uppercase;">Net Financial Position</h4>
-                    <p style="margin: 5px 0 0 0; font-size: 20px; font-weight: 900;">₦ ${formatMoney(mInflow - mOutflow)}</p>
-                 </div>
-              </div>`;
-        }
-    
-        // WORK ORDERS & LEDGER SUMMARY
-        else if (layout === "fin_wo" || layout === "ledger_summary") {
-            const startRaw = document.getElementById('rep_start_date').value;
-            const endRaw = document.getElementById('rep_end_date').value;
-            if (!startRaw || !endRaw) { alert("Please select a date range."); return; }
-    
-            out += generateTitleBar(layout === "fin_wo" ? `APPROVED WORK ORDERS` : `LEDGER SUMMARY`);
-            out += `<p style="font-weight:700; font-size:12px; margin-top:-5px; margin-bottom:15px;">Period: ${startRaw} to ${endRaw}</p>
-                    <div style="border: 1px solid #000; padding: 20px; text-align: center; font-style: italic;">Records successfully filtered. (Financial tables rendered below in full view).</div>`;
-        }
-
-        out = out.replace(/T\d{2}:\d{2}:\d{2}[\.a-zA-Z0-9]*/g, '');
-        out += `</div>`; // Close universal wrapper
-    
-        // Output to viewport
-        if(viewport) viewport.innerHTML = out;
-        const printContainer = document.getElementById('report-print-container');
-        if(printContainer) printContainer.innerHTML = out;
-        
-        const previewCard = document.getElementById('report-onscreen-preview-card');
-        if(previewCard) previewCard.style.display = "block";
+    // 🚀 INTERCEPTS FOR CUSTOM STANDALONE LAYOUTS
+    if (layout === "apt_custom_print") {
+        generateApartmentManifestReport(); 
+        return; 
     }
+    if (layout === "detailed_profile") {
+        const unit = document.getElementById('rep-param-unit').value;
+        if (!unit) { alert("Please select a unit to generate the profile."); return; }
+        generateApartmentDossierReport(unit); 
+        return; 
+    }
+
+    // 1. UNIVERSAL EVERGREEN HEADER & WRAPPER
+    // Upgraded to 100% width for perfect PDF scaling
+    let out = `<div style="font-family: 'Helvetica', 'Inter', sans-serif; color: #000; background: #fff; box-sizing: border-box; width: 100%; max-width: 900px; margin: 0 auto; padding: 0; line-height: 1.4;">`;
+
+    out += `
+      <div style="text-align: center; margin-bottom: 20px;">
+        <h1 style="margin: 0; font-size: 24px; font-weight: 900; letter-spacing: 1px; text-transform: uppercase;">${appSettings.estateName || 'EVERGREEN ESTATE'}</h1>
+        <p style="margin: 4px 0; font-size: 11px;">${appSettings.estateAddress || 'Plot 62, Amos Adamu Close, Parkview Estate, Ikoyi, Lagos'}</p>
+        <p style="margin: 0; font-size: 11px; font-weight: bold;">Managed by: ${appSettings.fmName || 'PI PROJECTS'}</p>
+      </div>
+    `;
+
+    const generateTitleBar = (titleText) => `
+      <div style="border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: flex-end;">
+        <h2 style="margin: 0; font-size: 18px; font-weight: 900; text-transform: uppercase;">${titleText}</h2>
+        <div style="text-align: right; font-size: 12px;">
+          <p style="margin: 0; color: #555;">RUN DATE:</p>
+          <p style="margin: 2px 0 0 0; font-weight: bold;">${new Date().toLocaleDateString('en-GB')}</p>
+        </div>
+      </div>
+    `;
+
+    // ---------------------------------------------------------
+    // APARTMENT OCCUPANCY REPORT
+    // ---------------------------------------------------------
+    if (layout === "occupancy_report") {
+        const apts = cache.apts || [];
+        out += generateTitleBar('APARTMENT OCCUPANCY REPORT');
+
+        let rows = apts.map(a => {
+            const isOcc = String(a.status || '').toLowerCase() === 'occupied';
+            // Added page-break-inside: avoid to TR
+            return `<tr style="page-break-inside: avoid;">
+              <td style="padding:6px; border:1px solid #000;">${a.unit || a.Unit || a.apt || 'N/A'}</td>
+              <td style="padding:6px; border:1px solid #000;">${a.type || a.Type || 'N/A'}</td>
+              <td style="padding:6px; border:1px solid #000; font-weight:bold; color:${isOcc ? '#198754' : '#DC3545'};">${(a.status || 'VACANT').toUpperCase()}</td>
+              <td style="padding:6px; border:1px solid #000;">${a.tenant || a.Tenant || 'N/A'}</td>
+              <td style="padding:6px; border:1px solid #000;">${a.leaseEnd || 'N/A'}</td>
+            </tr>`;
+        }).join('');
+
+        out += `
+          <table style="width:100%; border-collapse: collapse; font-size: 12px; margin-bottom: 20px;">
+            <thead style="display: table-header-group;"> <tr style="background-color: #f4f4f4; text-transform: uppercase; -webkit-print-color-adjust: exact; print-color-adjust: exact;">
+                <th style="padding: 8px 6px; border: 1px solid #000; text-align:left;">Unit</th>
+                <th style="padding: 8px 6px; border: 1px solid #000; text-align:left;">Type</th>
+                <th style="padding: 8px 6px; border: 1px solid #000; text-align:left;">Status</th>
+                <th style="padding: 8px 6px; border: 1px solid #000; text-align:left;">Tenant Name</th>
+                <th style="padding: 8px 6px; border: 1px solid #000; text-align:left;">Lease Expiry</th>
+              </tr>
+            </thead>
+            <tbody>${rows || `<tr><td colspan=\"5\" style=\"padding:10px; text-align:center;\">No data available.</td></tr>`}</tbody>
+          </table>`;
+    }
+
+    // ---------------------------------------------------------
+    // GENERATOR & DIESEL LOG
+    // ---------------------------------------------------------
+    else if (layout === "generator_log") {
+        const startRaw = document.getElementById('rep_start_date').value;
+        const endRaw = document.getElementById('rep_end_date').value;
+        if (!startRaw || !endRaw) { alert("Please select a date range."); return; }
+
+        const startDate = new Date(startRaw); const endDate = new Date(endRaw);
+        const gens = (cache.utilities || []).filter(u => String(u.type || '').includes('Plant') || String(u.type || '').includes('Generator'));
+        
+        const filteredGens = gens.filter(g => {
+            const gDate = g.date ? new Date(g.date) : new Date(0);
+            return gDate >= startDate && gDate <= endDate;
+        });
+
+        out += generateTitleBar('GENERATOR & DIESEL LOG');
+        out += `<p style="font-weight:700; font-size:12px; margin-top:-5px; margin-bottom:15px;">Period: ${startDate.toLocaleDateString('en-GB')} to ${endDate.toLocaleDateString('en-GB')}</p>`;
+
+        let totHrs = 0; let totLiters = 0;
+        let rows = filteredGens.map(g => {
+            totHrs += parseFloat(g.runtime || 0); totLiters += parseFloat(g.dieselAdded || 0);
+            return `<tr style="page-break-inside: avoid;">
+              <td style="padding:6px; border:1px solid #000;">${g.date || 'N/A'}</td>
+              <td style="padding:6px; border:1px solid #000;">${g.startHour || '-'}</td>
+              <td style="padding:6px; border:1px solid #000;">${g.stopHour || '-'}</td>
+              <td style="padding:6px; border:1px solid #000; text-align:center;">${g.runtime || 0}</td>
+              <td style="padding:6px; border:1px solid #000; text-align:center;">${g.dieselAdded || 0}</td>
+            </tr>`;
+        }).join('');
+
+        out += `
+          <table style="width:100%; border-collapse: collapse; font-size: 12px; margin-bottom: 10px;">
+            <thead style="display: table-header-group;">
+              <tr style="background-color: #f4f4f4; text-transform: uppercase; -webkit-print-color-adjust: exact; print-color-adjust: exact;">
+                <th style="padding: 8px 6px; border: 1px solid #000; text-align:left;">Date</th>
+                <th style="padding: 8px 6px; border: 1px solid #000; text-align:left;">Start Hr</th>
+                <th style="padding: 8px 6px; border: 1px solid #000; text-align:left;">Stop Hr</th>
+                <th style="padding: 8px 6px; border: 1px solid #000; text-align:center;">Runtime (Hrs)</th>
+                <th style="padding: 8px 6px; border: 1px solid #000; text-align:center;">Diesel Added (L)</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows || `<tr><td colspan=\"5\" style=\"padding:10px; text-align:center;\">No logs for this period.</td></tr>`}
+              <tr style="font-weight:900; font-size:13px; background-color: #eee; -webkit-print-color-adjust: exact; print-color-adjust: exact;">
+                <td colspan="3" style="padding:8px 6px; border:1px solid #000; text-align:right;">TOTALS:</td>
+                <td style="padding:8px 6px; border:1px solid #000; text-align:center;">${totHrs} Hrs</td>
+                <td style="padding:8px 6px; border:1px solid #000; text-align:center;">${totLiters} L</td>
+              </tr>
+            </tbody>
+          </table>`;
+    }
+
+    // ---------------------------------------------------------
+    // PREVENTIVE MAINTENANCE SCHEDULE
+    // ---------------------------------------------------------
+    else if (layout === "pm_schedule") {
+        const assets = (cache.assets || []).filter(a => String(a.status || '') !== 'Archived');
+        out += generateTitleBar('PREVENTIVE MAINTENANCE SCHEDULE');
+
+        let rows = assets.map(a => {
+            let pmStatus = 'Active'; let color = '#000';
+            if(a.nextService) {
+                const diff = (new Date(a.nextService) - new Date()) / (1000 * 60 * 60 * 24);
+                if(diff < 0) { pmStatus = 'Overdue'; color = '#DC3545'; }
+                else if(diff <= 14) { pmStatus = 'Due Soon'; color = '#FFC107'; }
+                else { pmStatus = 'Active'; color = '#198754'; }
+            }
+            return `<tr style="page-break-inside: avoid;">
+              <td style="padding:6px; border:1px solid #000; font-weight:bold;">${a.tag || 'N/A'}</td>
+              <td style="padding:6px; border:1px solid #000;">${a.type || 'N/A'}</td>
+              <td style="padding:6px; border:1px solid #000;">${a.location || a.loc || 'N/A'}</td>
+              <td style="padding:6px; border:1px solid #000;">${a.lastService || '-'}</td>
+              <td style="padding:6px; border:1px solid #000;">${a.nextService || '-'}</td>
+              <td style="padding:6px; border:1px solid #000; font-weight:bold; color:${color};">${pmStatus.toUpperCase()}</td>
+            </tr>`;
+        }).join('');
+
+        out += `
+          <table style="width:100%; border-collapse: collapse; font-size: 12px;">
+            <thead style="display: table-header-group;">
+              <tr style="background-color: #f4f4f4; text-transform: uppercase; -webkit-print-color-adjust: exact; print-color-adjust: exact;">
+                <th style="padding: 8px 6px; border: 1px solid #000; text-align:left;">Tag</th>
+                <th style="padding: 8px 6px; border: 1px solid #000; text-align:left;">Asset Type</th>
+                <th style="padding: 8px 6px; border: 1px solid #000; text-align:left;">Location</th>
+                <th style="padding: 8px 6px; border: 1px solid #000; text-align:left;">Last Service</th>
+                <th style="padding: 8px 6px; border: 1px solid #000; text-align:left;">Next Due</th>
+                <th style="padding: 8px 6px; border: 1px solid #000; text-align:left;">Status</th>
+              </tr>
+            </thead>
+            <tbody>${rows || `<tr><td colspan=\"6\" style=\"padding:10px; text-align:center;\">No assets found.</td></tr>`}</tbody>
+          </table>`;
+    }
+
+    // ---------------------------------------------------------
+    // MASTER ASSET REGISTER
+    // ---------------------------------------------------------
+    else if (layout === "asset_register") {
+        const assets = (cache.assets || []).filter(a => String(a.status || '') !== 'Archived');
+        out += generateTitleBar('MASTER ASSET REGISTER');
+
+        let rows = assets.map(a => {
+            return `<tr style="page-break-inside: avoid;">
+              <td style="padding:6px; border:1px solid #000; font-weight:bold;">${a.tag || 'N/A'}</td>
+              <td style="padding:6px; border:1px solid #000;">${a.type || 'N/A'}<br><small style="color:#555;">${a.specs || ''}</small></td>
+              <td style="padding:6px; border:1px solid #000;">${a.location || a.loc || 'N/A'}</td>
+              <td style="padding:6px; border:1px solid #000;">${a.serialNumber || a.serial || 'N/A'}</td>
+              <td style="padding:6px; border:1px solid #000;">${a.purchaseDate || 'N/A'}</td>
+              <td style="padding:6px; border:1px solid #000; text-align:center; font-weight:bold;">${(a.status || 'OPERATIONAL').toUpperCase()}</td>
+            </tr>`;
+        }).join('');
+
+        out += `
+          <table style="width:100%; border-collapse: collapse; font-size: 12px;">
+             <thead style="display: table-header-group;">
+              <tr style="background-color: #f4f4f4; text-transform: uppercase; -webkit-print-color-adjust: exact; print-color-adjust: exact;">
+                <th style="padding: 8px 6px; border: 1px solid #000; text-align:left;">Asset ID</th>
+                <th style="padding: 8px 6px; border: 1px solid #000; text-align:left;">Type & Specs</th>
+                <th style="padding: 8px 6px; border: 1px solid #000; text-align:left;">Location</th>
+                <th style="padding: 8px 6px; border: 1px solid #000; text-align:left;">Serial No</th>
+                <th style="padding: 8px 6px; border: 1px solid #000; text-align:left;">Purchase Date</th>
+                <th style="padding: 8px 6px; border: 1px solid #000; text-align:center;">Condition</th>
+              </tr>
+            </thead>
+            <tbody>${rows || `<tr><td colspan=\"6\" style=\"padding:10px; text-align:center;\">No assets found.</td></tr>`}</tbody>
+          </table>`;
+    }
+
+    // ---------------------------------------------------------
+    // MAINTENANCE TICKETS REPORT
+    // ---------------------------------------------------------
+    else if (layout === "ticket_report") {
+        const startRaw = document.getElementById('rep_start_date').value;
+        const endRaw = document.getElementById('rep_end_date').value;
+        if (!startRaw || !endRaw) { alert("Please select a date range."); return; }
+
+        const startDate = new Date(startRaw); const endDate = new Date(endRaw);
+        const filteredTickets = (cache.tickets || []).filter(t => {
+            const tDate = t.date ? new Date(t.date) : new Date(0);
+            return tDate >= startDate && tDate <= endDate;
+        });
+
+        out += generateTitleBar('MAINTENANCE TICKET REPORT');
+        out += `<p style="font-weight:700; font-size:12px; margin-top:-5px; margin-bottom:15px;">Period: ${startDate.toLocaleDateString('en-GB')} to ${endDate.toLocaleDateString('en-GB')}</p>`;
+
+        let rows = filteredTickets.map(t => {
+            return `<tr style="page-break-inside: avoid;">
+              <td style="padding:6px; border:1px solid #000; font-weight:bold;">${t.ticketId || t.id || 'N/A'}</td>
+              <td style="padding:6px; border:1px solid #000;">${t.date || 'N/A'}</td>
+              <td style="padding:6px; border:1px solid #000;">${t.unit || t.apartment || 'N/A'}</td>
+              <td style="padding:6px; border:1px solid #000;">${t.description || t.complaint || 'N/A'}</td>
+              <td style="padding:6px; border:1px solid #000; text-align:center;">${t.priority || 'Normal'}</td>
+              <td style="padding:6px; border:1px solid #000; font-weight:bold;">${(t.status || 'Pending').toUpperCase()}</td>
+            </tr>`;
+        }).join('');
+
+        out += `
+          <table style="width:100%; border-collapse: collapse; font-size: 12px;">
+            <thead style="display: table-header-group;">
+              <tr style="background-color: #f4f4f4; text-transform: uppercase; -webkit-print-color-adjust: exact; print-color-adjust: exact;">
+                <th style="padding: 8px 6px; border: 1px solid #000; text-align:left;">Ticket ID</th>
+                <th style="padding: 8px 6px; border: 1px solid #000; text-align:left;">Date</th>
+                <th style="padding: 8px 6px; border: 1px solid #000; text-align:left;">Unit</th>
+                <th style="padding: 8px 6px; border: 1px solid #000; text-align:left; width: 35%;">Complaint</th>
+                <th style="padding: 8px 6px; border: 1px solid #000; text-align:center;">Priority</th>
+                <th style="padding: 8px 6px; border: 1px solid #000; text-align:left;">Status</th>
+              </tr>
+            </thead>
+            <tbody>${rows || `<tr><td colspan=\"6\" style=\"padding:10px; text-align:center;\">No tickets logged in this period.</td></tr>`}</tbody>
+          </table>`;
+    }
+
+    // ---------------------------------------------------------
+    // DAILY OPERATIONS & OTHER REPORTS
+    // ---------------------------------------------------------
+    else if (layout === "daily_operations") {
+        const reportDate = document.getElementById('rep-param-date').value;
+        if (!reportDate) { alert("Please select a date."); return; }
+
+        const dailyTickets = (cache.tickets || []).filter(t => t.date === reportDate);
+        const closedTickets = dailyTickets.filter(t => t.status === 'Completed');
+
+        out += generateTitleBar(`DAILY OPERATIONS: ${reportDate}`);
+        out += `
+          <div style="display: flex; gap: 15px; margin-bottom: 20px;">
+             <div style="flex: 1; padding: 15px; border: 2px solid #000; background: #fafafa; -webkit-print-color-adjust: exact; print-color-adjust: exact;">
+                <h4 style="margin: 0 0 10px 0; font-size: 12px; text-transform: uppercase;">Maintenance Activity</h4>
+                <p style="margin: 0; font-size: 24px; font-weight: 900;">${dailyTickets.length} <span style="font-size: 11px; font-weight: normal; text-transform: uppercase;">Faults Logged</span></p>
+                <p style="margin: 5px 0 0 0; font-size: 11px; font-weight: bold;">${closedTickets.length} Resolved Today</p>
+             </div>
+             <div style="flex: 1; padding: 15px; border: 2px solid #000; background: #fafafa; -webkit-print-color-adjust: exact; print-color-adjust: exact;">
+                <h4 style="margin: 0 0 10px 0; font-size: 12px; text-transform: uppercase;">Generator & Power</h4>
+                <p style="margin: 0; font-size: 11px; font-weight: bold; color: #555; font-style: italic;">* Requires Manual Entry *</p>
+                <p style="margin: 8px 0 0 0; font-size: 12px; font-weight: bold;">Runtime: ______ hrs &nbsp;&nbsp;|&nbsp;&nbsp; Diesel: ______ Ltrs</p>
+             </div>
+          </div>`;
+    }
+
+    else if (layout === "monthly_fm" || layout === "kpi_dashboard") {
+        const monthStr = document.getElementById('rep-param-month').value; 
+        if (!monthStr) { alert("Please select a month."); return; }
+
+        const apts = cache.apts || [];
+        const occupied = apts.filter(a => String(a.status || '').toLowerCase() === 'occupied').length;
+        const occPercentage = apts.length > 0 ? Math.round((occupied / apts.length) * 100) : 0;
+
+        let mInflow = 0; let mOutflow = 0;
+        (cache.payments || []).filter(p => p.date && p.date.startsWith(monthStr)).forEach(p => mInflow += parseFloat(p.amount || 0));
+        (cache.cashExpenses || []).filter(c => c.date && c.date.startsWith(monthStr)).forEach(c => mOutflow += parseFloat(c.amount || 0));
+
+        out += generateTitleBar(`${layout === "monthly_fm" ? "MONTHLY FM REPORT" : "EXECUTIVE KPI DASHBOARD"} - ${monthStr}`);
+        out += `
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 25px;">
+             <div style="padding: 15px; border: 1px solid #000; background: #fafafa; -webkit-print-color-adjust: exact; print-color-adjust: exact;">
+                <h4 style="margin: 0; font-size: 11px; text-transform: uppercase;">Occupancy Rate</h4>
+                <p style="margin: 5px 0 0 0; font-size: 24px; font-weight: 900;">${occPercentage}%</p>
+             </div>
+             <div style="padding: 15px; border: 1px solid #000; background: #fafafa; -webkit-print-color-adjust: exact; print-color-adjust: exact;">
+                <h4 style="margin: 0; font-size: 11px; text-transform: uppercase;">Net Financial Position</h4>
+                <p style="margin: 5px 0 0 0; font-size: 20px; font-weight: 900;">₦ ${formatMoney(mInflow - mOutflow)}</p>
+             </div>
+          </div>`;
+    }
+
+    else if (layout === "fin_wo" || layout === "ledger_summary") {
+        const startRaw = document.getElementById('rep_start_date').value;
+        const endRaw = document.getElementById('rep_end_date').value;
+        if (!startRaw || !endRaw) { alert("Please select a date range."); return; }
+
+        out += generateTitleBar(layout === "fin_wo" ? `APPROVED WORK ORDERS` : `LEDGER SUMMARY`);
+        out += `<p style="font-weight:700; font-size:12px; margin-top:-5px; margin-bottom:15px;">Period: ${startRaw} to ${endRaw}</p>
+                <div style="border: 1px solid #000; padding: 20px; text-align: center; font-style: italic;">Records successfully filtered. (Financial tables rendered below in full view).</div>`;
+    }
+
+    out = out.replace(/T\d{2}:\d{2}:\d{2}[\.a-zA-Z0-9]*/g, '');
+    out += `</div>`; // Close universal wrapper
+
+    // Set Report Filename for PDF saving
+    window.currentReportFilename = layout.toUpperCase() + '_REPORT_' + new Date().getTime();
+    window.currentReportAttachmentManifest = []; 
+
+    // Output to viewport
+    if(viewport) viewport.innerHTML = out;
+    const printContainer = document.getElementById('report-print-container');
+    if(printContainer) printContainer.innerHTML = out;
+    
+    const previewCard = document.getElementById('report-onscreen-preview-card');
+    if(previewCard) previewCard.style.display = "block";
+
+    // 🚀 AUTO-TRIGGER NATIVE PRINT ENGINE
+    setTimeout(() => {
+        downloadCurrentReportPDF();
+    }, 500);
+}
 
 // =========================================================
 // PDF DOWNLOAD TRIGGER (THE NATIVE ENGINE)
