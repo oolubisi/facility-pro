@@ -2636,3 +2636,194 @@ function downloadCurrentReportPDF() {
       compileAndDownloadUnifiedPDF(source, attachments, filename);
   }
 }
+
+// =========================================================
+// 1. APARTMENTS MANIFEST REPORT (PDF Layout Match)
+// =========================================================
+
+function generateApartmentManifestReport() {
+    const viewport = document.getElementById('report-preview-viewport');
+    if (!viewport) return;
+
+    window.currentReportFilename = 'Apartment_Manifest_' + new Date().getTime();
+    window.currentReportAttachmentManifest = []; // Bypass server
+
+    // Pull directly from the synced Settings tab
+    const estateName = appSettings.estateName || "FACILITY PRO ESTATE";
+    const estateAddress = appSettings.estateAddress || "Address not configured";
+    const fmName = appSettings.fmName || "Facility Management";
+
+    let html = `
+    <div style="font-family: 'Arial', sans-serif; color: #000; background: #fff; padding: 20px; max-width: 800px; margin: 0 auto; line-height: 1.4;">
+        
+        <div style="text-align: center; margin-bottom: 30px;">
+            <h2 style="font-size: 22px; font-weight: 900; margin: 0; text-transform: uppercase;">${estateName}</h2>
+            <p style="font-size: 14px; margin: 4px 0 0 0;">${estateAddress}</p>
+            <p style="font-size: 14px; margin: 4px 0 0 0; font-weight: bold;">Managed by: ${fmName}</p>
+            <br>
+            <h3 style="font-size: 18px; font-weight: bold; text-transform: uppercase; margin: 0; text-decoration: underline;">APARTMENTS MANIFEST</h3>
+        </div>
+    `;
+
+    // Filter out 'services' units
+    let apartments = [...(cache.apts || [])].filter(a => String(a.type || '').toLowerCase() !== 'services');
+    
+    apartments.forEach(apt => {
+        const unitId = getUnitNumber(apt);
+        const tenant = apt.tenant || apt.Tenant || 'VACANT';
+        const type = apt.type || apt.Type || 'Standard';
+        const meter = apt.meterNo || apt.MeterNo || apt.meter || 'N/A'; 
+
+        // Find associated assets
+        const unitAssets = (cache.assets || []).filter(a => String(getUnitNumber(a)) === String(unitId) && String(a.status || '') !== 'Archived');
+
+        html += `
+        <div style="margin-bottom: 25px; page-break-inside: avoid;">
+            <table style="width: 100%; border-collapse: collapse; border: 2px solid #000; font-size: 14px; font-weight: bold;">
+                <tr>
+                    <td style="border: 1px solid #000; padding: 6px; width: 15%; background: #f9f9f9;">Unit</td>
+                    <td style="border: 1px solid #000; padding: 6px; width: 35%;">${unitId}</td>
+                    <td style="border: 1px solid #000; padding: 6px; width: 15%; background: #f9f9f9;">Tenant</td>
+                    <td style="border: 1px solid #000; padding: 6px; width: 35%; color: ${tenant.toUpperCase() === 'VACANT' ? '#DC3545' : '#198754'};">${tenant.toUpperCase()}</td>
+                </tr>
+                <tr>
+                    <td style="border: 1px solid #000; padding: 6px; background: #f9f9f9;">Type</td>
+                    <td style="border: 1px solid #000; padding: 6px;">${type}</td>
+                    <td style="border: 1px solid #000; padding: 6px; background: #f9f9f9;">Meter No</td>
+                    <td style="border: 1px solid #000; padding: 6px;">${meter}</td>
+                </tr>
+            </table>
+
+            <div style="margin-top: 10px;">
+                <p style="margin: 0 0 5px 0; font-size: 13px; font-weight: bold; text-decoration: underline;">REGISTERED ASSETS:</p>
+                <ul style="margin: 0; padding-left: 20px; font-size: 13px;">
+        `;
+
+        if (unitAssets.length > 0) {
+            unitAssets.forEach(asset => {
+                const aType = asset.type || asset.Type || 'Appliance';
+                const aTag = asset.tag || asset.Tag || 'NO-TAG';
+                const aSpecs = asset.specs || asset.Specs || '';
+                const specString = aSpecs ? ` - ${aSpecs}` : '';
+                
+                html += `<li style="margin-bottom: 4px;">${aType} (${aTag})${specString}</li>`;
+            });
+        } else {
+            html += `<li style="color: #666; font-style: italic;">No registered assets</li>`;
+        }
+
+        html += `
+                </ul>
+            </div>
+        </div>
+        `;
+    });
+
+    html += `</div>`;
+
+    // Push layout to the screen and the hidden print container
+    viewport.innerHTML = html;
+    const printContainer = document.getElementById('report-print-container');
+    if(printContainer) printContainer.innerHTML = html;
+    
+    // Auto-trigger the native print engine we built earlier
+    setTimeout(downloadCurrentReportPDF, 500);
+}
+
+// =========================================================
+// 2. APARTMENT DETAILED DOSSIER (PDF Layout Match)
+// =========================================================
+
+function generateApartmentDossierReport(targetUnitId) {
+    const viewport = document.getElementById('report-preview-viewport');
+    if (!viewport) return;
+
+    window.currentReportFilename = `Apartment_Dossier_${targetUnitId}_` + new Date().getTime();
+    window.currentReportAttachmentManifest = [];
+
+    const apt = (cache.apts || []).find(a => String(getUnitNumber(a)) === String(targetUnitId));
+    if (!apt) { alert("Apartment not found."); return; }
+
+    const estateName = appSettings.estateName || "FACILITY PRO ESTATE";
+    const estateAddress = appSettings.estateAddress || "Address not configured";
+    const fmName = appSettings.fmName || "Facility Management";
+    
+    const type = apt.type || apt.Type || 'Standard';
+    const status = apt.status || apt.Status || 'Vacant';
+    const meter = apt.meterNo || apt.MeterNo || apt.meter || 'N/A';
+
+    let html = `
+    <div style="font-family: 'Arial', sans-serif; color: #000; background: #fff; padding: 20px; max-width: 800px; margin: 0 auto; line-height: 1.4;">
+        
+        <div style="text-align: center; margin-bottom: 25px;">
+            <h2 style="font-size: 22px; font-weight: 900; margin: 0; text-transform: uppercase;">${estateName}</h2>
+            <p style="font-size: 14px; margin: 4px 0 0 0;">${estateAddress}</p>
+            <p style="font-size: 14px; margin: 4px 0 0 0; font-weight: bold;">Managed by: ${fmName}</p>
+            <br>
+            <h3 style="font-size: 18px; font-weight: bold; text-transform: uppercase; margin: 0; text-decoration: underline;">APARTMENT DETAILED DOSSIER</h3>
+        </div>
+
+        <div style="margin-bottom: 20px;">
+             <table style="width: 100%; border-collapse: collapse; border: 2px solid #000; font-size: 14px; font-weight: bold; margin-bottom: 10px;">
+                <tr>
+                    <td style="border: 1px solid #000; padding: 6px; width: 15%; background: #f9f9f9;">Type</td>
+                    <td style="border: 1px solid #000; padding: 6px; width: 35%;">${type}</td>
+                    <td style="border: 1px solid #000; padding: 6px; width: 15%; background: #f9f9f9;">Status</td>
+                    <td style="border: 1px solid #000; padding: 6px; width: 35%; color: ${status.toUpperCase() === 'VACANT' ? '#DC3545' : '#198754'};">${status}</td>
+                </tr>
+                <tr>
+                    <td style="border: 1px solid #000; padding: 6px; background: #f9f9f9;">Meter No</td>
+                    <td style="border: 1px solid #000; padding: 6px;" colspan="3">${meter}</td>
+                </tr>
+            </table>
+            
+            <div style="display:flex; justify-content: space-between; font-weight: bold; font-size: 14px;">
+                <span>RUN DATE: ${new Date().toLocaleDateString('en-GB')}</span>
+                <span style="font-size: 20px;">${targetUnitId}</span>
+            </div>
+        </div>
+        
+        <h3 style="font-size: 14px; font-weight: bold; margin: 20px 0 10px 0; text-decoration: underline;">ASSETS:</h3>
+        <div style="display: flex; flex-wrap: wrap; gap: 2%; row-gap: 15px;">
+    `;
+
+    const unitAssets = (cache.assets || []).filter(a => String(getUnitNumber(a)) === String(targetUnitId) && String(a.status || '') !== 'Archived');
+    
+    if(unitAssets.length > 0) {
+        unitAssets.forEach(asset => {
+             // Try to render the photo, fallback to "No Image"
+             let imgHtml = `<div style="height: 120px; background: #eee; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; color: #aaa; border-bottom: 1px solid #ccc;">No Image</div>`;
+             if (asset.photos || asset.Photos) {
+                 const firstPhoto = (asset.photos || asset.Photos).split(',')[0];
+                 if(firstPhoto) {
+                     imgHtml = `<div style="height: 120px; background-image: url('${getDirectImageUrl(firstPhoto)}'); background-size: cover; background-position: center; border-bottom: 1px solid #ccc;"></div>`;
+                 }
+             }
+
+             html += `
+             <div style="width: 32%; border: 1px solid #000; border-radius: 4px; overflow: hidden; page-break-inside: avoid;">
+                 ${imgHtml}
+                 <div style="padding: 10px; font-size: 12px; line-height: 1.5;">
+                     <div style="font-weight: 900; font-size: 13px; margin-bottom: 5px;">${asset.type || asset.Type || 'Asset'}</div>
+                     <div><strong>Specs:</strong> ${asset.specs || asset.Specs || 'N/A'}</div>
+                     <div><strong>Tag:</strong> ${asset.tag || asset.Tag}</div>
+                     <div><strong>Loc:</strong> ${asset.loc || asset.Loc || 'N/A'}</div>
+                     <div><strong>Status:</strong> ${asset.status || asset.Status || 'N/A'}</div>
+                 </div>
+             </div>
+             `;
+        });
+    } else {
+        html += `<div style="font-style: italic; color: #666; font-size: 13px;">No physical assets recorded for this unit.</div>`;
+    }
+
+    html += `</div></div>`;
+
+    viewport.innerHTML = html;
+    const printContainer = document.getElementById('report-print-container');
+    if(printContainer) printContainer.innerHTML = html;
+    
+    setTimeout(downloadCurrentReportPDF, 500);
+}
+
+
