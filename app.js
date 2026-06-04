@@ -2602,11 +2602,10 @@ async function callApi(action, data = {}) {
     }
 
 // =========================================================
-// PDF DOWNLOAD TRIGGER (UPGRADED HYBRID ROUTING)
+// PDF DOWNLOAD TRIGGER (THE NATIVE ENGINE)
 // =========================================================
 
 function downloadCurrentReportPDF() {
-  console.log("PDF Generation Started...");
   const source = document.getElementById('report-preview-viewport');
   
   if (!source || !source.innerHTML.trim()) {
@@ -2615,30 +2614,25 @@ function downloadCurrentReportPDF() {
   }
   
   const filename = window.currentReportFilename || 'Facility_Report';
-  
-  // FORCE LOCAL GENERATION FOR ALL REPORTS (Bypass Server Completely)
-  console.log("Bypassing server, generating PDF locally in browser...");
-  
-  // Create a temporary loading toast
-  const toast = document.createElement('div');
-  toast.innerText = "Generating PDF Locally...";
-  toast.style.cssText = "position:fixed; bottom:20px; right:20px; background:#0D6EFD; color:#fff; padding:15px; border-radius:8px; z-index:9999; font-weight:bold;";
-  document.body.appendChild(toast);
+  const attachments = window.currentReportAttachmentManifest || [];
 
-  const opt = {
-    margin:       [10, 10, 10, 10],
-    filename:     filename + '.pdf',
-    image:        { type: 'jpeg', quality: 0.98 },
-    html2canvas:  { scale: 2, useCORS: true },
-    jsPDF:        { unit: 'mm', format: 'a4', orientation: 'landscape' }
-  };
-  
-  html2pdf().set(opt).from(source).save().then(() => {
-      console.log("PDF successfully generated and downloaded!");
-      toast.remove();
-  }).catch(err => {
-      console.error("Local PDF Engine Failed:", err);
-      alert("Error generating PDF locally. See console for details.");
-      toast.remove();
-  });
+  // ROUTE 1: Fast Native Generation (For Manifests & Ledgers)
+  if (attachments.length === 0) {
+      // Temporarily set the document title so the saved PDF has the correct file name
+      const originalTitle = document.title;
+      document.title = filename;
+      
+      // Trigger the device's native Print / Save-as-PDF dialog.
+      // This forces the browser to use your @media print CSS!
+      window.print();
+      
+      // Restore the original app title after the dialog closes
+      setTimeout(() => {
+          document.title = originalTitle;
+      }, 1000);
+  } 
+  // ROUTE 2: Heavy Server Generation (Only when stitching Drive attachments)
+  else {
+      compileAndDownloadUnifiedPDF(source, attachments, filename);
+  }
 }
