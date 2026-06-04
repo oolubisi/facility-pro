@@ -2606,6 +2606,7 @@ async function callApi(action, data = {}) {
 // =========================================================
 
 function downloadCurrentReportPDF() {
+  console.log("PDF Generation Started...");
   const source = document.getElementById('report-preview-viewport');
   
   if (!source || !source.innerHTML.trim()) {
@@ -2613,34 +2614,31 @@ function downloadCurrentReportPDF() {
       return;
   }
   
-  // Safely grab the filename and any attachments defined by the report generator
   const filename = window.currentReportFilename || 'Facility_Report';
-  const attachments = window.currentReportAttachmentManifest || [];
+  
+  // FORCE LOCAL GENERATION FOR ALL REPORTS (Bypass Server Completely)
+  console.log("Bypassing server, generating PDF locally in browser...");
+  
+  // Create a temporary loading toast
+  const toast = document.createElement('div');
+  toast.innerText = "Generating PDF Locally...";
+  toast.style.cssText = "position:fixed; bottom:20px; right:20px; background:#0D6EFD; color:#fff; padding:15px; border-radius:8px; z-index:9999; font-weight:bold;";
+  document.body.appendChild(toast);
 
-  // ROUTE 1: Fast Local Generation (For Manifests & Ledgers)
-  // If there are no Drive attachments to stitch, use the local html2pdf engine
-  if (attachments.length === 0) {
-      // Create a temporary loading toast
-      const toast = document.createElement('div');
-      toast.innerText = "Generating PDF Locally...";
-      toast.style.cssText = "position:fixed; bottom:20px; right:20px; background:#0D6EFD; color:#fff; padding:15px; border-radius:8px; z-index:9999;";
-      document.body.appendChild(toast);
-
-      const opt = {
-        margin:       [10, 10, 10, 10],
-        filename:     filename + '.pdf',
-        image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { scale: 2, useCORS: true },
-        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'landscape' } // Landscape is perfect for wide manifests
-      };
-      
-      html2pdf().set(opt).from(source).save().then(() => {
-          toast.remove();
-      });
-  } 
-  // ROUTE 2: Heavy Server Generation (For Work Orders & Expense Requests)
-  else {
-      // Fallback to the GAS engine only when we need to stitch external PDFs/Images together
-      compileAndDownloadUnifiedPDF(source, attachments, filename);
-  }
+  const opt = {
+    margin:       [10, 10, 10, 10],
+    filename:     filename + '.pdf',
+    image:        { type: 'jpeg', quality: 0.98 },
+    html2canvas:  { scale: 2, useCORS: true },
+    jsPDF:        { unit: 'mm', format: 'a4', orientation: 'landscape' }
+  };
+  
+  html2pdf().set(opt).from(source).save().then(() => {
+      console.log("PDF successfully generated and downloaded!");
+      toast.remove();
+  }).catch(err => {
+      console.error("Local PDF Engine Failed:", err);
+      alert("Error generating PDF locally. See console for details.");
+      toast.remove();
+  });
 }
