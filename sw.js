@@ -1,15 +1,13 @@
-const CACHE_NAME = 'facility-pro-v5'; // Bumped to v5 to clear the corrupted opaque cache
+const CACHE_NAME = 'facility-pro-v6';
 
-// 1. Only precache your LOCAL files here
 const STATIC_ASSETS = [
-  '/facility-pro/',
-  '/facility-pro/index.html',
-  '/facility-pro/styles.css',   
-  '/facility-pro/app.js',       
-  '/facility-pro/manifest.json'
+  './',
+  './index.html',
+  './styles.css',
+  './app.js',
+  './manifest.json'
 ];
 
-// 2. Install Event: Cache local assets normally
 self.addEventListener('install', (event) => {
   self.skipWaiting(); 
   event.waitUntil(
@@ -20,7 +18,6 @@ self.addEventListener('install', (event) => {
   );
 });
 
-// 3. Activate Event: Clean up old corrupted caches
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
@@ -36,7 +33,6 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// 4. Fetch Event: Dynamic Runtime Caching
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') {
     return;

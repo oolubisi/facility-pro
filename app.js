@@ -35,7 +35,7 @@
       return result + " Only";
     }
 
-    // --- UNIFIED PDF COMPILER ENGINE (UPGRADED WITH SHARE API) ---
+    // --- UNIFIED PDF COMPILER ENGINE ---
     function extractDriveFileId(url) {
       if (!url) return null;
       let match = url.match(/\/d\/(.+?)(\/|$)/);
@@ -49,8 +49,22 @@
 // PDF ENGINE
 // =========================================================
 
+function normalizeReportSource(source) {
+  if (typeof source === 'string') {
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = source;
+    return wrapper;
+  }
+  return source;
+}
+
 async function compileAndDownloadUnifiedPDF(sourceElement, attachmentUrls = [], filename = 'Facility_Report') {
-  // 1. SHOW FULLSCREEN LOADING UI
+  const normalizedSource = normalizeReportSource(sourceElement);
+  if (!normalizedSource || typeof normalizedSource.cloneNode !== 'function') {
+    alert('Report content is not ready yet.');
+    return;
+  }
+
   const loadingScreen = document.createElement('div');
   loadingScreen.id = 'pdf-loading-screen';
   loadingScreen.style.cssText = `
@@ -61,50 +75,40 @@ async function compileAndDownloadUnifiedPDF(sourceElement, attachmentUrls = [], 
   `;
   loadingScreen.innerHTML = `
     <i class="fas fa-server fa-spin" style="font-size: 50px; margin-bottom: 20px; color: #0D6EFD;"></i>
-    <h2 style="margin: 0; letter-spacing: 1px;">Server Generating PDF...</h2>
-    <p style="margin-top: 8px; color: #aaa; font-size: 14px;">Ensuring perfect A4 formatting.</p>
+    <h2 style="margin: 0; letter-spacing: 1px;">Generating PDF...</h2>
+    <p style="margin-top: 8px; color: #aaa; font-size: 14px;">Preparing a shareable document.</p>
   `;
   document.body.appendChild(loadingScreen);
 
   try {
-    // ============================================================
-    // 2. THE "INPUT BAKER" (Fixes the missing Unit/Meter data)
-    // ============================================================
-    // Clone the report so we don't mess up the actual screen
-    const clone = sourceElement.cloneNode(true);
+    const clone = normalizedSource.cloneNode(true);
     
-    // Find all inputs in the live screen, and their counterparts in the clone
-    const originalInputs = sourceElement.querySelectorAll('input, select, textarea');
+    const originalInputs = normalizedSource.querySelectorAll('input, select, textarea');
     const clonedInputs = clone.querySelectorAll('input, select, textarea');
     
     originalInputs.forEach((original, index) => {
       const cloneNode = clonedInputs[index];
+      if (!cloneNode) return;
       const span = document.createElement('span');
       
-      // Extract the live value. If it's a checkbox, use checkmark symbols
       if (original.type === 'checkbox' || original.type === 'radio') {
-        span.innerHTML = original.checked ? '<b>☑</b> ' : '☐ ';
+        span.innerHTML = original.checked ? '<b>Yes</b>' : 'No';
         span.style.fontSize = '14px';
       } else {
         span.innerText = original.value || original.innerText || ''; 
       }
       
-      // Make it look like bold document text
       span.style.display = 'inline-block';
       span.style.fontWeight = 'bold';
       span.style.color = '#000';
       
-      // Replace the <input> with the plain text <span>
       if (cloneNode.parentNode) {
         cloneNode.parentNode.replaceChild(span, cloneNode);
       }
     });
 
-    // Now grab the cleaned, fully-populated HTML
     const htmlContent = clone.innerHTML;
-    // ============================================================
 
-    // 3. WRAP HTML WITH STRICT SERVER CSS (Fixes the table borders)
     const cleanHTML = `
       <!DOCTYPE html>
       <html>
@@ -112,8 +116,6 @@ async function compileAndDownloadUnifiedPDF(sourceElement, attachmentUrls = [], 
           <style>
             body { font-family: Arial, sans-serif; color: #333; background: #fff; padding: 20px; font-size: 11px; }
             * { box-sizing: border-box; }
-            
-            /* FIX: Uniform Table Borders */
             table { 
               width: 100%; 
               border-collapse: collapse; 
@@ -123,16 +125,14 @@ async function compileAndDownloadUnifiedPDF(sourceElement, attachmentUrls = [], 
             th, td { 
               text-align: left; 
               padding: 8px; 
-              border: 1px solid #ccc !important; /* Equal inner lines on all sides */
+              border: 1px solid #ccc !important;
+              vertical-align: top;
             }
             th { background-color: #f8f9fa; }
-            
-            /* Fallback layout for Google's engine */
             .grid, .flex-row { display: table; width: 100%; }
             .col { display: table-cell; padding: 4px; vertical-align: middle; }
-            
-            /* Prevent messy text wrapping */
-            td, th, span, label, strong { white-space: nowrap; }
+            img { max-width: 100%; }
+            td, th, span, label, strong { overflow-wrap: anywhere; }
           </style>
         </head>
         <body>
@@ -141,7 +141,6 @@ async function compileAndDownloadUnifiedPDF(sourceElement, attachmentUrls = [], 
       </html>
     `;
 
-    // 4. SEND TO GOOGLE APPS SCRIPT
     const response = await fetch(GAS_URL, {
       method: 'POST',
       body: JSON.stringify({
@@ -153,15 +152,12 @@ async function compileAndDownloadUnifiedPDF(sourceElement, attachmentUrls = [], 
 
     if (result.status !== 'success') throw new Error(result.message);
 
-    // 5. LOAD THE SERVER-GENERATED PDF INTO PDF-LIB
     loadingScreen.querySelector('h2').innerText = "Processing Attachments...";
     const { PDFDocument, degrees, rgb } = PDFLib;
     
-    // Convert the Base64 string from Google back into raw PDF bytes
     const pdfBytes = Uint8Array.from(atob(result.base64), c => c.charCodeAt(0));
     const masterPdf = await PDFDocument.load(pdfBytes);
 
-    // 6. STITCH ATTACHMENTS 
     if (attachmentUrls && attachmentUrls.length > 0) {
       for (let url of attachmentUrls) {
         if (!url) continue;
@@ -188,7 +184,6 @@ async function compileAndDownloadUnifiedPDF(sourceElement, attachmentUrls = [], 
       }
     }
 
-    // 7. WATERMARK & NUMBERS
     const pages = masterPdf.getPages();
     pages.forEach((page, index) => {
       const { width, height } = page.getSize();
@@ -196,13 +191,12 @@ async function compileAndDownloadUnifiedPDF(sourceElement, attachmentUrls = [], 
       page.drawText('Facility Pro', { x: width / 4, y: height / 2, size: 48, rotate: degrees(-45), opacity: 0.08, color: rgb(0.5, 0.5, 0.5) });
     });
 
-    // 8. SHARE OR DOWNLOAD
     loadingScreen.querySelector('h2').innerText = "Finishing up...";
     const finalPdfBytes = await masterPdf.save();
     const file = new File([finalPdfBytes], filename + '.pdf', { type: 'application/pdf' });
 
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
-      await navigator.share({ title: 'Facility Report', files: [file] });
+      await navigator.share({ title: filename, text: 'Facility Pro report attached.', files: [file] });
       loadingScreen.innerHTML = '<i class="fas fa-check-circle" style="font-size: 50px; margin-bottom: 20px; color: #198754;"></i><h2 style="margin: 0;">Shared Successfully!</h2>';
     } else {
       loadingScreen.innerHTML = '<i class="fas fa-download" style="font-size: 50px; margin-bottom: 20px; color: #198754;"></i><h2 style="margin: 0;">Downloading...</h2>';
@@ -2130,7 +2124,11 @@ async function callApi(action, data = {}) {
         callApi('getApartments', {}).then(r => cache.apts = r || []), 
         callApi('getAssets', {}).then(r => cache.assets = r || []), 
         callApi('getMaintenance', {}).then(r => cache.tickets = r || []), 
-        callApi('getWorkOrders', {}).then(r => cache.workorders = r || [])
+        callApi('getWorkOrders', {}).then(r => cache.workorders = r || []),
+        callApi('getUtilities', {}).then(r => cache.utilities = r || []),
+        callApi('getPayments', {}).then(r => cache.payments = r || []),
+        callApi('getExpenseRequests', {}).then(r => cache.expenseRequests = r || []),
+        callApi('getCashExpenses', {}).then(r => cache.cashExpenses = r || [])
       ];
       Promise.all(pipeline).then(() => { 
         if(cache.apts) sortApartmentsCacheList();
@@ -2150,17 +2148,14 @@ async function callApi(action, data = {}) {
       paramsFrame.innerHTML = "";
       document.getElementById('report-onscreen-preview-card').style.display = "none";
     
-      // Phase 1: Core Operations
-      if (profile === "operations" || profile === "apartments" || profile === "financials") {
+      if (profile === "apartments") {
         layoutSel.innerHTML = `
           <option value="">-- Select Report --</option>
           <option value="occupancy_report">Apartment Occupancy Report</option>
           <option value="apt_custom_print">Apartments Manifest</option>
           <option value="detailed_profile">Detailed Apartment Profile</option>
-          <option value="ledger_summary">Comprehensive Financial Ledger</option>
         `; 
       } 
-      // Phase 2: Equipment & Incidents
       else if (profile === "equipment") {
         layoutSel.innerHTML = `
           <option value="">-- Select Report --</option>
@@ -2170,14 +2165,19 @@ async function callApi(action, data = {}) {
           <option value="ticket_report">Maintenance & Complaint Tickets</option>
         `;
       } 
-      // Phase 3: Executive Dashboards
+      else if (profile === "financials") {
+        layoutSel.innerHTML = `
+          <option value="">-- Select Report --</option>
+          <option value="ledger_summary">Comprehensive Financial Ledger</option>
+          <option value="fin_wo">Approved Work Orders Ledger</option>
+        `;
+      }
       else if (profile === "executive") {
         layoutSel.innerHTML = `
           <option value="">-- Select Report --</option>
           <option value="daily_operations">Daily Operations Report</option>
           <option value="monthly_fm">Monthly FM Report</option>
           <option value="kpi_dashboard">Executive KPI Dashboard</option>
-          <option value="fin_wo">Approved Work Orders Ledger</option>
         `;
       }
     }
@@ -2531,14 +2531,10 @@ async function callApi(action, data = {}) {
     const previewCard = document.getElementById('report-onscreen-preview-card');
     if(previewCard) previewCard.style.display = "block";
 
-    // 🚀 AUTO-TRIGGER NATIVE PRINT ENGINE
-    setTimeout(() => {
-        downloadCurrentReportPDF();
-    }, 500);
 }
 
 // =========================================================
-// PDF DOWNLOAD TRIGGER (THE NATIVE ENGINE)
+// REPORT EXPORT ACTIONS
 // =========================================================
 
 function downloadCurrentReportPDF() {
@@ -2551,26 +2547,24 @@ function downloadCurrentReportPDF() {
   
   const filename = window.currentReportFilename || 'Facility_Report';
   const attachments = window.currentReportAttachmentManifest || [];
+  compileAndDownloadUnifiedPDF(source, attachments, filename);
+}
 
-  // ROUTE 1: Fast Native Generation (For Manifests & Ledgers)
-  if (attachments.length === 0) {
-      // Temporarily set the document title so the saved PDF has the correct file name
-      const originalTitle = document.title;
-      document.title = filename;
-      
-      // Trigger the device's native Print / Save-as-PDF dialog.
-      // This forces the browser to use your @media print CSS!
-      window.print();
-      
-      // Restore the original app title after the dialog closes
-      setTimeout(() => {
-          document.title = originalTitle;
-      }, 1000);
-  } 
-  // ROUTE 2: Heavy Server Generation (Only when stitching Drive attachments)
-  else {
-      compileAndDownloadUnifiedPDF(source, attachments, filename);
+function printCurrentReport() {
+  const source = document.getElementById('report-preview-viewport');
+  
+  if (!source || !source.innerHTML.trim()) {
+      alert('Please generate a report first.');
+      return;
   }
+  
+  const filename = window.currentReportFilename || 'Facility_Report';
+  const originalTitle = document.title;
+  document.title = filename;
+  window.print();
+  setTimeout(() => {
+      document.title = originalTitle;
+  }, 1000);
 }
 
 // =========================================================
@@ -2662,8 +2656,6 @@ function generateApartmentManifestReport() {
     const printContainer = document.getElementById('report-print-container');
     if(printContainer) printContainer.innerHTML = html;
     
-    // Auto-trigger the native print engine we built earlier
-    setTimeout(downloadCurrentReportPDF, 500);
 }
 
 // =========================================================
@@ -2727,28 +2719,18 @@ function generateApartmentDossierReport(targetUnitId) {
     
     if(unitAssets.length > 0) {
         unitAssets.forEach(asset => {
-             // Try to render the photo, fallback to "No Image"
              let imgHtml = `<div style="height: 120px; background: #eee; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; color: #aaa; border-bottom: 1px solid #ccc; -webkit-print-color-adjust: exact; print-color-adjust: exact;">No Image</div>`;
 
             if (asset.photos || asset.Photos) {
                 const firstPhoto = (asset.photos || asset.Photos).split(',')[0];
                 if (firstPhoto) {
-                    // Safely parse the URL (assuming getDirectImageUrl exists in your app)
                     const imgUrl = typeof getDirectImageUrl === 'function' ? getDirectImageUrl(firstPhoto) : firstPhoto;
-                    
-                    // Use an actual <img> tag instead of a background image so the print engine forces it to show
                     imgHtml = `
                     <div style="height: 120px; border-bottom: 1px solid #ccc; display: flex; align-items: center; justify-content: center; overflow: hidden; background: #fff;">
                         <img src="${imgUrl}" style="max-width: 100%; max-height: 100%; object-fit: contain;">
                     </div>`;
                 }
             }
-             if (asset.photos || asset.Photos) {
-                 const firstPhoto = (asset.photos || asset.Photos).split(',')[0];
-                 if(firstPhoto) {
-                     imgHtml = `<div style="height: 120px; background-image: url('${getDirectImageUrl(firstPhoto)}'); background-size: cover; background-position: center; border-bottom: 1px solid #ccc;"></div>`;
-                 }
-             }
 
              html += `
              <div style="width: 32%; border: 1px solid #000; border-radius: 4px; overflow: hidden; page-break-inside: avoid;">
@@ -2772,8 +2754,4 @@ function generateApartmentDossierReport(targetUnitId) {
     viewport.innerHTML = html;
     const printContainer = document.getElementById('report-print-container');
     if(printContainer) printContainer.innerHTML = html;
-    
-    setTimeout(downloadCurrentReportPDF, 500);
 }
-
-
