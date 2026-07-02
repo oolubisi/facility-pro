@@ -360,13 +360,8 @@ function renderTotalBalance() {
     }
   });
 
-  // 2. TOTAL OUTFLOW: Cash Expenses + paid OUTFLOW stages
+  // 2. TOTAL OUTFLOW: paid OUTFLOW ledger stages only
   let totalOutflow = 0;
-  // Cash expenses
-  (cache.cashExpenses || []).forEach((c) => {
-    if (!c) return;
-    totalOutflow += parseFloat(c.amount || c.Amount || 0);
-  });
   // Paid OUTFLOW stages
   (cache.payments || []).forEach((p) => {
     if (!p || p.direction !== "OUTFLOW") return;
@@ -467,8 +462,7 @@ function renderTotalBalance() {
   });
 
   // 6. NET POSITION
-  // Note: totalOutflow already includes cash expenses, so don't subtract again
-  const netPosition = totalInflow - totalOutflow;
+  const netPosition = totalInflow - totalOutflow - cashExpenses;
   const netColor = netPosition >= 0 ? "#198754" : "#dc3545";
 
   // ── RENDER ──

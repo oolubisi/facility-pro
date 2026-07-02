@@ -590,6 +590,11 @@ function compileReportPreview() {
     const totalOutflow = monthPayments
       .filter((p) => p.direction === "OUTFLOW")
       .reduce((s, p) => s + parseFloat(p.amount || p.Amount || 0), 0);
+    const cashExp = (cache.cashExpenses || []).filter((c) => {
+      const d = new Date(fromSheetDate(c.date || c.Date || "") || 0);
+      return d >= monthStart && d <= monthEnd;
+    }).reduce((s, c) => s + parseFloat(c.amount || c.Amount || 0), 0);
+    const netPosition = totalInflow - totalOutflow - cashExp;
 
     out += `<div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:20px;">
       <div style="background:#e8f4fd; border:2px solid #0d6efd; border-radius:12px; padding:14px; text-align:center; page-break-inside:avoid;"><div style="font-size:11px; font-weight:800; color:#0d6efd; text-transform:uppercase;">Tickets Logged</div><div style="font-size:22px; font-weight:900;">${monthTickets.length}</div></div>
@@ -603,9 +608,10 @@ function compileReportPreview() {
         <div><div style="font-size:11px; font-weight:800; text-transform:uppercase; color:#198754;">Total Inflow</div><div style="font-size:20px; font-weight:900; color:#198754;">N${formatMoney(totalInflow)}</div></div>
         <div><div style="font-size:11px; font-weight:800; text-transform:uppercase; color:#dc3545;">Total Outflow</div><div style="font-size:20px; font-weight:900; color:#dc3545;">N${formatMoney(totalOutflow)}</div></div>
       </div>
+      <div style="font-size:12px; font-weight:800; margin-top:10px;">Cash Expenses Deducted: N${formatMoney(cashExp)}</div>
       <div style="border-top:1px solid #adb5bd; margin-top:10px; padding-top:10px;">
         <div style="font-size:11px; font-weight:800; text-transform:uppercase;">Net Position</div>
-        <div style="font-size:24px; font-weight:900; color:${totalInflow - totalOutflow >= 0 ? "#198754" : "#dc3545"};">${totalInflow - totalOutflow >= 0 ? "" : "-"}N${formatMoney(Math.abs(totalInflow - totalOutflow))}</div>
+        <div style="font-size:24px; font-weight:900; color:${netPosition >= 0 ? "#198754" : "#dc3545"};">${netPosition >= 0 ? "" : "-"}N${formatMoney(Math.abs(netPosition))}</div>
       </div>
     </div>`;
 
@@ -985,7 +991,6 @@ function generateComprehensiveFinancialLedger() {
     if (d < startDate || d > endDate) return;
     const amt = parseFloat(c.amount || c.Amount || 0);
     cashExpenses += amt;
-    totalOutflow += amt;
     cashExpenseRows.push({
       id: c.cashId || c.CashId,
       date: c.date || c.Date,
@@ -995,7 +1000,7 @@ function generateComprehensiveFinancialLedger() {
     });
   });
 
-  const netPosition = totalInflow - totalOutflow;
+  const netPosition = totalInflow - totalOutflow - cashExpenses;
   const netColor = netPosition >= 0 ? "#198754" : "#dc3545";
 
   let out = `<div style="font-family:'Helvetica','Inter',sans-serif; color:#000; background:#fff; box-sizing:border-box; width:100%; max-width:900px; margin:0 auto; padding:0; line-height:1.4;">`;
