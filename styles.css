@@ -688,6 +688,7 @@ textarea:disabled {
 /* Print & PDF */
 @media print {
   .app,
+  .desktop-app,
   .modal-overlay,
   #sync-status,
   #toast-container,

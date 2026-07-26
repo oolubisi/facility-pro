@@ -511,13 +511,17 @@ function printSingleCashExpenseDirect(cashId) {
   );
 }
 
-function printSinglePaymentDirect(paymentId) {
+// Builds the printable HTML for a single payment record.
+// Returns { html, documentTitle, orderItem } or null if the payment can't be found.
+// Shared by printSinglePaymentDirect (PDF/share pipeline) and
+// printSinglePaymentSystem (native window.print() pipeline).
+function buildPaymentDocumentHtml(paymentId, includeDisbursement = true) {
   const orderItem = cache.payments.find(
     (p) => p && String(p.paymentId || p.PaymentId) === paymentId,
   );
   if (!orderItem) {
     showToast("Payment not found", "error");
-    return;
+    return null;
   }
   const isOutflow = orderItem.direction === "OUTFLOW";
   const documentTitle = isOutflow
@@ -569,22 +573,8 @@ function printSinglePaymentDirect(paymentId) {
   // printed amount reflects the current stage selection even on older records,
   // and falls back to 0.00 if no stage is selected or the label doesn't match
   // any row in the schedule.
-  const selectedStageLabel =
-    orderItem.paymentRequest || orderItem.PaymentRequest || "";
-  const matchedStage = selectedStageLabel
-    ? parsedStages.find(
-        (s) =>
-          String(s.label).trim().toLowerCase() ===
-          String(selectedStageLabel).trim().toLowerCase(),
-      )
-    : null;
-  const disbursementAmount = matchedStage
-    ? parseFloat(matchedStage.amount) || 0
-    : 0;
-
-  const showPaymentRequest =
-    orderItem.showPaymentRequest !== false &&
-    orderItem.ShowPaymentRequest !== false;
+  const disbursement = getDisbursementDetails(orderItem, parsedStages, partyLabel);
+  const { selectedStageLabel, disbursementAmount, showPaymentRequest } = disbursement;
 
   let finalLayoutHtml = `<div style="width:100%; padding:0; font-family:'Inter', sans-serif; color:#000; background:#fff; box-sizing:border-box;">
     <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:15px;">
@@ -600,9 +590,39 @@ function printSinglePaymentDirect(paymentId) {
       <tr><th style="padding:10px; border:1px solid #000; background:#f9f9f9;">Amount in Words</th><td style="padding:10px; border:1px solid #000; font-style:italic;"><strong>${convertAmountToWords(orderItem.amount || orderItem.Amount)}</strong></td></tr>
     </table>
     ${stagesHtml}
-    ${
-      showPaymentRequest
-        ? `<div style="border:2px dashed #000; padding:20px; margin-top:25px; background:#fafafa; border-radius:8px; page-break-inside:avoid; page-break-before:auto;">
+    ${showPaymentRequest && includeDisbursement ? renderDisbursementBoxHtml(orderItem, disbursement) : ""}
+  </div>`;
+
+  return { html: finalLayoutHtml, documentTitle, orderItem };
+}
+
+// Computes the selected stage / disbursement amount / party label for a payment.
+// Shared by the single-record layout and the bulk "Print Pending PRs" view.
+function getDisbursementDetails(orderItem, parsedStages, partyLabel) {
+  const selectedStageLabel =
+    orderItem.paymentRequest || orderItem.PaymentRequest || "";
+  const matchedStage = selectedStageLabel
+    ? (parsedStages || []).find(
+        (s) =>
+          String(s.label).trim().toLowerCase() ===
+          String(selectedStageLabel).trim().toLowerCase(),
+      )
+    : null;
+  const disbursementAmount = matchedStage
+    ? parseFloat(matchedStage.amount) || 0
+    : 0;
+  const showPaymentRequest =
+    orderItem.showPaymentRequest !== false &&
+    orderItem.ShowPaymentRequest !== false;
+
+  return { selectedStageLabel, disbursementAmount, partyLabel, showPaymentRequest };
+}
+
+// Renders the dashed "Disbursement Details" box. Shared by the single-record
+// layout and the bulk "Print Pending PRs" view.
+function renderDisbursementBoxHtml(orderItem, disbursement) {
+  const { selectedStageLabel, disbursementAmount, partyLabel } = disbursement;
+  return `<div style="border:2px dashed #000; padding:20px; margin-top:25px; background:#fafafa; border-radius:8px; page-break-inside:avoid; page-break-before:auto;">
       <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:15px; border-bottom:1px solid #ccc; padding-bottom:5px;">
         <h4 style="margin:0; text-transform:uppercase; font-size:14px; color:#444;">Disbursement Details</h4>
         <span style="font-weight:900; font-size:21px; text-align:right; color:#000;">${escapeHtml(selectedStageLabel || "Not Selected")}</span>
@@ -612,10 +632,14 @@ function printSinglePaymentDirect(paymentId) {
         <div style="width:30%;"><small style="color:#666; font-weight:700; font-size:12px; display:block; text-transform:uppercase;">Bank Account</small><strong>${orderItem.account || orderItem.Account ? String(orderItem.account || orderItem.Account).padStart(10, "0") : "N/A"}</strong><br><span style="font-size:14px; color:#555;">${escapeHtml(orderItem.bank || orderItem.Bank || "")}</span></div>
         <div style="width:35%; text-align:right;"><small style="color:#666; font-weight:700; font-size:12px; display:block; text-transform:uppercase; margin-bottom:4px;">Amount</small><span style="font-size:30px; font-weight:900; color:#000; display:block; line-height:1;">₦${formatMoney(disbursementAmount)}</span></div>
       </div>
-    </div>`
-        : ""
-    }
-  </div>`;
+    </div>`;
+}
+
+function printSinglePaymentDirect(paymentId) {
+  const built = buildPaymentDocumentHtml(paymentId);
+  if (!built) return;
+  const { orderItem, documentTitle } = built;
+  let finalLayoutHtml = built.html;
 
   let combinedAttachments =
     orderItem.attachments || orderItem.Attachments
@@ -660,6 +684,111 @@ function printSinglePaymentDirect(paymentId) {
     orderItem.paymentId || orderItem.PaymentId,
     false,
   );
+}
+
+// ─────────────────────────────────────────────
+// § SYSTEM (NATIVE) PRINT — used by the desktop app, bypasses the
+// mobile PDF-generation/share pipeline and just opens the OS print dialog.
+// ─────────────────────────────────────────────
+function printSinglePaymentSystem(paymentId) {
+  const built = buildPaymentDocumentHtml(paymentId);
+  if (!built) return;
+
+  const container = document.getElementById("report-print-container");
+  if (!container) {
+    showToast("Print container not found on this page.", "error");
+    return;
+  }
+
+  container.innerHTML = built.html;
+  const originalTitle = document.title;
+  document.title = `${built.documentTitle} - ${paymentId}`;
+  showToast(`Sending ${paymentId} to printer...`, "info", 2500);
+  window.print();
+  setTimeout(() => {
+    document.title = originalTitle;
+  }, 1000);
+}
+
+// Prints only the "Disbursement Details" (Payment Request) section for every
+// pending (unpaid) payment that has "Show PR" enabled — used by the desktop
+// Accounts view's "Print Pending PRs" button.
+function printAllPendingPaymentRequests() {
+  const pending = (cache.payments || []).filter((p) => {
+    if (!p) return false;
+    const isPaid =
+      String(p.isPaid || p.IsPaid || "").toUpperCase() === "TRUE" || p.isPaid === true;
+    const showPaymentRequest = p.showPaymentRequest !== false && p.ShowPaymentRequest !== false;
+    return !isPaid && showPaymentRequest;
+  });
+
+  if (pending.length === 0) {
+    showToast("No pending payment requests to print.", "warning");
+    return;
+  }
+
+  const boxesHtml = pending
+    .map((orderItem) => {
+      const isOutflow = orderItem.direction === "OUTFLOW";
+      const partyLabel = isOutflow ? "Payee / Vendor" : "Received From";
+      let parsedStages = [];
+      if (orderItem.stages || orderItem.Stages) {
+        try {
+          parsedStages = JSON.parse(orderItem.stages || orderItem.Stages);
+        } catch (e) {
+          parsedStages = [];
+        }
+      }
+      const disbursement = getDisbursementDetails(orderItem, parsedStages, partyLabel);
+      const idLine = `<div style="font-size:12px; font-weight:800; color:#666; margin:18px 0 4px;">${escapeHtml(orderItem.paymentId || orderItem.PaymentId || "")}</div>`;
+      return idLine + renderDisbursementBoxHtml(orderItem, disbursement);
+    })
+    .join("");
+
+  const html = `<div style="width:100%; padding:0; font-family:'Inter', sans-serif; color:#000; background:#fff; box-sizing:border-box;">
+    <h3 style="text-transform:uppercase; margin:0 0 10px; font-size:16px; font-weight:900;">Pending Payment Requests</h3>
+    <div style="font-size:12px; font-weight:700; color:#555; margin-bottom:10px;">${pending.length} pending request${pending.length === 1 ? "" : "s"}</div>
+    ${boxesHtml}
+  </div>`;
+
+  const voucherPairs = [];
+  for (let i = 0; i < pending.length; i += 2) {
+    voucherPairs.push(pending.slice(i, i + 2));
+  }
+
+  const vouchersHtml = voucherPairs
+    .map((pair) => {
+      const pageContent = pair
+        .map((orderItem, idx) => {
+          const built = buildPaymentDocumentHtml(orderItem.paymentId || orderItem.PaymentId, false);
+          if (!built) return "";
+          const spacer =
+            idx === 0 && pair.length > 1
+              ? `<div style="height:22px; border-bottom:2px dashed #ccc; margin-bottom:22px;"></div>`
+              : "";
+          return built.html + spacer;
+        })
+        .join("");
+      return `<div style="page-break-before:always; break-before:page; page-break-inside:avoid;">${pageContent}</div>`;
+    })
+    .join("");
+
+  const combinedHtml = html + vouchersHtml;
+
+  const container = document.getElementById("report-print-container");
+  if (!container) {
+    showToast("Print container not found on this page.", "error");
+    return;
+  }
+
+  container.innerHTML = combinedHtml;
+  const originalTitle = document.title;
+  document.title = "Pending_Payment_Requests";
+  showToast(`Sending ${pending.length} pending payment request${pending.length === 1 ? "" : "s"} to printer...`, "info", 2500);
+  window.print();
+  setTimeout(() => {
+    document.title = originalTitle;
+  }, 1000);
 }
 
 // ─────────────────────────────────────────────

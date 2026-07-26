@@ -13,10 +13,23 @@ window.onload = async () => {
     navigator.serviceWorker.register("./sw.js").catch(console.error);
   window.addEventListener("online", processSyncQueue);
   if (navigator.onLine) processSyncQueue();
-  await loadApplicationSettingsData();
-  await bootstrapDataRegistriesPipeline();
+
+  // Paint instantly from the last successful load before touching the
+  // network, so the UI never sits blank/blocked behind a spinner if we
+  // already have data on disk.
+  const hadCache = hydrateCacheFromLocalBackup();
+  if (hadCache) {
+    if (cache.apts) sortApartmentsCacheList();
+    applySettingsToUIHeaders();
+    updateDashboardCounters();
+    evalPreventiveMaintenanceAlerts();
+    prepopulateStaticFilterSelectors();
+  }
+
   setupKeyboardHandlers();
   setupPullToRefresh();
+
+  await Promise.all([loadApplicationSettingsData(), bootstrapDataRegistriesPipeline(hadCache)]);
 };
 
 function generateNextId(prefix, list, idKey) {
@@ -144,62 +157,32 @@ function syncSettingsInputsToUIFields() {
   });
 }
 
-async function bootstrapDataRegistriesPipeline() {
-  setGlobalLoading(true, "Loading data...");
-  const actions = [
-    "getApartments",
-    "getAssets",
-    "getMaintenance",
-    "getStaff",
-    "getVendors",
-    "getUtilities",
-    "getWorkOrders",
-    "getInventory",
-    "getPayments",
-    "getExpenseRequests",
-    "getCashExpenses",
-  ];
-  const keys = [
-    "apts",
-    "assets",
-    "tickets",
-    "staff",
-    "vendors",
-    "utilities",
-    "workorders",
-    "inventory",
-    "payments",
-    "expenseRequests",
-    "cashExpenses",
-  ];
+async function bootstrapDataRegistriesPipeline(silent = false) {
+  const syncStatus = document.getElementById("sync-status");
+  if (silent) {
+    if (syncStatus) syncStatus.style.display = "block";
+  } else {
+    setGlobalLoading(true, "Loading data...");
+  }
   try {
-    const results = await Promise.all(
-      actions.map(async (act) => {
-        try {
-          return await callApi(act, {});
-        } catch (e) {
-          return [];
-        }
-      }),
-    );
-    results.forEach((res, i) => {
-      if (res && res.status !== "queued" && Array.isArray(res))
-        cache[keys[i]] = res;
-    });
+    const ok = await loadAllDataFromServer();
     if (cache.utilities)
       cache.utilities.forEach((u, i) => {
         if (u && !u.rowId && !u.id) u._tempId = "UTIL-" + i;
       });
     if (cache.apts) sortApartmentsCacheList();
+    applySettingsToUIHeaders();
     updateDashboardCounters();
     evalPreventiveMaintenanceAlerts();
     prepopulateStaticFilterSelectors();
-    showToast("Data loaded successfully", "success", 2000);
+    if (ok) showToast(silent ? "Data refreshed" : "Data loaded successfully", "success", 2000);
+    else if (!silent) showToast("Some data could not be loaded", "warning");
   } catch (e) {
     console.error("Pipeline error:", e);
-    showToast("Some data could not be loaded", "warning");
+    if (!silent) showToast("Some data could not be loaded", "warning");
   } finally {
     setGlobalLoading(false);
+    if (syncStatus) syncStatus.style.display = "none";
   }
 }
 

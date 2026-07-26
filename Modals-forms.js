@@ -514,17 +514,24 @@ async function openModal(type, editData = null) {
       isEdit ? editData.stages || editData.Stages || null : null,
     );
 
-    // Build party datalist: Apartments (unit numbers) + Vendors only
-    let partyOpts = "";
+    // Build party datalists, direction-specific:
+    // INFLOW -> Apartments (tenants) only
+    // OUTFLOW -> Vendors + Staff only
+    let inflowPartyOpts = "";
     (cache.apts || []).forEach((a) => {
       const uNum = getUnitNumber(a);
       if (uNum && String(a.type || "").toLowerCase() !== "services") {
         const label = `Unit ${uNum}${a.tenant ? " - " + a.tenant : ""}`;
-        partyOpts += `<option value="${escapeHtml(label)}">`;
+        inflowPartyOpts += `<option value="${escapeHtml(label)}">`;
       }
     });
+    let outflowPartyOpts = "";
     (cache.vendors || []).forEach((v) => {
-      if (v?.company) partyOpts += `<option value="${escapeHtml(v.company)}">`;
+      if (v?.company) outflowPartyOpts += `<option value="${escapeHtml(v.company)}">`;
+    });
+    (cache.staff || []).forEach((s) => {
+      const sName = s?.name || s?.Name;
+      if (sName) outflowPartyOpts += `<option value="${escapeHtml(sName)}">`;
     });
 
     // Build reference options
@@ -574,7 +581,7 @@ async function openModal(type, editData = null) {
 
       <label ${lbl}>Party / Payer / Payee</label>
       <input list="party_list" id="p_party" value="${isEdit ? escapeHtml(editData.party || editData.Party || "") : ""}" placeholder="Type or select..." ${ls} ${dis}>
-      <datalist id="party_list">${partyOpts}</datalist>
+      <datalist id="party_list"></datalist>
 
       <label ${lbl}>Bank Name</label>
       <input list="bank_list" id="p_bank" type="text" value="${isEdit ? escapeHtml(editData.bank || editData.Bank || "") : ""}" placeholder="e.g. GTBank, Zenith" ${ls} ${dis}>
@@ -638,8 +645,10 @@ async function openModal(type, editData = null) {
     // Wire reference dropdown
     const pDir = document.getElementById("p_direction");
     const pRef = document.getElementById("p_reference");
+    const pPartyList = document.getElementById("party_list");
     const updateRefDropdown = () => {
       pRef.innerHTML = pDir.value === "INFLOW" ? inflowRefOpts : outflowRefOpts;
+      pPartyList.innerHTML = pDir.value === "INFLOW" ? inflowPartyOpts : outflowPartyOpts;
     };
     pDir.addEventListener("change", updateRefDropdown);
     updateRefDropdown();

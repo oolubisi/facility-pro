@@ -37,6 +37,7 @@ const sanitizeInput = (str) => {
 // § UX UTILITIES
 // ─────────────────────────────────────────────
 function showToast(message, type = "info", duration = 3000) {
+  updateStatusBarMessage(message, type, duration);
   const container = document.getElementById("toast-container");
   if (!container) return;
   const icons = {
@@ -255,6 +256,62 @@ function extractDriveFileId(url) {
 }
 
 // ─────────────────────────────────────────────
+// § STATUS BAR (desktop app footer)
+// Safe no-op if the markup isn't present (e.g. on mobile), so these can
+// be called from shared code (showToast, callApi, etc.) unconditionally.
+// ─────────────────────────────────────────────
+let statusBarMessageTimer = null;
+
+function updateStatusBarMessage(message, type = "info", duration = 4000) {
+  const bar = document.getElementById("statusbar-message");
+  const text = document.getElementById("statusbar-message-text");
+  if (!bar || !text) return;
+  bar.classList.remove("success", "error", "warning", "info");
+  bar.classList.add(type);
+  text.textContent = message;
+  clearTimeout(statusBarMessageTimer);
+  statusBarMessageTimer = setTimeout(() => {
+    bar.classList.remove("success", "error", "warning", "info");
+    text.textContent = "Ready";
+  }, duration);
+}
+
+function updateStatusBarConnection() {
+  const wrap = document.getElementById("statusbar-connection");
+  const text = document.getElementById("statusbar-connection-text");
+  if (!wrap || !text) return;
+  const online = navigator.onLine;
+  wrap.classList.toggle("offline", !online);
+  text.textContent = online ? "Online" : "Offline";
+}
+
+function updateStatusBarSync() {
+  const text = document.getElementById("statusbar-sync-text");
+  const icon = document.querySelector("#statusbar-sync i");
+  if (!text) return;
+  let queue = [];
+  try {
+    queue = JSON.parse(localStorage.getItem("facility_pro_sync_queue") || "[]");
+  } catch (e) {}
+  if (queue.length > 0) {
+    text.textContent = `${queue.length} change${queue.length === 1 ? "" : "s"} pending sync`;
+    if (icon) icon.className = "fas fa-rotate";
+  } else {
+    text.textContent = "All changes synced";
+    if (icon) icon.className = "fas fa-check-circle";
+  }
+}
+
+if (typeof window !== "undefined") {
+  window.addEventListener("online", updateStatusBarConnection);
+  window.addEventListener("offline", updateStatusBarConnection);
+  window.addEventListener("DOMContentLoaded", () => {
+    updateStatusBarConnection();
+    updateStatusBarSync();
+  });
+}
+
+// ─────────────────────────────────────────────
 // § API LAYER
 // ─────────────────────────────────────────────
 async function callApi(action, data = {}) {
@@ -317,6 +374,7 @@ async function callApi(action, data = {}) {
     localStorage.setItem("facility_pro_sync_queue", JSON.stringify(queue));
     const syncStatus = document.getElementById("sync-status");
     if (syncStatus) syncStatus.style.display = "block";
+    updateStatusBarSync();
     showToast("Saved locally. Will sync when online.", "warning");
     return { status: "queued" };
   }
@@ -329,6 +387,7 @@ async function processSyncQueue() {
   if (queue.length === 0) return;
   const syncStatus = document.getElementById("sync-status");
   if (syncStatus) syncStatus.style.display = "block";
+  updateStatusBarSync();
 
   const remaining = [];
   for (const item of queue) {
@@ -345,6 +404,7 @@ async function processSyncQueue() {
   }
 
   localStorage.setItem("facility_pro_sync_queue", JSON.stringify(remaining));
+  updateStatusBarSync();
   if (remaining.length === 0) {
     if (syncStatus) syncStatus.style.display = "none";
     showToast("All changes synced!", "success");
@@ -382,3 +442,90 @@ let appSettings = {
   logoUrl: "",
   mainFolder: "FacilityPro_Attachments",
 };
+
+// ─────────────────────────────────────────────
+// § UNIFIED DATA LOADING
+// Loads every registry in a single round-trip (getAllData) instead of
+// ~11 separate parallel requests — Apps Script serializes concurrent
+// executions against the same deployment, so many "parallel" calls end
+// up queued server-side. One combined call is significantly faster.
+//
+// Also supports instant "cached-first" painting: on boot, hydrate `cache`
+// synchronously from the last successful local backup before the network
+// call even starts, so the UI can render real (if slightly stale) data
+// immediately instead of sitting behind a blocking loader.
+// ─────────────────────────────────────────────
+const CACHE_TO_PAYLOAD_KEY_MAP = {
+  apts: "apartments",
+  assets: "assets",
+  tickets: "maintenance",
+  workorders: "workOrders",
+  inventory: "inventory",
+  staff: "staff",
+  vendors: "vendors",
+  utilities: "utilities",
+  payments: "payments",
+  expenseRequests: "expenseRequests",
+  cashExpenses: "cashExpenses",
+};
+
+function applyAllDataPayload(payload) {
+  if (!payload || typeof payload !== "object") return false;
+  let applied = false;
+  Object.entries(CACHE_TO_PAYLOAD_KEY_MAP).forEach(([cacheKey, payloadKey]) => {
+    if (Array.isArray(payload[payloadKey])) {
+      cache[cacheKey] = payload[payloadKey];
+      applied = true;
+    }
+  });
+  if (payload.settings && typeof payload.settings === "object") {
+    appSettings = { ...appSettings, ...payload.settings };
+  }
+  return applied;
+}
+
+// Synchronous, no network: paints instantly from whatever was saved
+// locally on the last successful load. Falls back to legacy per-action
+// backups (from before the single-request getAllData migration) so
+// existing users still get an instant paint on their first load after
+// updating.
+function hydrateCacheFromLocalBackup() {
+  try {
+    const combined = localStorage.getItem("facility_pro_backup_getAllData");
+    if (combined && applyAllDataPayload(JSON.parse(combined))) return true;
+  } catch (e) {}
+
+  const legacyActionMap = {
+    apts: "getApartments",
+    assets: "getAssets",
+    tickets: "getMaintenance",
+    workorders: "getWorkOrders",
+    inventory: "getInventory",
+    staff: "getStaff",
+    vendors: "getVendors",
+    utilities: "getUtilities",
+    payments: "getPayments",
+    expenseRequests: "getExpenseRequests",
+    cashExpenses: "getCashExpenses",
+  };
+  let applied = false;
+  Object.entries(legacyActionMap).forEach(([cacheKey, action]) => {
+    try {
+      const raw = localStorage.getItem("facility_pro_backup_" + action);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          cache[cacheKey] = parsed;
+          applied = true;
+        }
+      }
+    } catch (e) {}
+  });
+  return applied;
+}
+
+// Single network round-trip that refreshes every registry at once.
+async function loadAllDataFromServer() {
+  const result = await callApi("getAllData", {});
+  return applyAllDataPayload(result);
+}
