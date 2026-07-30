@@ -427,6 +427,7 @@ let cache = {
   payments: [],
   expenseRequests: [],
   cashExpenses: [],
+  maintenanceLog: [],
 };
 
 let currentModalFiles = [];
@@ -467,6 +468,7 @@ const CACHE_TO_PAYLOAD_KEY_MAP = {
   payments: "payments",
   expenseRequests: "expenseRequests",
   cashExpenses: "cashExpenses",
+  maintenanceLog: "maintenanceLog",
 };
 
 function applyAllDataPayload(payload) {

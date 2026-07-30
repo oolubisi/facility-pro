@@ -191,9 +191,12 @@ function wireDesktopEvents() {
     button.addEventListener("click", () => setDesktopView(button.dataset.view));
   });
 
-  document.getElementById("global-search").addEventListener("input", (event) => {
-    desktopState.query = event.target.value.trim().toLowerCase();
+  const debouncedSearch = debounce((value) => {
+    desktopState.query = value.trim().toLowerCase();
     renderDesktop();
+  }, 200);
+  document.getElementById("global-search").addEventListener("input", (event) => {
+    debouncedSearch(event.target.value);
   });
 
   document.getElementById("refresh-now").addEventListener("click", loadAndRender);
@@ -267,6 +270,7 @@ function renderDesktop() {
   document.getElementById("section-title").textContent = meta.title;
   document.getElementById("section-kicker").textContent = meta.kicker;
   updateMetrics();
+  renderOverdueDigest();
 
   const prButton = document.getElementById("print-pending-prs");
   if (prButton) prButton.style.display = desktopState.view === "accounts" ? "inline-flex" : "none";
@@ -275,6 +279,7 @@ function renderDesktop() {
   if (desktopState.view === "settings") return renderSettingsShortcuts();
 
   const records = sortRecords(desktopState.view, filterRecords(cache[meta.key] || []));
+  desktopState.lastRecords = records;
   document.getElementById("record-count").textContent = `${records.length} ${records.length === 1 ? "record" : "records"}`;
   const sectionedConfig = sectionedViewConfig[desktopState.view];
   document.getElementById("card-grid").innerHTML = records.length
@@ -303,6 +308,57 @@ function isMaintenanceDueSoon(item) {
   const weekOut = new Date(startOfToday());
   weekOut.setDate(weekOut.getDate() + 7);
   return nextDate <= weekOut;
+}
+
+// § OVERDUE / DUE-SOON DIGEST
+// A glanceable summary of what needs attention right now, shown above the
+// dashboard metrics regardless of which view is currently open. Clicking a
+// pill jumps straight to that view (whose first section already surfaces
+// the relevant records, per sectionedViewConfig).
+// ─────────────────────────────────────────────
+function renderOverdueDigest() {
+  const banner = document.getElementById("overdue-digest");
+  if (!banner) return;
+
+  const dueAssets = (cache.assets || []).filter(
+    (a) => a && (String(a.status || a.Status || "") === "Faulty" || isMaintenanceDueSoon(a)),
+  ).length;
+  const pendingWO = (cache.workorders || []).filter(
+    (w) => w && String(w.status || w.Status || "") === "Pending Approval",
+  ).length;
+  const openTickets = (cache.tickets || []).filter(
+    (t) => t && String(t.status || t.Status || "") !== "Resolved",
+  ).length;
+
+  const items = [
+    dueAssets
+      ? { count: dueAssets, label: `asset${dueAssets === 1 ? "" : "s"} need attention`, view: "assets" }
+      : null,
+    pendingWO
+      ? { count: pendingWO, label: `work order${pendingWO === 1 ? "" : "s"} pending approval`, view: "workorders" }
+      : null,
+    openTickets
+      ? { count: openTickets, label: `ticket${openTickets === 1 ? "" : "s"} open`, view: "tickets" }
+      : null,
+  ].filter(Boolean);
+
+  if (items.length === 0) {
+    banner.hidden = true;
+    banner.innerHTML = "";
+    return;
+  }
+
+  banner.hidden = false;
+  banner.innerHTML = items
+    .map(
+      (item) =>
+        `<button class="digest-pill" data-view="${item.view}"><strong>${item.count}</strong> ${escapeHtml(item.label)}</button>`,
+    )
+    .join("");
+
+  banner.querySelectorAll(".digest-pill").forEach((pill) => {
+    pill.addEventListener("click", () => setDesktopView(pill.dataset.view));
+  });
 }
 
 const sectionedViewConfig = {
@@ -454,11 +510,12 @@ function renderRecordCard(view, item, index) {
   if (view === "accounts") return renderPaymentCard(item, index);
   const model = getCardModel(view, item);
   return `
-    <button class="record-card ${model.tone}" data-index="${index}">
+    <div class="record-card generic-card ${model.tone}" data-index="${index}" style="cursor:pointer; position:relative;">
+      <button class="card-popout-btn" title="Open in new window" onclick="event.stopPropagation(); openRecordInNewWindow('${view}', ${index})"><i class="fas fa-up-right-from-square"></i></button>
       <h2>${escapeHtml(model.title)}</h2>
       <p>${escapeHtml(model.subtitle)}</p>
       <small>${escapeHtml(model.meta)}</small>
-    </button>
+    </div>
   `;
 }
 
@@ -477,6 +534,7 @@ function renderPaymentCard(item, index) {
           <small>${escapeHtml(model.meta)}</small>
         </div>
         <div style="display:flex; flex-direction:column; align-items:flex-end; gap:8px;">
+          <button class="card-popout-btn" style="position:static;" title="Open in new window" onclick="event.stopPropagation(); openRecordInNewWindow('accounts', ${index})"><i class="fas fa-up-right-from-square"></i></button>
           <label style="display:flex; align-items:center; gap:4px; background:#f8f9fa; border:2px solid var(--line); padding:4px 8px; border-radius:6px; cursor:pointer; font-size:11px; font-weight:700; color:#333; white-space:nowrap;" onclick="event.stopPropagation(); togglePaymentRequestVisibility('${paymentId}', this)">
             <input type="checkbox" ${showPaymentRequest ? "checked" : ""} style="width:32px; height:16px; margin:0; pointer-events:none;">
             <span>Show PR</span>
@@ -710,6 +768,32 @@ function labelize(key) {
     .replace(/([A-Z])/g, " $1")
     .replace(/[_-]/g, " ")
     .trim();
+}
+
+// § MULTI-WINDOW SUPPORT
+// Opens a small, independent read-only window with a snapshot of the
+// record's fields via the Electron bridge exposed in preload.js. This is
+// a point-in-time snapshot, not a live view — intended for quick
+// side-by-side reference, not for editing.
+function openRecordInNewWindow(view, index) {
+  const item = (desktopState.lastRecords || [])[index];
+  if (!item) return;
+
+  if (!window.desktopBridge || typeof window.desktopBridge.openRecordWindow !== "function") {
+    showToast("Multi-window is only available in the desktop app.", "warning");
+    return;
+  }
+
+  const model = getCardModel(view, item);
+  const rowsHtml = Object.entries(item || {})
+    .filter(([, value]) => value !== "" && value !== null && value !== undefined)
+    .map(
+      ([key, value]) =>
+        `<div class="row"><span>${escapeHtml(labelize(key))}</span><strong>${escapeHtml(String(value))}</strong></div>`,
+    )
+    .join("");
+
+  window.desktopBridge.openRecordWindow(model.title, rowsHtml);
 }
 
 function setText(id, value) {

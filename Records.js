@@ -157,7 +157,45 @@ function refreshData(p) {
   const isMaint = p === "maintenance" || p === "maint";
 
   if (p === "archived") {
-    setGlobalLoading(true, "Loading archive...");
+    const hasArchiveCache =
+      (cache.assets && cache.assets.length) ||
+      (cache.staff && cache.staff.length) ||
+      (cache.vendors && cache.vendors.length) ||
+      (cache.inventory && cache.inventory.length);
+
+    const renderArchived = () => {
+      renderArchiveBinDashboardView(listEl);
+      const emptyEl = document.getElementById("archived-empty");
+      if (emptyEl) {
+        const hasAny =
+          (cache.assets || []).some(
+            (a) =>
+              a &&
+              (String(a.status || a.Status || "") === "Archived" ||
+                String(a.archived || a.Archived || "") === "Yes"),
+          ) ||
+          (cache.staff || []).some(
+            (s) => s && String(s.archived || s.Archived || "") === "Yes",
+          ) ||
+          (cache.vendors || []).some(
+            (v) => v && String(v.archived || v.Archived || "") === "Yes",
+          ) ||
+          (cache.inventory || []).some(
+            (i) => i && String(i.archived || i.Archived || "") === "Yes",
+          );
+        emptyEl.style.display = hasAny ? "none" : "block";
+      }
+    };
+
+    // Cache (populated by the boot-time getAllData load) already has this
+    // data — paint instantly and only show the blocking loader if we
+    // genuinely have nothing to show yet.
+    if (hasArchiveCache) {
+      renderArchived();
+    } else {
+      setGlobalLoading(true, "Loading archive...");
+    }
+
     Promise.all([
       callApi("getAssets", {}),
       callApi("getStaff", {}),
@@ -169,31 +207,11 @@ function refreshData(p) {
         if (Array.isArray(staff)) cache.staff = staff;
         if (Array.isArray(vendors)) cache.vendors = vendors;
         if (Array.isArray(inventory)) cache.inventory = inventory;
-        renderArchiveBinDashboardView(listEl);
-        const emptyEl = document.getElementById("archived-empty");
-        if (emptyEl) {
-          const hasAny =
-            (cache.assets || []).some(
-              (a) =>
-                a &&
-                (String(a.status || a.Status || "") === "Archived" ||
-                  String(a.archived || a.Archived || "") === "Yes"),
-            ) ||
-            (cache.staff || []).some(
-              (s) => s && String(s.archived || s.Archived || "") === "Yes",
-            ) ||
-            (cache.vendors || []).some(
-              (v) => v && String(v.archived || v.Archived || "") === "Yes",
-            ) ||
-            (cache.inventory || []).some(
-              (i) => i && String(i.archived || i.Archived || "") === "Yes",
-            );
-          emptyEl.style.display = hasAny ? "none" : "block";
-        }
+        renderArchived();
         setGlobalLoading(false);
       })
       .catch(() => {
-        showToast("Failed to load archive", "error");
+        if (!hasArchiveCache) showToast("Failed to load archive", "error");
         setGlobalLoading(false);
       });
     return;
@@ -212,118 +230,153 @@ function refreshData(p) {
   };
   const apiCmd = isMaint ? "getMaintenance" : apiCmdMap[p] || "getApartments";
 
-  setGlobalLoading(true, `Loading ${p}...`);
+  const cacheKeyMap = {
+    apartments: "apts",
+    serviceunits: "apts",
+    assets: "assets",
+    maintenance: "tickets",
+    maint: "tickets",
+    utilities: "utilities",
+    staff: "staff",
+    vendors: "vendors",
+    workorders: "workorders",
+    inventory: "inventory",
+    payments: "payments",
+    expenserequests: "expenseRequests",
+    cashexpenses: "cashExpenses",
+  };
+  const cacheKey = cacheKeyMap[p] || "apts";
+  const hasCache = Array.isArray(cache[cacheKey]) && cache[cacheKey].length > 0;
+
+  // Captured once so the overdue deep-link filter applies consistently to
+  // both the instant cache-paint render and the follow-up network render,
+  // instead of being consumed by whichever render happens to run first.
+  const overdueFilterRequested = window.pendingAssetFilter === "overdue";
+  if (overdueFilterRequested) window.pendingAssetFilter = "";
+
+  function applyDataAndRender(data) {
+    let displayData = Array.isArray(data) ? data : [];
+
+    if (p === "apartments" || p === "serviceunits") {
+      cache.apts = displayData;
+      sortApartmentsCacheList();
+      displayData = cache.apts.filter((item) => {
+        const t = String(item?.type || item?.Type || "").toLowerCase();
+        return p === "apartments" ? t !== "services" : t === "services";
+      });
+    }
+    if (p === "assets") {
+      cache.assets = displayData;
+      displayData = displayData.filter(
+        (item) =>
+          item &&
+          String(item.status || item.Status || "") !== "Archived" &&
+          String(item.archived || item.Archived || "") !== "Yes",
+      );
+      if (overdueFilterRequested) {
+        displayData = displayData.filter((item) => isAssetOverdue(item));
+      }
+    }
+    if (isMaint) cache.tickets = displayData;
+    if (p === "staff") {
+      cache.staff = displayData;
+      displayData = displayData.filter(
+        (item) =>
+          item && String(item.archived || item.Archived || "") !== "Yes",
+      );
+    }
+    if (p === "vendors") {
+      cache.vendors = displayData;
+      displayData = displayData.filter(
+        (item) =>
+          item && String(item.archived || item.Archived || "") !== "Yes",
+      );
+    }
+    if (p === "utilities") {
+      cache.utilities = displayData;
+      cache.utilities.forEach((u, i) => {
+        if (u && !u.rowId && !u.id) u._tempId = "UTIL-" + i;
+      });
+    }
+    if (p === "workorders") cache.workorders = displayData;
+    if (p === "payments") {
+      cache.payments = displayData;
+      if (!cache.cashExpenses || cache.cashExpenses.length === 0) {
+        callApi("getCashExpenses", {}).then((r) => {
+          cache.cashExpenses = Array.isArray(r) ? r : [];
+          renderTotalBalance();
+        });
+      } else {
+        renderTotalBalance();
+      }
+    }
+    if (p === "expenserequests") cache.expenseRequests = displayData;
+    if (p === "cashexpenses") {
+      cache.cashExpenses = displayData;
+      if (!cache.payments || cache.payments.length === 0) {
+        callApi("getPayments", {}).then((r) => {
+          cache.payments = Array.isArray(r) ? r : [];
+          renderTotalBalance();
+        });
+      } else {
+        renderTotalBalance();
+      }
+    }
+    if (p === "inventory") {
+      cache.inventory = displayData;
+      displayData = displayData.filter(
+        (item) =>
+          item && String(item.archived || item.Archived || "") !== "Yes",
+      );
+    }
+
+    // Apply local filters
+    if (p === "assets") {
+      const f = document.getElementById("asset-unit-filter");
+      if (f && f.value !== "ALL")
+        displayData = displayData.filter(
+          (item) => String(getUnitNumber(item)) === f.value,
+        );
+    }
+    if (isMaint) {
+      const f = document.getElementById("maint-status-filter");
+      if (f && f.value !== "ALL")
+        displayData = displayData.filter(
+          (item) => String(item.status || item.Status || "") === f.value,
+        );
+    }
+    if (p === "workorders") {
+      const f = document.getElementById("wo-status-filter");
+      if (f && f.value !== "ALL")
+        displayData = displayData.filter(
+          (item) => String(item.status || item.Status || "") === f.value,
+        );
+    }
+
+    renderList(p, listEl, displayData);
+    const emptyId = idMap[p].replace("-list", "-empty");
+    const emptyEl = document.getElementById(emptyId);
+    if (emptyEl)
+      emptyEl.style.display = displayData.length === 0 ? "block" : "none";
+  }
+
+  // Cache (populated by the boot-time getAllData load) already has this
+  // data — paint instantly and only show the blocking loader if we
+  // genuinely have nothing to show yet.
+  if (hasCache) {
+    applyDataAndRender(cache[cacheKey]);
+  } else {
+    setGlobalLoading(true, `Loading ${p}...`);
+  }
+
   callApi(apiCmd, {})
     .then((data) => {
-      let displayData = Array.isArray(data) ? data : [];
-
-      if (p === "apartments" || p === "serviceunits") {
-        cache.apts = displayData;
-        sortApartmentsCacheList();
-        displayData = cache.apts.filter((item) => {
-          const t = String(item?.type || item?.Type || "").toLowerCase();
-          return p === "apartments" ? t !== "services" : t === "services";
-        });
-      }
-      if (p === "assets") {
-        cache.assets = displayData;
-        displayData = displayData.filter(
-          (item) =>
-            item &&
-            String(item.status || item.Status || "") !== "Archived" &&
-            String(item.archived || item.Archived || "") !== "Yes",
-        );
-        if (window.pendingAssetFilter === "overdue") {
-          displayData = displayData.filter((item) => isAssetOverdue(item));
-          window.pendingAssetFilter = "";
-        }
-      }
-      if (isMaint) cache.tickets = displayData;
-      if (p === "staff") {
-        cache.staff = displayData;
-        displayData = displayData.filter(
-          (item) =>
-            item && String(item.archived || item.Archived || "") !== "Yes",
-        );
-      }
-      if (p === "vendors") {
-        cache.vendors = displayData;
-        displayData = displayData.filter(
-          (item) =>
-            item && String(item.archived || item.Archived || "") !== "Yes",
-        );
-      }
-      if (p === "utilities") {
-        cache.utilities = displayData;
-        cache.utilities.forEach((u, i) => {
-          if (u && !u.rowId && !u.id) u._tempId = "UTIL-" + i;
-        });
-      }
-      if (p === "workorders") cache.workorders = displayData;
-      if (p === "payments") {
-        cache.payments = displayData;
-        if (!cache.cashExpenses || cache.cashExpenses.length === 0) {
-          callApi("getCashExpenses", {}).then((r) => {
-            cache.cashExpenses = Array.isArray(r) ? r : [];
-            renderTotalBalance();
-          });
-        } else {
-          renderTotalBalance();
-        }
-      }
-      if (p === "expenserequests") cache.expenseRequests = displayData;
-      if (p === "cashexpenses") {
-        cache.cashExpenses = displayData;
-        if (!cache.payments || cache.payments.length === 0) {
-          callApi("getPayments", {}).then((r) => {
-            cache.payments = Array.isArray(r) ? r : [];
-            renderTotalBalance();
-          });
-        } else {
-          renderTotalBalance();
-        }
-      }
-      if (p === "inventory") {
-        cache.inventory = displayData;
-        displayData = displayData.filter(
-          (item) =>
-            item && String(item.archived || item.Archived || "") !== "Yes",
-        );
-      }
-
-      // Apply local filters
-      if (p === "assets") {
-        const f = document.getElementById("asset-unit-filter");
-        if (f && f.value !== "ALL")
-          displayData = displayData.filter(
-            (item) => String(getUnitNumber(item)) === f.value,
-          );
-      }
-      if (isMaint) {
-        const f = document.getElementById("maint-status-filter");
-        if (f && f.value !== "ALL")
-          displayData = displayData.filter(
-            (item) => String(item.status || item.Status || "") === f.value,
-          );
-      }
-      if (p === "workorders") {
-        const f = document.getElementById("wo-status-filter");
-        if (f && f.value !== "ALL")
-          displayData = displayData.filter(
-            (item) => String(item.status || item.Status || "") === f.value,
-          );
-      }
-
-      renderList(p, listEl, displayData);
-      const emptyId = idMap[p].replace("-list", "-empty");
-      const emptyEl = document.getElementById(emptyId);
-      if (emptyEl)
-        emptyEl.style.display = displayData.length === 0 ? "block" : "none";
+      applyDataAndRender(data);
       setGlobalLoading(false);
     })
     .catch((err) => {
       console.error(`Refresh error for ${p}:`, err);
-      showToast(`Failed to load ${p}`, "error");
+      if (!hasCache) showToast(`Failed to load ${p}`, "error");
       setGlobalLoading(false);
     });
 }

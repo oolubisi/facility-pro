@@ -7,6 +7,88 @@
 // Depends on: core.js, init.js, records.js, modals-core.js
 // =========================================================
 
+// § ASSET MAINTENANCE HISTORY
+// A lightweight append-only log per asset, separate from the asset's own
+// lastServiced/nextService fields — this tracks the running history of
+// what was actually done, not just the next due date.
+// ─────────────────────────────────────────────
+function renderAssetMaintenanceHistory(assetTag) {
+  const listEl = document.getElementById("assetMaintHistoryList");
+  if (!listEl) return;
+  const entries = (cache.maintenanceLog || [])
+    .filter((l) => l && String(l.assetTag || l.AssetTag || "") === String(assetTag))
+    .sort((a, b) => {
+      const da = parseToLocalDateObject(a.date || a.Date) || new Date(0);
+      const db = parseToLocalDateObject(b.date || b.Date) || new Date(0);
+      return db - da;
+    });
+
+  if (entries.length === 0) {
+    listEl.innerHTML = `<p style="color:var(--muted); font-size:14px; margin:0;">No maintenance history logged yet.</p>`;
+    return;
+  }
+
+  listEl.innerHTML = entries
+    .map((entry) => {
+      const cost = entry.cost || entry.Cost;
+      return `<div style="padding:8px 0; border-bottom:1px solid #eee;">
+        <div style="display:flex; justify-content:space-between; gap:8px;">
+          <strong style="font-size:14px;">${escapeHtml(formatDateForDisplay(entry.date || entry.Date))}</strong>
+          ${cost ? `<span style="font-size:13px; font-weight:800; color:var(--muted);">₦${escapeHtml(formatMoney(cost))}</span>` : ""}
+        </div>
+        <div style="font-size:14px; color:#333; margin-top:2px;">${escapeHtml(entry.note || entry.Note || "")}</div>
+      </div>`;
+    })
+    .join("");
+}
+
+async function addAssetMaintenanceLogEntry(assetTag) {
+  const dateEl = document.getElementById("a_log_date");
+  const noteEl = document.getElementById("a_log_note");
+  const costEl = document.getElementById("a_log_cost");
+  const btn = document.getElementById("a_log_add_btn");
+  const note = sanitizeInput(noteEl.value);
+  if (!dateEl.value || !note) {
+    showToast("Date and note are required for a log entry.", "warning");
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = "Adding...";
+  try {
+    const logId = await generateNextRecordId(
+      "MLOG",
+      "MaintenanceLog",
+      "logId",
+      cache.maintenanceLog || [],
+    );
+    const entry = {
+      logId,
+      assetTag,
+      date: toSheetDate(dateEl.value),
+      note,
+      cost: costEl.value ? parseFloat(costEl.value) || 0 : "",
+    };
+    const result = await callApi("saveMaintenanceLog", entry);
+    if (result && result.status === "error") {
+      showToast(result.message || "Could not save log entry.", "error");
+      return;
+    }
+    cache.maintenanceLog = cache.maintenanceLog || [];
+    cache.maintenanceLog.push(entry);
+    renderAssetMaintenanceHistory(assetTag);
+    noteEl.value = "";
+    costEl.value = "";
+    showToast("Maintenance log entry added", "success");
+  } catch (e) {
+    showToast("Could not save log entry.", "error");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Add Entry";
+  }
+}
+
+// ─────────────────────────────────────────────
 // § MODAL FORMS
 // ─────────────────────────────────────────────
 async function openModal(type, editData = null) {
@@ -251,12 +333,31 @@ async function openModal(type, editData = null) {
       <label ${lbl}>Notes</label><textarea id="a_notes" rows="2" ${ls}>${isEdit ? escapeHtml(editData.notes || editData.Notes) : ""}</textarea>
       <label ${lbl}>Form Attachments</label>
       <div id="assetPreviews" class="modal-preview-grid" style="display:none;"></div>
-      <label class="icon-upload-label"><i class="fas fa-paperclip"></i><input type="file" id="assetCameraInput" accept="image/*,application/pdf" style="display:none"></label>`;
+      <label class="icon-upload-label"><i class="fas fa-paperclip"></i><input type="file" id="assetCameraInput" accept="image/*,application/pdf" style="display:none"></label>
+      ${
+        isEdit
+          ? `<div style="margin-top:18px; padding-top:14px; border-top:2px dashed var(--border);">
+        <label ${lbl}>Maintenance History</label>
+        <div id="assetMaintHistoryList" style="max-height:220px; overflow-y:auto; margin-bottom:10px;"></div>
+        <div style="display:flex; gap:6px; flex-wrap:wrap; align-items:flex-end;">
+          <div style="flex:1; min-width:130px;"><label style="font-size:12px; font-weight:800; margin:0 0 2px;">Date</label><input id="a_log_date" type="date" value="${new Date().toISOString().split("T")[0]}" style="margin:0; font-size:15px; padding:8px;"></div>
+          <div style="flex:2; min-width:160px;"><label style="font-size:12px; font-weight:800; margin:0 0 2px;">Note</label><input id="a_log_note" type="text" placeholder="e.g. Replaced compressor belt" style="margin:0; font-size:15px; padding:8px;"></div>
+          <div style="flex:1; min-width:90px;"><label style="font-size:12px; font-weight:800; margin:0 0 2px;">Cost (₦)</label><input id="a_log_cost" type="number" placeholder="Optional" style="margin:0; font-size:15px; padding:8px;"></div>
+          <button id="a_log_add_btn" type="button" style="background:var(--primary); color:#fff; border:0; border-radius:8px; padding:9px 14px; font-weight:800; cursor:pointer; white-space:nowrap;">Add Entry</button>
+        </div>
+      </div>`
+          : ""
+      }`;
     populateUnitDropdown("a_apt", isEdit ? getUnitNumber(editData) : "");
     if (isEdit && currentModalFiles.length > 0)
       populateModalInlineImageGalleryPreviews("assetPreviews");
     document.getElementById("assetCameraInput").onchange = (e) =>
       processIncomingMultiAttachments(e.target.files, "assetPreviews");
+    if (isEdit) {
+      renderAssetMaintenanceHistory(uniqueTag);
+      document.getElementById("a_log_add_btn").onclick = () =>
+        addAssetMaintenanceLogEntry(uniqueTag);
+    }
     submit.onclick = () => {
       submit.disabled = true;
       submit.classList.add("loading");

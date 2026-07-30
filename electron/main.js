@@ -1,4 +1,4 @@
-const { app, BrowserWindow, shell } = require("electron");
+const { app, BrowserWindow, shell, ipcMain } = require("electron");
 const fs = require("fs");
 const http = require("http");
 const path = require("path");
@@ -78,6 +78,7 @@ async function createWindow() {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
+      preload: path.join(__dirname, "preload.js"),
     },
   });
 
@@ -95,6 +96,69 @@ async function createWindow() {
 
   await mainWindow.loadURL(`${appUrl}desktop.html`);
 }
+
+// § MULTI-WINDOW SUPPORT
+// Opens a small, self-contained read-only window showing a snapshot of a
+// single record, so the user can keep it open for reference alongside the
+// main window. It's static HTML built from data already fetched by the
+// renderer — no shared app state, no extra network/data load, no preload
+// needed for this window since it has no app logic of its own.
+const openRecordWindows = new Set();
+
+ipcMain.handle("open-record-window", (event, payload) => {
+  const title = String((payload && payload.title) || "Record Detail").slice(0, 120);
+  const rowsHtml = typeof (payload && payload.rowsHtml) === "string" ? payload.rowsHtml : "";
+
+  const win = new BrowserWindow({
+    width: 460,
+    height: 620,
+    minWidth: 360,
+    minHeight: 320,
+    title,
+    backgroundColor: "#ffffff",
+    icon: path.join(appRoot, "logo.png"),
+    webPreferences: {
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
+    },
+  });
+
+  openRecordWindows.add(win);
+  win.on("closed", () => openRecordWindows.delete(win));
+
+  win.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
+
+  const page = `<!doctype html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>${title}</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  body { margin:0; font-family:'Inter',-apple-system,sans-serif; background:#fff; color:#07111f; }
+  header { position:sticky; top:0; background:#0b1b2f; color:#fff; padding:16px 20px; display:flex; align-items:center; justify-content:space-between; }
+  header h1 { margin:0; font-size:16px; font-weight:800; }
+  header button { background:rgba(255,255,255,0.12); border:0; color:#fff; border-radius:8px; padding:8px 12px; font-weight:800; cursor:pointer; font-size:12px; }
+  main { padding:18px 20px 30px; }
+  .row { padding:10px 0; border-bottom:1px solid #eef1f4; }
+  .row span { display:block; color:#6f7a88; font-size:11px; font-weight:900; text-transform:uppercase; }
+  .row strong { display:block; margin-top:3px; overflow-wrap:anywhere; font-size:14px; }
+</style>
+</head>
+<body>
+  <header>
+    <h1>${title}</h1>
+    <button onclick="window.print()"><i></i>Print</button>
+  </header>
+  <main>${rowsHtml || "<p>No details available.</p>"}</main>
+</body>
+</html>`;
+
+  win.loadURL("data:text/html;charset=utf-8," + encodeURIComponent(page));
+  return true;
+});
 
 app.whenReady().then(createWindow);
 
