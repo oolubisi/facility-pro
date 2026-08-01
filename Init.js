@@ -157,6 +157,44 @@ function syncSettingsInputsToUIFields() {
   });
 }
 
+function renderMobileHelpContent() {
+  const container = document.getElementById("help-content");
+  if (!container) return;
+
+  const topics = [
+    { icon: "fa-building", title: "Apartments", body: "Tracks each unit's tenancy status, tenant details, and lease dates. Units marked type 'services' are grouped as Common Area." },
+    { icon: "fa-screwdriver-wrench", title: "Assets", body: "Equipment register with status and scheduled maintenance dates. Each asset has its own Maintenance History log \u2014 open an asset and use \"Add Entry\" to record what was actually done." },
+    { icon: "fa-clipboard-list", title: "Tickets", body: "Maintenance tickets move through Open \u2192 In Progress \u2192 Resolved." },
+    { icon: "fa-file-invoice-dollar", title: "Work Orders", body: "Contractor/staff work goes through Pending Approval \u2192 Approved/Declined. Approved work orders become read-only and eligible to be paid against." },
+    { icon: "fa-wallet", title: "Ledger", body: "The full payment record. Paid entries are locked from editing. Payments can be linked to an approved Work Order via the Linked Record field." },
+    { icon: "fa-file-signature", title: "Expense Requests", body: "Estimated-cost requests awaiting review \u2014 considered handled once converted into a Work Order or Payment." },
+    { icon: "fa-boxes-stacked", title: "Inventory & Vendors", body: "Inventory tracks stock quantity per item. Vendors holds your supplier directory, used when assigning Work Orders and selecting Payment payees." },
+    { icon: "fa-file-lines", title: "Reports", body: "Generate printable reports by category, with a live preview before printing." },
+  ];
+
+  const supportName = escapeHtml(appSettings.fmName || "Facility Operations Management");
+  const supportAddr = escapeHtml(appSettings.fmAddress || "");
+
+  container.innerHTML =
+    topics
+      .map(
+        (t) => `<div class="card" style="cursor:default;">
+          <div style="display:flex; align-items:center; gap:10px; margin-bottom:6px;">
+            <i class="fas ${t.icon}" style="color:var(--primary); font-size:16px;"></i>
+            <strong style="font-size:16px;">${escapeHtml(t.title)}</strong>
+          </div>
+          <p style="margin:0; font-size:14px; line-height:1.5; color:#444;">${t.body}</p>
+        </div>`,
+      )
+      .join("") +
+    `<div class="card" style="cursor:default; background:var(--card-light);">
+      <strong style="font-size:16px;">Need further help?</strong>
+      <p style="margin:6px 0 0; font-size:14px; color:#444;">Contact your facility management team directly:</p>
+      <p style="margin:6px 0 0; font-size:15px; font-weight:800;">${supportName}</p>
+      ${supportAddr ? `<p style="margin:2px 0 0; font-size:13px; color:var(--muted);">${supportAddr}</p>` : ""}
+    </div>`;
+}
+
 async function bootstrapDataRegistriesPipeline(silent = false) {
   const syncStatus = document.getElementById("sync-status");
   if (silent) {
@@ -635,6 +673,7 @@ function showPage(p) {
     "archived",
     "reports",
     "settings",
+    "help",
   ];
   const homeBtn = document.querySelector(".active-view .home-btn");
   if (homeBtn)
@@ -646,6 +685,7 @@ function showPage(p) {
     evalPreventiveMaintenanceAlerts();
   } else if (p === "reports") initReportsEngine();
   else if (p === "settings") syncSettingsInputsToUIFields();
+  else if (p === "help") renderMobileHelpContent();
   else if (p === "utilities") {
     refreshData("utilities");
     setTimeout(renderGeneratorEfficiencyLogs, 500);

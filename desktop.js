@@ -85,6 +85,12 @@ const viewMeta = {
     key: "settings",
     empty: "Settings are available in mobile view.",
   },
+  help: {
+    title: "Help & Support",
+    kicker: "Getting the most out of Facility Pro",
+    key: "help",
+    empty: "",
+  },
 };
 
 window.addEventListener("DOMContentLoaded", initDesktop);
@@ -323,6 +329,7 @@ function renderDesktop() {
 
   if (desktopState.view === "reports") return renderReportShortcuts();
   if (desktopState.view === "settings") return renderSettingsShortcuts();
+  if (desktopState.view === "help") return renderHelpView();
 
   const records = sortRecords(desktopState.view, filterRecords(cache[meta.key] || []));
   desktopState.lastRecords = records;
@@ -946,6 +953,100 @@ function openNewRecord() {
     return;
   }
   showToast("New records are not available for this section yet.", "warning");
+}
+
+function renderHelpView() {
+  document.getElementById("record-count").textContent = "";
+  const topics = [
+    {
+      icon: "fa-building",
+      title: "Apartments",
+      body: "Tracks every unit's tenancy status (Vacant/Occupied), tenant details, and lease dates. Units marked type 'services' are grouped as Common Area rather than counted in tenancy stats. Leases expiring within 30 days surface in the digest banner above.",
+    },
+    {
+      icon: "fa-screwdriver-wrench",
+      title: "Assets",
+      body: "Equipment register with status (Operational/Faulty/Under Repair/Archived) and a scheduled maintenance date. Each asset also has its own append-only Maintenance History log — open any asset and use \"Add Entry\" to record what was actually done, separate from the next-due date.",
+    },
+    {
+      icon: "fa-clipboard-list",
+      title: "Tickets",
+      body: "Maintenance tickets move through Open \u2192 In Progress \u2192 Resolved. Use \"Select\" at the top of this view to bulk-mark several tickets Resolved at once.",
+    },
+    {
+      icon: "fa-file-invoice-dollar",
+      title: "Work Orders",
+      body: "Contractor/staff work goes through Pending Approval \u2192 Approved/Declined. Once Approved, a work order becomes read-only and eligible to be paid against. Open an existing work order to see any Payments already linked to it.",
+    },
+    {
+      icon: "fa-money-check-dollar",
+      title: "Accounts",
+      body: "The full payment ledger, split into Pending and Cleared. Paid records are locked from editing. \"Print Pending PRs\" prints a summary sheet plus one voucher per pending payment (two per page). \"Select\" lets you bulk-mark several pending payments as Paid at once.",
+    },
+    {
+      icon: "fa-receipt",
+      title: "Expense Requests",
+      body: "Estimated-cost requests awaiting review \u2014 there's no separate approval status; a request is considered handled once it's converted into a Work Order or Payment.",
+    },
+    {
+      icon: "fa-boxes-stacked",
+      title: "Inventory & Vendors",
+      body: "Inventory tracks stock quantity per item (cards flag anything at zero). Vendors holds your supplier directory, referenced when assigning Work Orders and selecting Payment payees.",
+    },
+    {
+      icon: "fa-file-lines",
+      title: "Reports",
+      body: "Generate printable reports by category \u2014 Apartments & Tenancy, Assets & Maintenance, Financials & Ledger, or Executive dashboards \u2014 with a live preview before printing.",
+    },
+  ];
+
+  const shortcuts = [
+    { keys: "Ctrl/Cmd + K", desc: "Focus the search bar" },
+    { keys: "Ctrl/Cmd + N", desc: "Create a new record in the current section" },
+    { keys: "Enter / Space", desc: "Open the focused card (keyboard navigation)" },
+  ];
+
+  const supportName = escapeHtml(appSettings.fmName || "Facility Operations Management");
+  const supportAddr = escapeHtml(appSettings.fmAddress || "");
+
+  document.getElementById("card-grid").innerHTML = `
+    <div class="desktop-form-card" style="grid-column:1/-1;">
+      <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:16px; margin-bottom:8px;">
+        ${topics
+          .map(
+            (t) => `<div style="border:2px solid #e4e8ec; border-radius:14px; padding:16px;">
+              <div style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
+                <i class="fas ${t.icon}" style="color:var(--blue); font-size:16px;"></i>
+                <strong style="font-size:15px;">${escapeHtml(t.title)}</strong>
+              </div>
+              <p style="margin:0; font-size:13px; line-height:1.5; color:#444;">${t.body}</p>
+            </div>`,
+          )
+          .join("")}
+      </div>
+
+      <div style="margin-top:8px; padding-top:20px; border-top:2px dashed var(--border);">
+        <label>KEYBOARD SHORTCUTS</label>
+        <div style="display:grid; gap:6px; margin-top:6px;">
+          ${shortcuts
+            .map(
+              (s) => `<div style="display:flex; justify-content:space-between; align-items:center; padding:8px 12px; background:#f8f9fa; border-radius:8px;">
+                <span style="font-size:13px; color:#444;">${escapeHtml(s.desc)}</span>
+                <code style="background:#101820; color:#fff; padding:3px 10px; border-radius:6px; font-size:12px; font-weight:800;">${escapeHtml(s.keys)}</code>
+              </div>`,
+            )
+            .join("")}
+        </div>
+      </div>
+
+      <div style="margin-top:20px; padding-top:20px; border-top:2px dashed var(--border);">
+        <label>NEED FURTHER HELP?</label>
+        <p style="margin:6px 0 0; font-size:13px; color:#444;">Contact your facility management team directly:</p>
+        <p style="margin:6px 0 0; font-size:14px; font-weight:800;">${supportName}</p>
+        ${supportAddr ? `<p style="margin:2px 0 0; font-size:13px; color:var(--muted);">${supportAddr}</p>` : ""}
+      </div>
+    </div>
+  `;
 }
 
 function openMobileApp() {

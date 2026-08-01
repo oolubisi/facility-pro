@@ -322,7 +322,33 @@
               <i class="fas fa-cog" style="color: #6c757d"></i>
               <small style="color: #6c757d">Settings</small>
             </div>
+            <div
+              class="nav-card-small"
+              onclick="showPage('help')"
+              style="grid-column: span 2; background: #e9ecef"
+              role="button"
+              tabindex="0"
+            >
+              <i class="fas fa-circle-question" style="color: #6c757d"></i>
+              <small style="color: #6c757d">Help</small>
+            </div>
           </div>
+        </div>
+
+        <div id="view-help" class="page-view">
+          <div class="page-header">
+            <div class="header-group">
+              <button
+                class="home-btn"
+                onclick="showPage('dashboard')"
+                aria-label="Back to dashboard"
+              >
+                <i class="fas fa-home"></i>
+              </button>
+              <h2>Help &amp; Support</h2>
+            </div>
+          </div>
+          <div id="help-content"></div>
         </div>
 
         <div id="view-apartments" class="page-view">
