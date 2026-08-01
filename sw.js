@@ -1,4 +1,4 @@
-const CACHE_NAME = "facility-pro-v13";
+const CACHE_NAME = "facility-pro-v14";
 
 const STATIC_ASSETS = [
   "./",
@@ -100,7 +100,9 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Same-origin requests: Cache-first with network update
+  // Same-origin requests: Network-first, falling back to cache when offline.
+  // (Online users always get the current file; the cache only matters when
+  // navigator.onLine is false or the request fails.)
   event.respondWith(
     fetch(event.request)
       .then((networkResponse) => {

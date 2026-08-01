@@ -693,6 +693,8 @@ textarea:disabled {
   #sync-status,
   #toast-container,
   #global-loader,
+  #status-bar,
+  #bulk-action-bar,
   #pull-indicator {
     display: none !important;
   }

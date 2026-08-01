@@ -36,6 +36,89 @@ const filterList = debounce((pageType, query) => {
     emptyEl.style.display = visibleCount === 0 && q === "" ? "block" : "none";
 }, 250);
 
+// Cross-entity search shown on the dashboard — distinct from the per-page
+// filterList() above, which only filters within the currently open list.
+const GLOBAL_SEARCH_SOURCES = [
+  { type: "apartment", key: "apts", idFn: (i) => getUnitNumber(i), titleFn: (i) => `Unit ${getUnitNumber(i)}`, subFn: (i) => i.tenant || i.Tenant || "" },
+  { type: "asset", key: "assets", idFn: (i) => i.tag || i.Tag, titleFn: (i) => i.type || i.Type || i.tag || "Asset", subFn: (i) => i.loc || i.Loc || "" },
+  { type: "maintenance", key: "tickets", idFn: (i) => i.ticketId || i.TicketId, titleFn: (i) => i.category || i.Category || "Ticket", subFn: (i) => i.description || i.Description || "" },
+  { type: "workorder", key: "workorders", idFn: (i) => i.workOrderId || i.WorkOrderId, titleFn: (i) => i.assigned || i.Assigned || "Work Order", subFn: (i) => i.description || i.Description || "" },
+  { type: "inventory", key: "inventory", idFn: (i) => i.itemId || i.ItemId, titleFn: (i) => i.name || i.Name || "Item", subFn: (i) => i.category || i.Category || "" },
+  { type: "vendor", key: "vendors", idFn: (i) => i.rowId || i.RowId, titleFn: (i) => i.company || i.Company || "Vendor", subFn: (i) => i.trade || i.Trade || "" },
+  { type: "staff", key: "staff", idFn: (i) => i.rowId || i.RowId, titleFn: (i) => i.name || i.Name || "Staff", subFn: (i) => i.role || i.Role || "" },
+  { type: "payment", key: "payments", idFn: (i) => i.paymentId || i.PaymentId, titleFn: (i) => i.party || i.Party || "Payment", subFn: (i) => i.reason || i.Reason || "" },
+  { type: "expenserequest", key: "expenseRequests", idFn: (i) => i.reqId, titleFn: (i) => i.job || i.Job || "Expense Request", subFn: (i) => `\u20a6${formatMoney(i.cost || i.Cost || 0)}` },
+];
+
+const GLOBAL_SEARCH_TYPE_LABELS = {
+  apartment: "Apartment",
+  asset: "Asset",
+  maintenance: "Ticket",
+  workorder: "Work Order",
+  inventory: "Inventory",
+  vendor: "Vendor",
+  staff: "Staff",
+  payment: "Payment",
+  expenserequest: "Expense Request",
+};
+
+const performGlobalSearch = debounce((rawQuery) => {
+  const query = String(rawQuery || "").trim().toLowerCase();
+  const resultsEl = document.getElementById("global-search-results");
+  const emptyEl = document.getElementById("global-search-empty-state");
+  const navGrid = document.querySelector("#view-dashboard .nav-grid");
+  const alertBanner = document.getElementById("pms-alert-banner");
+  if (!resultsEl) return;
+
+  if (!query) {
+    resultsEl.style.display = "none";
+    resultsEl.innerHTML = "";
+    if (emptyEl) emptyEl.style.display = "none";
+    if (navGrid) navGrid.style.display = "";
+    if (alertBanner) alertBanner.style.display = "";
+    return;
+  }
+
+  if (navGrid) navGrid.style.display = "none";
+  if (alertBanner) alertBanner.style.display = "none";
+
+  const matches = [];
+  GLOBAL_SEARCH_SOURCES.forEach(({ type, key, idFn, titleFn, subFn }) => {
+    (cache[key] || []).forEach((item) => {
+      if (!item) return;
+      const haystack = Object.values(item).join(" ").toLowerCase();
+      if (haystack.includes(query)) {
+        matches.push({
+          type,
+          id: idFn(item),
+          title: titleFn(item) || "Untitled",
+          subtitle: subFn(item) || "",
+        });
+      }
+    });
+  });
+
+  if (matches.length === 0) {
+    resultsEl.style.display = "none";
+    resultsEl.innerHTML = "";
+    if (emptyEl) emptyEl.style.display = "block";
+    return;
+  }
+
+  if (emptyEl) emptyEl.style.display = "none";
+  resultsEl.style.display = "block";
+  resultsEl.innerHTML = matches
+    .slice(0, 50)
+    .map(
+      (m) => `<div class="card" onclick="openRecordRow('${m.type}', '${escapeHtml(String(m.id || ""))}')">
+        <span style="display:inline-block; background:var(--primary); color:#fff; font-size:10px; font-weight:800; text-transform:uppercase; padding:2px 8px; border-radius:10px; margin-bottom:6px;">${GLOBAL_SEARCH_TYPE_LABELS[m.type] || m.type}</span>
+        <div style="font-weight:800; font-size:16px;">${escapeHtml(m.title)}</div>
+        ${m.subtitle ? `<div style="color:var(--muted); font-size:13px; margin-top:2px;">${escapeHtml(m.subtitle)}</div>` : ""}
+      </div>`,
+    )
+    .join("");
+}, 250);
+
 // ─────────────────────────────────────────────
 // § RECORD OPENING
 // ─────────────────────────────────────────────

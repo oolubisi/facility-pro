@@ -12,6 +12,8 @@
 // lastServiced/nextService fields — this tracks the running history of
 // what was actually done, not just the next due date.
 // ─────────────────────────────────────────────
+let editingMaintenanceLogId = null; // non-null while the mini-form is in "edit" mode
+
 function renderAssetMaintenanceHistory(assetTag) {
   const listEl = document.getElementById("assetMaintHistoryList");
   if (!listEl) return;
@@ -31,15 +33,66 @@ function renderAssetMaintenanceHistory(assetTag) {
   listEl.innerHTML = entries
     .map((entry) => {
       const cost = entry.cost || entry.Cost;
+      const logId = escapeHtml(entry.logId || entry.LogId || "");
       return `<div style="padding:8px 0; border-bottom:1px solid #eee;">
-        <div style="display:flex; justify-content:space-between; gap:8px;">
+        <div style="display:flex; justify-content:space-between; gap:8px; align-items:flex-start;">
           <strong style="font-size:14px;">${escapeHtml(formatDateForDisplay(entry.date || entry.Date))}</strong>
-          ${cost ? `<span style="font-size:13px; font-weight:800; color:var(--muted);">₦${escapeHtml(formatMoney(cost))}</span>` : ""}
+          <div style="display:flex; align-items:center; gap:10px; flex-shrink:0;">
+            ${cost ? `<span style="font-size:13px; font-weight:800; color:var(--muted);">₦${escapeHtml(formatMoney(cost))}</span>` : ""}
+            <button type="button" onclick="startEditMaintenanceLogEntry('${logId}', '${assetTag}')" style="background:none; border:0; color:var(--primary); cursor:pointer; font-size:12px; padding:0;" title="Edit"><i class="fas fa-pen"></i></button>
+            <button type="button" onclick="deleteMaintenanceLogEntry('${logId}', '${assetTag}')" style="background:none; border:0; color:var(--danger); cursor:pointer; font-size:12px; padding:0;" title="Delete"><i class="fas fa-trash"></i></button>
+          </div>
         </div>
         <div style="font-size:14px; color:#333; margin-top:2px;">${escapeHtml(entry.note || entry.Note || "")}</div>
       </div>`;
     })
     .join("");
+}
+
+function startEditMaintenanceLogEntry(logId, assetTag) {
+  const entry = (cache.maintenanceLog || []).find(
+    (l) => l && String(l.logId || l.LogId || "") === String(logId),
+  );
+  if (!entry) return;
+
+  editingMaintenanceLogId = logId;
+  document.getElementById("a_log_date").value = fromSheetDate(entry.date || entry.Date || "");
+  document.getElementById("a_log_note").value = entry.note || entry.Note || "";
+  document.getElementById("a_log_cost").value = entry.cost || entry.Cost || "";
+  const btn = document.getElementById("a_log_add_btn");
+  btn.textContent = "Update Entry";
+  const cancelBtn = document.getElementById("a_log_cancel_btn");
+  if (cancelBtn) cancelBtn.style.display = "inline-block";
+}
+
+function cancelEditMaintenanceLogEntry() {
+  editingMaintenanceLogId = null;
+  document.getElementById("a_log_note").value = "";
+  document.getElementById("a_log_cost").value = "";
+  document.getElementById("a_log_date").value = new Date().toISOString().split("T")[0];
+  const btn = document.getElementById("a_log_add_btn");
+  btn.textContent = "Add Entry";
+  const cancelBtn = document.getElementById("a_log_cancel_btn");
+  if (cancelBtn) cancelBtn.style.display = "none";
+}
+
+async function deleteMaintenanceLogEntry(logId, assetTag) {
+  if (!confirm("Delete this maintenance log entry? This cannot be undone.")) return;
+  try {
+    const result = await callApi("deleteMaintenanceLog", { logId });
+    if (result && result.status === "error") {
+      showToast(result.message || "Could not delete log entry.", "error");
+      return;
+    }
+    cache.maintenanceLog = (cache.maintenanceLog || []).filter(
+      (l) => String(l.logId || l.LogId || "") !== String(logId),
+    );
+    if (editingMaintenanceLogId === logId) cancelEditMaintenanceLogEntry();
+    renderAssetMaintenanceHistory(assetTag);
+    showToast("Maintenance log entry deleted", "success");
+  } catch (e) {
+    showToast("Could not delete log entry.", "error");
+  }
 }
 
 async function addAssetMaintenanceLogEntry(assetTag) {
@@ -53,15 +106,18 @@ async function addAssetMaintenanceLogEntry(assetTag) {
     return;
   }
 
+  const isEditing = !!editingMaintenanceLogId;
   btn.disabled = true;
-  btn.textContent = "Adding...";
+  btn.textContent = isEditing ? "Updating..." : "Adding...";
   try {
-    const logId = await generateNextRecordId(
-      "MLOG",
-      "MaintenanceLog",
-      "logId",
-      cache.maintenanceLog || [],
-    );
+    const logId = isEditing
+      ? editingMaintenanceLogId
+      : await generateNextRecordId(
+          "MLOG",
+          "MaintenanceLog",
+          "logId",
+          cache.maintenanceLog || [],
+        );
     const entry = {
       logId,
       assetTag,
@@ -69,23 +125,83 @@ async function addAssetMaintenanceLogEntry(assetTag) {
       note,
       cost: costEl.value ? parseFloat(costEl.value) || 0 : "",
     };
-    const result = await callApi("saveMaintenanceLog", entry);
+    const result = await callApi(isEditing ? "updateMaintenanceLog" : "saveMaintenanceLog", entry);
     if (result && result.status === "error") {
       showToast(result.message || "Could not save log entry.", "error");
       return;
     }
     cache.maintenanceLog = cache.maintenanceLog || [];
-    cache.maintenanceLog.push(entry);
+    if (isEditing) {
+      const idx = cache.maintenanceLog.findIndex(
+        (l) => String(l.logId || l.LogId || "") === String(logId),
+      );
+      if (idx !== -1) cache.maintenanceLog[idx] = entry;
+    } else {
+      cache.maintenanceLog.push(entry);
+    }
     renderAssetMaintenanceHistory(assetTag);
-    noteEl.value = "";
-    costEl.value = "";
-    showToast("Maintenance log entry added", "success");
+    cancelEditMaintenanceLogEntry();
+    showToast(isEditing ? "Maintenance log entry updated" : "Maintenance log entry added", "success");
   } catch (e) {
     showToast("Could not save log entry.", "error");
   } finally {
     btn.disabled = false;
-    btn.textContent = "Add Entry";
+    if (!editingMaintenanceLogId) btn.textContent = "Add Entry";
   }
+}
+
+// § WORK ORDER ↔ PAYMENT LINK
+// A payment's `reference` field already stores the linked Work Order's ID
+// when it's created against an approved work order (see the "Approved
+// Work Orders" optgroup in the payment form) — this just surfaces that
+// existing relationship inside the Work Order modal.
+// ─────────────────────────────────────────────
+function renderLinkedPaymentsForWorkOrder(workOrderId) {
+  const listEl = document.getElementById("woLinkedPaymentsList");
+  if (!listEl) return;
+  const linked = (cache.payments || []).filter(
+    (p) => p && String(p.reference || p.Reference || "") === String(workOrderId),
+  );
+
+  if (linked.length === 0) {
+    listEl.innerHTML = `<p style="color:var(--muted); font-size:14px; margin:0;">No payments linked to this work order yet.</p>`;
+    return;
+  }
+
+  listEl.innerHTML = linked
+    .map((p) => {
+      const paid = String(p.isPaid || p.IsPaid || "").toUpperCase() === "TRUE" || p.isPaid === true;
+      const paymentId = escapeHtml(p.paymentId || p.PaymentId || "");
+      return `<div class="linked-payment-row" onclick="openLinkedPayment('${paymentId}')" style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #eee; cursor:pointer;">
+        <div>
+          <strong style="font-size:14px;">${escapeHtml(p.party || p.Party || paymentId)}</strong>
+          <div style="font-size:12px; color:var(--muted);">${paymentId} &middot; ${escapeHtml(formatDateForDisplay(p.date || p.Date))}</div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-weight:900; font-size:14px;">₦${formatMoney(p.amount || p.Amount || 0)}</div>
+          <span style="font-size:10px; font-weight:800; text-transform:uppercase; padding:2px 8px; border-radius:10px; background:${paid ? "var(--success)" : "#e9ecef"}; color:${paid ? "#fff" : "#666"};">${paid ? "Paid" : "Pending"}</span>
+        </div>
+      </div>`;
+    })
+    .join("");
+}
+
+function openLinkedPayment(paymentId) {
+  const payment = (cache.payments || []).find(
+    (p) => p && String(p.paymentId || p.PaymentId || "") === String(paymentId),
+  );
+  if (!payment) return;
+  closeModal();
+  setTimeout(() => openModal("payment", payment), 250);
+}
+
+function openLinkedWorkOrderFromPayment(workOrderId) {
+  const wo = (cache.workorders || []).find(
+    (w) => w && String(w.workOrderId || w.WorkOrderId || "") === String(workOrderId),
+  );
+  if (!wo) return;
+  closeModal();
+  setTimeout(() => openModal("workorder", wo), 250);
 }
 
 // ─────────────────────────────────────────────
@@ -344,6 +460,7 @@ async function openModal(type, editData = null) {
           <div style="flex:2; min-width:160px;"><label style="font-size:12px; font-weight:800; margin:0 0 2px;">Note</label><input id="a_log_note" type="text" placeholder="e.g. Replaced compressor belt" style="margin:0; font-size:15px; padding:8px;"></div>
           <div style="flex:1; min-width:90px;"><label style="font-size:12px; font-weight:800; margin:0 0 2px;">Cost (₦)</label><input id="a_log_cost" type="number" placeholder="Optional" style="margin:0; font-size:15px; padding:8px;"></div>
           <button id="a_log_add_btn" type="button" style="background:var(--primary); color:#fff; border:0; border-radius:8px; padding:9px 14px; font-weight:800; cursor:pointer; white-space:nowrap;">Add Entry</button>
+          <button id="a_log_cancel_btn" type="button" onclick="cancelEditMaintenanceLogEntry()" style="display:none; background:#e9ecef; color:#333; border:0; border-radius:8px; padding:9px 14px; font-weight:800; cursor:pointer; white-space:nowrap;">Cancel</button>
         </div>
       </div>`
           : ""
@@ -354,6 +471,7 @@ async function openModal(type, editData = null) {
     document.getElementById("assetCameraInput").onchange = (e) =>
       processIncomingMultiAttachments(e.target.files, "assetPreviews");
     if (isEdit) {
+      editingMaintenanceLogId = null;
       renderAssetMaintenanceHistory(uniqueTag);
       document.getElementById("a_log_add_btn").onclick = () =>
         addAssetMaintenanceLogEntry(uniqueTag);
@@ -490,7 +608,8 @@ async function openModal(type, editData = null) {
       <label ${lbl}>Field Notes</label><textarea id="w_notes" rows="2" ${ls}>${isEdit ? escapeHtml(editData.notes || editData.Notes || "") : ""}</textarea>
       <label ${lbl}>Form Attachments</label>
       <div id="woPreviews" class="modal-preview-grid" style="display:none;"></div>
-      <label class="icon-upload-label"><i class="fas fa-paperclip"></i><input type="file" id="woCameraInput" accept="image/*,application/pdf" multiple style="display:none"></label>`;
+      <label class="icon-upload-label"><i class="fas fa-paperclip"></i><input type="file" id="woCameraInput" accept="image/*,application/pdf" multiple style="display:none"></label>
+      ${isEdit ? `<div id="woLinkedPaymentsSection" style="margin-top:18px; padding-top:14px; border-top:2px dashed var(--border);"><label ${lbl}>Linked Payments</label><div id="woLinkedPaymentsList" style="max-height:200px; overflow-y:auto;"></div></div>` : ""}`;
 
     populateUnitDropdown("w_apt", isEdit ? getUnitNumber(editData) : "");
     const assetSel = document.getElementById("w_asset");
@@ -549,6 +668,7 @@ async function openModal(type, editData = null) {
       populateModalInlineImageGalleryPreviews("woPreviews");
     document.getElementById("woCameraInput").onchange = (e) =>
       processIncomingMultiAttachments(e.target.files, "woPreviews");
+    if (isEdit) renderLinkedPaymentsForWorkOrder(uniqueWO);
 
     if (isApproved) {
       submit.style.display = "none";
@@ -695,6 +815,11 @@ async function openModal(type, editData = null) {
 
       <label ${lbl}>Linked Record</label>
       <select id="p_reference" ${ls} ${dis}></select>
+      ${
+        isEdit && (cache.workorders || []).some((w) => w && String(w.workOrderId || w.WorkOrderId || "") === String(editData.reference || editData.Reference || ""))
+          ? `<button type="button" onclick="openLinkedWorkOrderFromPayment('${escapeHtml(editData.reference || editData.Reference || "")}')" style="background:#f0f4ff; color:#4f46e5; border:2px solid #c7d2fe; border-radius:8px; padding:6px 12px; font-size:12px; font-weight:800; cursor:pointer; margin-top:-4px; margin-bottom:8px;"><i class="fas fa-diagram-project"></i> View Linked Work Order</button>`
+          : ""
+      }
 
       <label ${lbl}>Classification Note</label>
       <input id="p_type" value="${isEdit ? escapeHtml(editData.type || editData.Type || "") : ""}" placeholder="e.g. Rent, Vendor Payment" ${ls} ${dis}>

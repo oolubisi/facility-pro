@@ -104,6 +104,21 @@
             <h2 id="app-header-title" class="app-title">Facility Pro</h2>
           </div>
 
+          <div class="search-box">
+            <i class="fas fa-search search-icon"></i>
+            <input
+              type="text"
+              id="global-search-input"
+              placeholder="Search everything..."
+              oninput="performGlobalSearch(this.value)"
+            />
+          </div>
+          <div id="global-search-results" style="display:none;"></div>
+          <div id="global-search-empty-state" class="empty-state" style="display:none;">
+            <i class="fas fa-search"></i>
+            <p>No matches found.</p>
+          </div>
+
           <div
             id="pms-alert-banner"
             class="alert-banner"

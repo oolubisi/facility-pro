@@ -3,6 +3,9 @@ const desktopState = {
   query: "",
   loaded: false,
   collapsedSections: {},
+  recentWindows: [],
+  selectMode: false,
+  selectedIds: new Set(),
 };
 
 const viewMeta = {
@@ -61,6 +64,14 @@ const viewMeta = {
     action: "getPayments",
     newType: "payment",
     empty: "No payments found.",
+  },
+  expenserequests: {
+    title: "Expense Requests",
+    kicker: "Awaiting review",
+    key: "expenseRequests",
+    action: "getExpenseRequests",
+    newType: "expenserequest",
+    empty: "No expense requests found.",
   },
   reports: {
     title: "Reports",
@@ -191,6 +202,15 @@ function wireDesktopEvents() {
     button.addEventListener("click", () => setDesktopView(button.dataset.view));
   });
 
+  document.addEventListener("click", (event) => {
+    const panel = document.getElementById("recent-windows-panel");
+    const btn = document.getElementById("recent-windows-btn");
+    if (!panel || panel.style.display !== "block") return;
+    if (!panel.contains(event.target) && event.target !== btn && !btn.contains(event.target)) {
+      panel.style.display = "none";
+    }
+  });
+
   const debouncedSearch = debounce((value) => {
     desktopState.query = value.trim().toLowerCase();
     renderDesktop();
@@ -206,6 +226,20 @@ function wireDesktopEvents() {
   });
   document.getElementById("open-mobile").addEventListener("click", openMobileApp);
   document.getElementById("new-record").addEventListener("click", openNewRecord);
+
+  document.addEventListener("keydown", (event) => {
+    const mod = event.metaKey || event.ctrlKey;
+    if (!mod) return;
+    if (event.key.toLowerCase() === "k") {
+      event.preventDefault();
+      document.getElementById("global-search")?.focus();
+    } else if (event.key.toLowerCase() === "n") {
+      const overlay = document.getElementById("modalOverlay");
+      if (overlay && overlay.style.display === "flex") return; // don't hijack while a form is open
+      event.preventDefault();
+      openNewRecord();
+    }
+  });
 }
 
 async function loadDesktopSettings() {
@@ -258,6 +292,8 @@ async function loadAndRender() {
 
 function setDesktopView(view) {
   desktopState.view = view;
+  desktopState.selectMode = false;
+  desktopState.selectedIds = new Set();
   document.getElementById("detail-panel").hidden = true;
   document.querySelectorAll(".nav-item").forEach((button) => {
     button.classList.toggle("active", button.dataset.view === view);
@@ -275,6 +311,16 @@ function renderDesktop() {
   const prButton = document.getElementById("print-pending-prs");
   if (prButton) prButton.style.display = desktopState.view === "accounts" ? "inline-flex" : "none";
 
+  const selectBtn = document.getElementById("toggle-select-mode");
+  if (selectBtn) {
+    const supportsSelect = !!bulkActionConfig[desktopState.view];
+    selectBtn.style.display = supportsSelect ? "inline-flex" : "none";
+    selectBtn.classList.toggle("active", desktopState.selectMode);
+    selectBtn.innerHTML = desktopState.selectMode
+      ? `<i class="fas fa-xmark"></i> Exit Select`
+      : `<i class="fas fa-check-double"></i> Select`;
+  }
+
   if (desktopState.view === "reports") return renderReportShortcuts();
   if (desktopState.view === "settings") return renderSettingsShortcuts();
 
@@ -288,11 +334,30 @@ function renderDesktop() {
       : records.map((item, index) => renderRecordCard(desktopState.view, item, index)).join("")
     : `<div class="empty-state">${escapeHtml(meta.empty)}</div>`;
 
+  const bulkConfig = bulkActionConfig[desktopState.view];
   document.querySelectorAll(".record-card").forEach((card) => {
-    card.addEventListener("click", () =>
-      openDesktopRecord(desktopState.view, records[Number(card.dataset.index)]),
-    );
+    const index = Number(card.dataset.index);
+    const item = records[index];
+    if (desktopState.selectMode && bulkConfig && item) {
+      const id = bulkConfig.idField(item);
+      card.dataset.selectId = id;
+      card.classList.toggle("selected", desktopState.selectedIds.has(id));
+      card.addEventListener("click", (event) => {
+        event.stopPropagation();
+        toggleCardSelection(id);
+      });
+    } else {
+      card.addEventListener("click", () => openDesktopRecord(desktopState.view, item));
+      card.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          openDesktopRecord(desktopState.view, item);
+        }
+      });
+    }
   });
+
+  renderBulkActionBar();
 }
 
 // ─────────────────────────────────────────────
@@ -329,6 +394,17 @@ function renderOverdueDigest() {
   const openTickets = (cache.tickets || []).filter(
     (t) => t && String(t.status || t.Status || "") !== "Resolved",
   ).length;
+  // ExpenseRequests have no status field — every request sits in this
+  // sheet until it's actioned (converted to a Work Order/Payment), so the
+  // full count is the meaningful "awaiting review" number.
+  const pendingExpenseRequests = (cache.expenseRequests || []).filter(Boolean).length;
+  const leaseExpiryWindow = new Date(startOfToday());
+  leaseExpiryWindow.setDate(leaseExpiryWindow.getDate() + 30);
+  const expiringLeases = (cache.apts || []).filter((a) => {
+    if (!a || String(a.type || a.Type || "").toLowerCase() === "services") return false;
+    const leaseEnd = parseToLocalDateObject(a.leaseEnd || a.LeaseEnd || "");
+    return leaseEnd && leaseEnd <= leaseExpiryWindow;
+  }).length;
 
   const items = [
     dueAssets
@@ -339,6 +415,12 @@ function renderOverdueDigest() {
       : null,
     openTickets
       ? { count: openTickets, label: `ticket${openTickets === 1 ? "" : "s"} open`, view: "tickets" }
+      : null,
+    pendingExpenseRequests
+      ? { count: pendingExpenseRequests, label: `expense request${pendingExpenseRequests === 1 ? "" : "s"} awaiting review`, view: "expenserequests" }
+      : null,
+    expiringLeases
+      ? { count: expiringLeases, label: `lease${expiringLeases === 1 ? "" : "s"} expiring within 30 days`, view: "apartments" }
       : null,
   ].filter(Boolean);
 
@@ -423,6 +505,122 @@ const sectionedViewConfig = {
     ],
   },
 };
+
+// ─────────────────────────────────────────────
+// § BULK ACTIONS
+// A view opts in by having an entry here. `idField` extracts a unique
+// identifier per record; each action has a `filter` (which selected
+// records it applies to) and a `run` (the actual per-record API call).
+// ─────────────────────────────────────────────
+const bulkActionConfig = {
+  tickets: {
+    idField: (item) => item.ticketId || item.TicketId || "",
+    actions: [
+      {
+        key: "resolve",
+        label: "Mark Resolved",
+        icon: "fa-check",
+        filter: (item) => String(item.status || item.Status || "") !== "Resolved",
+        confirm: (n) => `Mark ${n} ticket${n === 1 ? "" : "s"} as Resolved?`,
+        run: (item) => callApi("updateMaintenance", { ...item, status: "Resolved" }),
+      },
+    ],
+  },
+  accounts: {
+    idField: (item) => item.paymentId || item.PaymentId || "",
+    actions: [
+      {
+        key: "markpaid",
+        label: "Mark Paid",
+        icon: "fa-check",
+        filter: (item) => !isPaymentPaid(item),
+        confirm: (n) => `Mark ${n} payment${n === 1 ? "" : "s"} as Paid? Paid payments can no longer be edited.`,
+        run: (item) => callApi("updatePayment", { ...item, isPaid: true }),
+      },
+    ],
+  },
+};
+
+function toggleSelectMode() {
+  desktopState.selectMode = !desktopState.selectMode;
+  desktopState.selectedIds = new Set();
+  renderDesktop();
+}
+
+function toggleCardSelection(id) {
+  if (desktopState.selectedIds.has(id)) {
+    desktopState.selectedIds.delete(id);
+  } else {
+    desktopState.selectedIds.add(id);
+  }
+  renderBulkActionBar();
+  document.querySelectorAll(`.record-card[data-select-id]`).forEach((card) => {
+    card.classList.toggle("selected", desktopState.selectedIds.has(card.dataset.selectId));
+  });
+}
+
+function renderBulkActionBar() {
+  const bar = document.getElementById("bulk-action-bar");
+  if (!bar) return;
+  const config = bulkActionConfig[desktopState.view];
+  const count = desktopState.selectedIds.size;
+
+  if (!desktopState.selectMode || !config) {
+    bar.hidden = true;
+    return;
+  }
+
+  bar.hidden = false;
+  bar.innerHTML = `
+    <span class="bulk-count">${count} selected</span>
+    ${config.actions
+      .map(
+        (a) =>
+          `<button class="bulk-action-btn" ${count === 0 ? "disabled" : ""} onclick="runBulkAction('${a.key}')"><i class="fas ${a.icon}"></i> ${escapeHtml(a.label)}</button>`,
+      )
+      .join("")}
+    <button class="bulk-cancel-btn" onclick="toggleSelectMode()">Cancel</button>
+  `;
+}
+
+async function runBulkAction(actionKey) {
+  const config = bulkActionConfig[desktopState.view];
+  if (!config) return;
+  const action = config.actions.find((a) => a.key === actionKey);
+  if (!action) return;
+
+  const records = desktopState.lastRecords || [];
+  const targets = records.filter(
+    (item) => item && desktopState.selectedIds.has(config.idField(item)) && action.filter(item),
+  );
+  if (targets.length === 0) return;
+
+  if (!confirm(action.confirm(targets.length))) return;
+
+  showToast(`Applying "${action.label}" to ${targets.length} record${targets.length === 1 ? "" : "s"}...`, "info", 3000);
+  let succeeded = 0;
+  let failed = 0;
+  for (const item of targets) {
+    try {
+      const result = await action.run(item);
+      if (result && result.status === "error") failed++;
+      else succeeded++;
+    } catch (e) {
+      failed++;
+    }
+  }
+
+  desktopState.selectMode = false;
+  desktopState.selectedIds = new Set();
+  await loadDesktopData(true);
+  renderDesktop();
+
+  if (failed === 0) {
+    showToast(`${succeeded} record${succeeded === 1 ? "" : "s"} updated`, "success");
+  } else {
+    showToast(`${succeeded} updated, ${failed} failed`, "warning");
+  }
+}
 
 function isSectionCollapsed(sectionKey) {
   return desktopState.collapsedSections[sectionKey] !== false;
@@ -509,9 +707,10 @@ function isPaymentPaid(item) {
 function renderRecordCard(view, item, index) {
   if (view === "accounts") return renderPaymentCard(item, index);
   const model = getCardModel(view, item);
+  const selectMode = desktopState.selectMode && !!bulkActionConfig[view];
   return `
-    <div class="record-card generic-card ${model.tone}" data-index="${index}" style="cursor:pointer; position:relative;">
-      <button class="card-popout-btn" title="Open in new window" onclick="event.stopPropagation(); openRecordInNewWindow('${view}', ${index})"><i class="fas fa-up-right-from-square"></i></button>
+    <div class="record-card generic-card ${model.tone} ${selectMode ? "select-mode" : ""}" data-index="${index}" role="button" tabindex="0" style="cursor:pointer; position:relative;">
+      ${selectMode ? `<span class="select-check"><i class="fas fa-check"></i></span>` : `<button class="card-popout-btn" title="Open in new window" onclick="event.stopPropagation(); openRecordInNewWindow('${view}', ${index})"><i class="fas fa-up-right-from-square"></i></button>`}
       <h2>${escapeHtml(model.title)}</h2>
       <p>${escapeHtml(model.subtitle)}</p>
       <small>${escapeHtml(model.meta)}</small>
@@ -525,8 +724,10 @@ function renderPaymentCard(item, index) {
   const showPaymentRequest =
     item.showPaymentRequest !== false && item.ShowPaymentRequest !== false;
   const pendingClass = isPaymentPaid(item) ? "" : "pending-shadow";
+  const selectMode = desktopState.selectMode && !!bulkActionConfig.accounts;
   return `
-    <div class="record-card ${model.tone} ${pendingClass}" data-index="${index}" style="cursor:pointer;">
+    <div class="record-card ${model.tone} ${pendingClass} ${selectMode ? "select-mode" : ""}" data-index="${index}" role="button" tabindex="0" style="cursor:pointer; position:relative;">
+      ${selectMode ? `<span class="select-check"><i class="fas fa-check"></i></span>` : ""}
       <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px;">
         <div>
           <h2>${escapeHtml(model.title)}</h2>
@@ -562,7 +763,7 @@ function getCardModel(view, item) {
     const overdue = nextDate && nextDate < startOfToday();
     return {
       title: item.type || item.Type || item.tag || item.Tag || "Asset",
-      subtitle: [getUnitNumber(item) && `Unit ${getUnitNumber(item)}`, item.location || item.Location || item.specs || item.Specs]
+      subtitle: [getUnitNumber(item) && `Unit ${getUnitNumber(item)}`, item.loc || item.Loc || item.specs || item.Specs]
         .filter(Boolean)
         .join(" | "),
       meta: `ID: ${item.tag || item.Tag || "No tag"} | ${item.status || item.Status || "Active"}`,
@@ -573,7 +774,7 @@ function getCardModel(view, item) {
   if (view === "tickets") {
     return {
       title: item.issue || item.Issue || item.category || item.Category || "Maintenance Ticket",
-      subtitle: [getUnitNumber(item) && `Unit ${getUnitNumber(item)}`, item.asset || item.Asset || item.assignedTo || item.AssignedTo]
+      subtitle: [getUnitNumber(item) && `Unit ${getUnitNumber(item)}`, item.description || item.Description]
         .filter(Boolean)
         .join(" | "),
       meta: `ID: ${item.ticketId || item.TicketId || "N/A"} | ${item.status || item.Status || "Open"}`,
@@ -583,7 +784,7 @@ function getCardModel(view, item) {
 
   if (view === "workorders") {
     return {
-      title: item.vendor || item.Vendor || item.description || item.Description || "Work Order",
+      title: item.assigned || item.Assigned || item.description || item.Description || "Work Order",
       subtitle: item.description || item.Description || item.scope || item.Scope || item.asset || item.Asset || "",
       meta: `ID: ${item.workOrderId || item.WorkOrderId || "N/A"} | ${item.status || item.Status || "Pending"}`,
       tone: statusTone(item.status || item.Status || item.paidStatus),
@@ -593,9 +794,9 @@ function getCardModel(view, item) {
   if (view === "inventory") {
     return {
       title: item.name || item.Name || item.item || item.Item || "Inventory Item",
-      subtitle: item.category || item.Category || item.location || item.Location || "Stores",
-      meta: `ID: ${item.itemId || item.ItemId || "N/A"} | Qty: ${item.quantity || item.Quantity || 0}`,
-      tone: Number(item.quantity || item.Quantity || 0) <= 0 ? "warning" : "",
+      subtitle: item.category || item.Category || "Stores",
+      meta: `ID: ${item.itemId || item.ItemId || "N/A"} | Qty: ${item.qty || item.Qty || 0}`,
+      tone: Number(item.qty || item.Qty || 0) <= 0 ? "warning" : "",
     };
   }
 
@@ -608,9 +809,20 @@ function getCardModel(view, item) {
     };
   }
 
+  if (view === "expenserequests") {
+    return {
+      title: item.job || item.Job || item.reqId || item.ReqId || "Expense Request",
+      subtitle: [getUnitNumber(item) && `Unit ${getUnitNumber(item)}`, item.assetTag || item.AssetTag]
+        .filter(Boolean)
+        .join(" | "),
+      meta: `ID: ${item.reqId || item.ReqId || "N/A"} | ₦${formatMoney(item.cost || item.Cost || 0)}`,
+      tone: "",
+    };
+  }
+
   return {
-    title: item.description || item.Description || item.paymentId || item.PaymentId || "Payment",
-    subtitle: item.vendor || item.Vendor || item.category || item.Category || item.direction || item.Direction || "",
+    title: item.party || item.Party || item.paymentId || item.PaymentId || "Payment",
+    subtitle: item.reason || item.Reason || item.type || item.Type || "",
     meta: `${item.direction || item.Direction || "Ledger"} | ${formatMoney(item.amount || item.Amount || 0)}`,
     tone: String(item.direction || item.Direction || "").toLowerCase() === "outflow" ? "warning" : "",
   };
@@ -793,7 +1005,48 @@ function openRecordInNewWindow(view, index) {
     )
     .join("");
 
-  window.desktopBridge.openRecordWindow(model.title, rowsHtml);
+  openSnapshotWindow(model.title, rowsHtml);
+}
+
+// Recent windows list (in-memory only, resets on app restart). Lets the
+// user reopen a snapshot without re-navigating and re-clicking the card.
+const MAX_RECENT_WINDOWS = 8;
+
+function openSnapshotWindow(title, rowsHtml) {
+  window.desktopBridge.openRecordWindow(title, rowsHtml);
+  desktopState.recentWindows = desktopState.recentWindows || [];
+  desktopState.recentWindows.unshift({ title, rowsHtml, ts: Date.now() });
+  if (desktopState.recentWindows.length > MAX_RECENT_WINDOWS) {
+    desktopState.recentWindows.length = MAX_RECENT_WINDOWS;
+  }
+  renderRecentWindowsList();
+}
+
+function toggleRecentWindowsPanel() {
+  const panel = document.getElementById("recent-windows-panel");
+  if (!panel) return;
+  const isOpen = panel.style.display === "block";
+  panel.style.display = isOpen ? "none" : "block";
+  if (!isOpen) renderRecentWindowsList();
+}
+
+function renderRecentWindowsList() {
+  const listEl = document.getElementById("recent-windows-list");
+  if (!listEl) return;
+  const recent = desktopState.recentWindows || [];
+  if (recent.length === 0) {
+    listEl.innerHTML = `<div style="padding:14px; color:var(--muted); font-size:13px;">No windows opened yet. Use the <i class="fas fa-up-right-from-square"></i> icon on any card.</div>`;
+    return;
+  }
+  listEl.innerHTML = recent
+    .map(
+      (w, i) =>
+        `<button class="recent-window-item" onclick="window.desktopBridge.openRecordWindow(desktopState.recentWindows[${i}].title, desktopState.recentWindows[${i}].rowsHtml)">
+          <i class="fas fa-clone"></i>
+          <span>${escapeHtml(w.title)}</span>
+        </button>`,
+    )
+    .join("");
 }
 
 function setText(id, value) {
